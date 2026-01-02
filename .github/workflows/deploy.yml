@@ -11,31 +11,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: 🚚 Transfert des fichiers (SFTP)
+      - name: 🚚 Transfert des fichiers
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
           server: oafw0766.odns.fr
           username: oafw0766
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: sftp
-          port: 22
+          # On laisse l'action choisir le protocole (FTPS par défaut)
           local-dir: ./
-          # Vérifie dans ton gestionnaire de fichiers si c'est 'peaxel-bot' ou 'peaxel'
           server-dir: ./peaxel-bot/ 
           exclude: |
             **/.git*
             **/node_modules/**
             **/.github/**
 
-      - name: 🔄 Redémarrage du Bot
+      - name: 🔄 Tentative de redémarrage
         uses: appleboy/ssh-action@v1.0.3
-        continue-on-error: true # Évite de marquer le déploiement en rouge si le pare-feu bloque
+        continue-on-error: true
         with:
           host: oafw0766.odns.fr
           username: oafw0766
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          timeout: 10s
+          timeout: 15s
           script: |
             cd /home/oafw0766/peaxel-bot
             source /home/oafw0766/nodevenv/peaxel-bot/20/bin/activate
