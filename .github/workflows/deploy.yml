@@ -17,13 +17,16 @@ jobs:
           server: oafw0766.odns.fr
           username: oafw0766
           password: ${{ secrets.FTP_PASSWORD }}
-          # On laisse l'action choisir le protocole (FTPS par défaut)
           local-dir: ./
           server-dir: ./peaxel-bot/ 
           exclude: |
             **/.git*
+            **/.git/**
             **/node_modules/**
             **/.github/**
+            .env
+            .gitignore
+            README.md
 
       - name: 🔄 Tentative de redémarrage
         uses: appleboy/ssh-action@v1.0.3
