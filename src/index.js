@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, Events } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
 import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
@@ -24,21 +24,39 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// 2. Command Loader
-async function loadCommands() {
+// 2. Command Loader & Auto-Register
+async function loadAndRegisterCommands() {
   const commandsPath = join(__dirname, 'commands');
+  const commandsToRegister = [];
+
   try {
     const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+    
     for (const file of commandFiles) {
       const filePath = join(commandsPath, file);
       const command = await import(`file://${filePath}`);
+      
       if (command.data && command.execute) {
         client.commands.set(command.data.name, command);
+        commandsToRegister.push(command.data.toJSON());
       }
     }
-    console.log(`${logPrefix} ✅ ${client.commands.size} commands loaded.`);
+    console.log(`${logPrefix} ✅ ${client.commands.size} commands loaded in memory.`);
+
+    // --- AUTO-REGISTER LOGIC ---
+    // On enregistre les commandes auprès de l'API Discord au démarrage
+    if (process.env.DISCORD_TOKEN && process.env.DISCORD_CLIENT_ID) {
+      const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+      console.log(`${logPrefix} 🔄 Syncing commands with Discord...`);
+      
+      await rest.put(
+        Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
+        { body: commandsToRegister }
+      );
+      console.log(`${logPrefix} ✅ Commands synchronized successfully.`);
+    }
   } catch (err) {
-    console.error(`${logPrefix} Error loading commands:`, err.message);
+    console.error(`${logPrefix} ❌ Error during command loading/registration:`, err.message);
   }
 }
 
@@ -66,7 +84,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } catch (error) {
       console.error(`${logPrefix} Error in /${interaction.commandName}:`, error);
       const msg = { content: '❌ Command error.', ephemeral: true };
-      interaction.replied || interaction.deferred ? await interaction.followUp(msg) : await interaction.reply(msg);
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp(msg);
+      } else {
+        await interaction.reply(msg);
+      }
     }
   }
 
@@ -96,7 +118,9 @@ process.on('SIGTERM', shutdown);
 
 // 6. Start
 (async () => {
-  await loadCommands();
+  // On charge et on enregistre les commandes avant le login
+  await loadAndRegisterCommands();
+  
   client.login(process.env.DISCORD_TOKEN).catch(err => {
     console.error(`${logPrefix} Login failed:`, err.message);
     process.exit(1);

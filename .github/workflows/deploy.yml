@@ -1,0 +1,35 @@
+name: Deploy Peaxel Bot to o2switch
+
+on:
+  push:
+    branches:
+      - main  # Déclenche le déploiement quand tu push sur la branche main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 1. Aller dans le dossier du bot
+            cd peaxel
+            
+            # 2. Récupérer le code
+            git pull origin main
+            
+            # 3. Installer les dépendances si nécessaire
+            # On charge l'environnement Node d'o2switch avant
+            source /home/${{ secrets.SSH_USER }}/nodevenv/peaxel/20/bin/activate
+            npm install
+            
+            # 4. Redémarrer le bot
+            # CloudLinux/o2switch détecte le changement de fichier 'tmp/restart.txt' pour relancer l'app
+            touch tmp/restart.txt
