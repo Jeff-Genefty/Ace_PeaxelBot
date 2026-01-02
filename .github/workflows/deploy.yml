@@ -1,9 +1,8 @@
-name: Deploy Peaxel Bot to o2switch
+name: Deploy Peaxel Bot
 
 on:
   push:
-    branches:
-      - main  # Déclenche le déploiement quand tu push sur la branche main
+    branches: [main]
 
 jobs:
   deploy:
@@ -12,24 +11,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
+      - name: 🚚 Transfert des fichiers (SFTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
+          server: oafw0766.odns.fr
+          username: oafw0766
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: sftp
+          port: 22
+          local-dir: ./
+          # Vérifie dans ton gestionnaire de fichiers si c'est 'peaxel-bot' ou 'peaxel'
+          server-dir: ./peaxel-bot/ 
+          exclude: |
+            **/.git*
+            **/node_modules/**
+            **/.github/**
+
+      - name: 🔄 Redémarrage du Bot
+        uses: appleboy/ssh-action@v1.0.3
+        continue-on-error: true # Évite de marquer le déploiement en rouge si le pare-feu bloque
+        with:
+          host: oafw0766.odns.fr
+          username: oafw0766
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          timeout: 10s
           script: |
-            # 1. Aller dans le dossier du bot
-            cd peaxel
-            
-            # 2. Récupérer le code
-            git pull origin main
-            
-            # 3. Installer les dépendances si nécessaire
-            # On charge l'environnement Node d'o2switch avant
-            source /home/${{ secrets.SSH_USER }}/nodevenv/peaxel/20/bin/activate
-            npm install
-            
-            # 4. Redémarrer le bot
-            # CloudLinux/o2switch détecte le changement de fichier 'tmp/restart.txt' pour relancer l'app
+            cd /home/oafw0766/peaxel-bot
+            source /home/oafw0766/nodevenv/peaxel-bot/20/bin/activate
+            npm install --production
             touch tmp/restart.txt
