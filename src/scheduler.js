@@ -3,6 +3,7 @@ import { ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyl
 import { sendWeeklyMessage } from './utils/sendWeeklyMessage.js';
 import { getRandomAthlete } from './utils/spotlightManager.js';
 import { getCurrentWeekNumber, getParisDate, getCurrentDayName } from './utils/week.js';
+import { getConfig } from './utils/configManager.js'; // Importation du gestionnaire de config
 
 const logPrefix = '[Peaxel Scheduler]';
 
@@ -12,15 +13,12 @@ let lastSentCloseWeek = null;
 
 /**
  * Updates the Bot's Presence (Status) based on the current schedule
- * @param {import('discord.js').Client} client 
- * @param {string|null} customText 
  */
 export function updatePresence(client, customText = null) {
   const week = getCurrentWeekNumber();
   const day = getCurrentDayName();
   let statusText = customText;
 
-  // If no custom text provided, determine status based on the day
   if (!statusText) {
     switch (day) {
       case 'Monday':
@@ -51,7 +49,6 @@ export function initScheduler(client) {
   console.log(`${logPrefix} ⚠️ Closing: Thursday at 18:59 (Paris)`);
   console.log(`${logPrefix} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
-  // Set initial status on startup
   updatePresence(client);
 
   // --- 1. LINEUP OPENING (Monday 00:00) ---
@@ -61,6 +58,7 @@ export function initScheduler(client) {
 
     try {
       console.log(`${logPrefix} [Opening] Starting weekly post...`);
+      // sendWeeklyMessage utilise déjà le configManager en interne s'il est mis à jour
       const success = await sendWeeklyMessage(client, { isManual: false, type: 'opening' });
       if (success) {
         lastSentOpenWeek = weekKey;
@@ -77,9 +75,12 @@ export function initScheduler(client) {
       const athlete = getRandomAthlete();
       if (!athlete) return console.log(`${logPrefix} [Spotlight] No unposted athletes found.`);
 
-      const channelId = process.env.SPOTLIGHT_CHANNEL_ID || '1369976259613954059';
+      // Récupération dynamique du salon Spotlight
+      const config = getConfig();
+      const channelId = config.channels.spotlight || process.env.SPOTLIGHT_CHANNEL_ID || '1369976259613954059';
+      
       const channel = await client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return;
+      if (!channel?.isTextBased()) return console.error(`${logPrefix} [Spotlight] Channel not found or not text-based.`);
 
       const embed = new EmbedBuilder()
         .setTitle(`🌟 WEEKLY SPOTLIGHT: ${athlete.name.toUpperCase()}`)
@@ -132,16 +133,12 @@ export function initScheduler(client) {
     }
   }, { scheduled: true, timezone });
 
-  // --- 4. MIDNIGHT REFRESH (Every day at 00:00) ---
-  // Ensures the presence is updated if the bot stays on for days
+  // --- 4. MIDNIGHT REFRESH ---
   cron.schedule('0 0 * * *', () => {
     updatePresence(client);
   }, { scheduled: true, timezone });
 }
 
-/**
- * Generates a unique key for the current week/year
- */
 function getWeekKey() {
   const now = getParisDate();
   return `${now.getFullYear()}-W${getCurrentWeekNumber()}`;
