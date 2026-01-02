@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Environment variables (CRITICAL: Never commit these)
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build / Temp
+dist/
+build/
+
+# === Bot Database & Activity ===
+# On ignore les fichiers de données qui changent tout le temps
+data/*.json
+athletes.json
+
+# Mais on autorise Git à suivre le dossier data s'il contient un .gitkeep
+!data/.gitkeep
+

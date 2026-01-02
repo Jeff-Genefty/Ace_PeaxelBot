@@ -1,0 +1,35 @@
+[
+  {
+    "name": "Kylian Mbappé",
+    "nationality": "France 🇫🇷",
+    "category": "Elite",
+    "sport": "Football",
+    "description": "One of the fastest and most clinical finishers in world football. A true icon of the modern game.",
+    "image": "https://img.peaxel.me/athletes/mbappe.jpg",
+    "peaxelLink": "https://peaxel.me/athlete/mbappe",
+    "igLink": "https://www.instagram.com/k.mbappe",
+    "posted": false
+  },
+  {
+    "name": "Clarisse Agbégnénou",
+    "nationality": "France 🇫🇷",
+    "category": "Legend",
+    "sport": "Judo",
+    "description": "Multiple time Olympic champion and world leader in the -63kg category. A powerhouse of determination.",
+    "image": "https://img.peaxel.me/athletes/clarisse.jpg",
+    "peaxelLink": "https://peaxel.me/athlete/clarisse",
+    "igLink": "https://www.instagram.com/clarisse_agbegnenou",
+    "posted": false
+  },
+  {
+    "name": "Victor Wembanyama",
+    "nationality": "France 🇫🇷",
+    "category": "Rising Star",
+    "sport": "Basketball",
+    "description": "A generational talent with unprecedented height and skill. Redefining the game of basketball globally.",
+    "image": "https://img.peaxel.me/athletes/wemby.jpg",
+    "peaxelLink": "https://peaxel.me/athlete/wemby",
+    "igLink": "https://www.instagram.com/wemby",
+    "posted": false
+  }
+]
