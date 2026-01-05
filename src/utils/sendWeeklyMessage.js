@@ -18,7 +18,7 @@ import {
 import { loadReactionsConfig } from '../config/reactionsConfig.js';
 import { recordWeeklyPost } from './activityTracker.js';
 import { logWeeklyPost } from './discordLogger.js';
-import { getConfig } from './configManager.js'; // Importation du gestionnaire dynamique
+import { getConfig } from './configManager.js';
 
 /**
  * Sends the Peaxel weekly announcement (Opening or Closing)
@@ -26,11 +26,12 @@ import { getConfig } from './configManager.js'; // Importation du gestionnaire d
  * @param {Object} options 
  */
 export async function sendWeeklyMessage(client, { isManual = false, type = 'opening' } = {}) {
-  // 1. Récupération dynamique du salon d'annonce
+  // 1. Dynamic fetch of the announcement channel
   const configDB = getConfig();
   const channelId = configDB.channels.announce || process.env.ANNOUNCE_CHANNEL_ID;
   
-  const ROLE_ID = "1369976254685642925"; // @betatester
+  // Professional Role ID Management
+  const ROLE_ID = "1369976254685642925"; 
   const logPrefix = '[Peaxel Send]';
 
   if (!channelId) {
@@ -44,14 +45,38 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
     return false;
   }
 
-  // 2. Load context
-  const weekNumber = getCurrentWeekNumber();
+  // 2. Load context and fix Sunday offset for display
+  const now = new Date();
+  let weekNumber = getCurrentWeekNumber();
+  
+  // SUNDAY FIX: If sending/calculating on Sunday, show the previous week's number
+  // specifically for the "Closing" message or "Status"
+  if (now.getDay() === 0 && type === 'closing') {
+    weekNumber = weekNumber - 1;
+  }
+
   const config = loadMessageConfig();
   const reactionsConfig = loadReactionsConfig();
   const validType = (type === 'opening' || type === 'closing') ? type : 'opening';
   const typeConfig = config[validType]; 
 
-  // 3. Image Handling
+  // 3. Professional "Ace" Message Content
+  let finalDescription = "";
+
+  if (validType === 'opening') {
+    finalDescription = `Hello <@&${1369976254685642925}>, Ace here! 🎙️ The arena is ready and the registration for **Game Week ${weekNumber}** is officially open.\n\n` +
+                       `It’s time to step up and lock in your winning squad!\n\n` +
+                       `**Your Action Plan:**\n` +
+                       `📋 **Scout:** Analyze your cards and select your top-performing athletes.\n` +
+                       `🧠 **Strategize:** Optimize your lineup to dominate the leaderboard.\n` +
+                       `🏆 **Earn:** Secure your spot at the top for XP and exclusive rewards.\n\n` +
+                       `Good luck, Managers! Let's see those dream teams. 🚀`;
+  } else {
+    // Standard closing description from your config
+    finalDescription = getFormattedDescription(weekNumber, validType);
+  }
+
+  // 4. Image Handling
   const imageFileName = getImageName(validType);
   const imagePath = resolve(process.cwd(), `./assets/${imageFileName}`);
   let attachment = null;
@@ -60,31 +85,30 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
     attachment = new AttachmentBuilder(readFileSync(imagePath), { name: imageFileName });
   }
 
-  // 4. Dynamic Countdown for Closing
+  // 5. Dynamic Countdown for Closing
   let countdownText = "";
   if (validType === 'closing') {
-    const now = new Date();
     const deadline = new Date(now);
-    // Target: Next Thursday at 23:59
+    // Target: Thursday at 18:59 (matching your scheduler)
     const dayDiff = (4 - now.getDay() + 7) % 7;
     deadline.setDate(now.getDate() + dayDiff);
-    deadline.setHours(23, 59, 0, 0);
+    deadline.setHours(18, 59, 0, 0);
 
     const unix = Math.floor(deadline.getTime() / 1000);
     countdownText = `\n\n⏱️ **TIME REMAINING:**\n> Lineups lock in **<t:${unix}:R>**\n> Deadline: <t:${unix}:f>`;
   }
 
-  // 5. Build Embed
+  // 6. Build Embed
   const embed = new EmbedBuilder()
-    .setTitle(getFormattedTitle(weekNumber, validType))
-    .setDescription(getFormattedDescription(weekNumber, validType) + countdownText)
+    .setTitle(`ACE NOTIFICATION | GW #${weekNumber} ${validType.toUpperCase()} IS NOW LIVE`)
+    .setDescription(finalDescription + countdownText)
     .setColor(parseColor(typeConfig.color))
     .setTimestamp()
-    .setFooter({ text: typeConfig.footerText || config.opening.footerText });
+    .setFooter({ text: `Peaxel • Game Week ${weekNumber}` });
 
   if (attachment) embed.setImage(`attachment://${imageFileName}`);
 
-  // 6. Build Buttons
+  // 7. Build Buttons
   const buttons = [];
   if (typeConfig.showPlayButton && typeConfig.playUrl) {
     buttons.push(new ButtonBuilder().setLabel(typeConfig.playButtonLabel).setStyle(ButtonStyle.Link).setURL(typeConfig.playUrl));
@@ -98,10 +122,10 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
 
   const components = buttons.length > 0 ? [new ActionRowBuilder().addComponents(buttons)] : [];
 
-  // 7. Execution
+  // 8. Execution
   try {
     const messageOptions = { 
-      content: `<@&${ROLE_ID}>`, 
+      content: `<@&${ROLE_ID}>`, // This triggers the ping
       embeds: [embed], 
       components 
     };

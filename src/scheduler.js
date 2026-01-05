@@ -3,11 +3,11 @@ import { ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyl
 import { sendWeeklyMessage } from './utils/sendWeeklyMessage.js';
 import { getRandomAthlete } from './utils/spotlightManager.js';
 import { getCurrentWeekNumber, getParisDate, getCurrentDayName } from './utils/week.js';
-import { getConfig } from './utils/configManager.js'; // Importation du gestionnaire de config
+import { getConfig } from './utils/configManager.js';
 
 const logPrefix = '[Peaxel Scheduler]';
 
-// Distinct tracking to prevent double-posting on restart
+// Tracking variables to prevent double-posting upon restart
 let lastSentOpenWeek = null;
 let lastSentCloseWeek = null;
 
@@ -15,23 +15,43 @@ let lastSentCloseWeek = null;
  * Updates the Bot's Presence (Status) based on the current schedule
  */
 export function updatePresence(client, customText = null) {
-  const week = getCurrentWeekNumber();
-  const day = getCurrentDayName();
+  const now = getParisDate();
+  const dayIndex = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const hours = now.getHours();
+  let week = getCurrentWeekNumber();
+
+  // SUNDAY FIX: If it's Sunday, we keep showing the current week number 
+  // instead of jumping to the next one prematurely.
+  if (dayIndex === 0) {
+    week = week - 1;
+  }
+
+  const dayName = getCurrentDayName();
   let statusText = customText;
 
   if (!statusText) {
-    switch (day) {
+    switch (dayName) {
       case 'Monday':
-        statusText = `Week ${week} is LIVE! 🟢`;
+        statusText = `GW ${week} is LIVE! 🟢`;
         break;
       case 'Wednesday':
         statusText = `New Spotlight is out! 🌟`;
         break;
       case 'Thursday':
-        statusText = `Week ${week} closing soon... 🔴`;
+        // Dynamic Thursday status: Show "closing soon" before 7 PM Paris time.
+        if (hours < 19) {
+          statusText = `⌛ GW ${week} closing soon!`;
+        } else {
+          statusText = `🚫 GW ${week} is CLOSED`;
+        }
+        break;
+      case 'Friday':
+      case 'Saturday':
+      case 'Sunday':
+        statusText = `Peaxel • Game Week ${week} 🎮`;
         break;
       default:
-        statusText = `Peaxel • Week ${week} 🎮`;
+        statusText = `Peaxel • GW ${week}`;
     }
   }
 
@@ -39,6 +59,9 @@ export function updatePresence(client, customText = null) {
   console.log(`${logPrefix} Status updated to: ${statusText}`);
 }
 
+/**
+ * Initializes all scheduled tasks for the bot
+ */
 export function initScheduler(client) {
   const timezone = process.env.TZ || 'Europe/Paris';
   
@@ -49,6 +72,7 @@ export function initScheduler(client) {
   console.log(`${logPrefix} ⚠️ Closing: Thursday at 18:59 (Paris)`);
   console.log(`${logPrefix} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
+  // Initial presence update on startup
   updatePresence(client);
 
   // --- 1. LINEUP OPENING (Monday 00:00) ---
@@ -57,12 +81,12 @@ export function initScheduler(client) {
     if (lastSentOpenWeek === weekKey) return;
 
     try {
-      console.log(`${logPrefix} [Opening] Starting weekly post...`);
-      // sendWeeklyMessage utilise déjà le configManager en interne s'il est mis à jour
+      console.log(`${logPrefix} [Opening] Executing weekly opening post...`);
       const success = await sendWeeklyMessage(client, { isManual: false, type: 'opening' });
       if (success) {
         lastSentOpenWeek = weekKey;
-        updatePresence(client, `Week ${getCurrentWeekNumber()} is LIVE! 🟢`);
+        // Force "LIVE" status immediately after posting
+        updatePresence(client, `GW ${getCurrentWeekNumber()} is LIVE! 🟢`);
       }
     } catch (error) {
       console.error(`${logPrefix} [Opening] Error:`, error.message);
@@ -75,12 +99,11 @@ export function initScheduler(client) {
       const athlete = getRandomAthlete();
       if (!athlete) return console.log(`${logPrefix} [Spotlight] No unposted athletes found.`);
 
-      // Récupération dynamique du salon Spotlight
       const config = getConfig();
       const channelId = config.channels.spotlight || process.env.SPOTLIGHT_CHANNEL_ID || '1369976259613954059';
       
       const channel = await client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return console.error(`${logPrefix} [Spotlight] Channel not found or not text-based.`);
+      if (!channel?.isTextBased()) return console.error(`${logPrefix} [Spotlight] Target channel not found.`);
 
       const embed = new EmbedBuilder()
         .setTitle(`🌟 WEEKLY SPOTLIGHT: ${athlete.name.toUpperCase()}`)
@@ -109,7 +132,7 @@ export function initScheduler(client) {
       });
       
       console.log(`${logPrefix} [Spotlight] Posted: ${athlete.name}`);
-      updatePresence(client, `Discover: ${athlete.name} 🌟`);
+      updatePresence(client, `Spotlight: ${athlete.name} 🌟`);
 
     } catch (error) {
       console.error(`${logPrefix} [Spotlight] Error:`, error.message);
@@ -122,23 +145,28 @@ export function initScheduler(client) {
     if (lastSentCloseWeek === weekKey) return;
 
     try {
-      console.log(`${logPrefix} [Closing] Starting closing post...`);
+      console.log(`${logPrefix} [Closing] Executing weekly closing post...`);
       const success = await sendWeeklyMessage(client, { isManual: false, type: 'closing' });
       if (success) {
         lastSentCloseWeek = weekKey;
-        updatePresence(client, `Lineups locking! 🔴`);
+        // Update presence to "CLOSED" immediately after posting
+        updatePresence(client, `🚫 GW ${getCurrentWeekNumber()} is CLOSED`);
       }
     } catch (error) {
       console.error(`${logPrefix} [Closing] Error:`, error.message);
     }
   }, { scheduled: true, timezone });
 
-  // --- 4. MIDNIGHT REFRESH ---
-  cron.schedule('0 0 * * *', () => {
+  // --- 4. HOURLY REFRESH ---
+  // Refreshes every hour to ensure Thursday status changes (Closing/Closed) are accurate
+  cron.schedule('0 * * * *', () => {
     updatePresence(client);
   }, { scheduled: true, timezone });
 }
 
+/**
+ * Generates a unique key for the current week to prevent duplicate posts
+ */
 function getWeekKey() {
   const now = getParisDate();
   return `${now.getFullYear()}-W${getCurrentWeekNumber()}`;
