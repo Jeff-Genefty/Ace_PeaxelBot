@@ -85,17 +85,13 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
                        `🔒 **Lock:** Submit your team before the deadline hits!`;
   }
 
-  // 4. Image Handling (Corrected path for Railway)
+  // 4. Image Handling 
   const imageFileName = getImageName(validType);
-  // Path logic: From src/utils, go up twice to reach root, then into assets/
-  const imagePath = resolve(__dirname, '../../assets', imageFileName);
-  
+  const imagePath = resolve(process.cwd(), `./assets/${imageFileName}`);
   let attachment = null;
+
   if (existsSync(imagePath)) {
-    attachment = new AttachmentBuilder(imagePath, { name: imageFileName });
-    console.log(`${logPrefix} ✅ Image found: ${imageFileName}`);
-  } else {
-    console.error(`${logPrefix} ❌ Image NOT found at: ${imagePath}`);
+    attachment = new AttachmentBuilder(readFileSync(imagePath), { name: imageFileName });
   }
 
   // 5. Dynamic Countdown for Closing
