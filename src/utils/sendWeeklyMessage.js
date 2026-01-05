@@ -71,19 +71,27 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
                        `🧠 **Strategize:** Optimize your lineup to dominate the leaderboard.\n` +
                        `🏆 **Earn:** Secure your spot at the top for XP and exclusive rewards.\n\n` +
                        `Good luck, Managers! Let's see those dream teams. 🚀`;
-  } else {
-    // Standard closing description from your config
-    finalDescription = getFormattedDescription(weekNumber, validType);
-  }
+  } else if (validType === 'closing') {
+    finalDescription = `Hello <@&${ROLE_ID}>, Ace here! 📢 Attention Managers, the clock is ticking for **Game Week ${weekNumber}**!\n\n` +
+                       `The stadium gates are about to close. This is your final chance to finalize your strategy before the matches begin.\n\n` +
+                       `**Final Check:**\n` +
+                       `✅ **Review:** Ensure your best athletes are in the starting lineup.\n` +
+                       `⚔️ **Challenge:** Double-check your captain selection for maximum points.\n` +
+                       `🔒 **Lock:** Submit your team before the deadline hits!`;
+}
 
   // 4. Image Handling
-  const imageFileName = getImageName(validType);
-  const imagePath = resolve(process.cwd(), `./assets/${imageFileName}`);
-  let attachment = null;
+const imageFileName = getImageName(validType);
+// We join the root directory with the assets folder
+const imagePath = resolve(process.cwd(), 'assets', imageFileName);
+let attachment = null;
 
-  if (existsSync(imagePath)) {
+if (existsSync(imagePath)) {
     attachment = new AttachmentBuilder(readFileSync(imagePath), { name: imageFileName });
-  }
+    console.log(`${logPrefix} Image found: ${imagePath}`);
+} else {
+    console.error(`${logPrefix} Image NOT found: ${imagePath}`);
+}
 
   // 5. Dynamic Countdown for Closing
   let countdownText = "";
