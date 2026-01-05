@@ -6,7 +6,8 @@ import {
   ButtonStyle 
 } from 'discord.js';
 import { existsSync, readFileSync } from 'fs';
-import { resolve } from 'path';
+import { dirname, join, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { getCurrentWeekNumber } from './week.js';
 import { 
   loadMessageConfig, 
@@ -20,19 +21,24 @@ import { recordWeeklyPost } from './activityTracker.js';
 import { logWeeklyPost } from './discordLogger.js';
 import { getConfig } from './configManager.js';
 
+// ES Modules helpers for paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /**
  * Sends the Peaxel weekly announcement (Opening or Closing)
  * @param {import('discord.js').Client} client 
  * @param {Object} options 
  */
 export async function sendWeeklyMessage(client, { isManual = false, type = 'opening' } = {}) {
+  const logPrefix = '[Peaxel Send]';
+  
   // 1. Dynamic fetch of the announcement channel
   const configDB = getConfig();
   const channelId = configDB.channels.announce || process.env.ANNOUNCE_CHANNEL_ID;
   
-  // Professional Role ID Management
+  // Role ID for pings (@betatester or Manager role)
   const ROLE_ID = "1369976254685642925"; 
-  const logPrefix = '[Peaxel Send]';
 
   if (!channelId) {
     console.error(`${logPrefix} Missing ANNOUNCE_CHANNEL_ID (DB or Env)`);
@@ -45,13 +51,12 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
     return false;
   }
 
-  // 2. Load context and fix Sunday offset for display
+  // 2. Load context and handle Sunday date logic
   const now = new Date();
   let weekNumber = getCurrentWeekNumber();
   
-  // SUNDAY FIX: If sending/calculating on Sunday, show the previous week's number
-  // specifically for the "Closing" message or "Status"
-  if (now.getDay() === 0 && type === 'closing') {
+  // SUNDAY FIX: If it's Sunday, we are still closing/referencing the "current" week
+  if (now.getDay() === 0) {
     weekNumber = weekNumber - 1;
   }
 
@@ -64,40 +69,40 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
   let finalDescription = "";
 
   if (validType === 'opening') {
-    finalDescription = `Hello <@&${1369976254685642925}>, Ace here! 🎙️ The arena is ready and the registration for **Game Week ${weekNumber}** is officially open.\n\n` +
+    finalDescription = `Hello <@&${ROLE_ID}>, Ace here! 🎙️ The arena is ready and the registration for **Game Week ${weekNumber}** is officially open.\n\n` +
                        `It’s time to step up and lock in your winning squad!\n\n` +
                        `**Your Action Plan:**\n` +
                        `📋 **Scout:** Analyze your cards and select your top-performing athletes.\n` +
                        `🧠 **Strategize:** Optimize your lineup to dominate the leaderboard.\n` +
                        `🏆 **Earn:** Secure your spot at the top for XP and exclusive rewards.\n\n` +
                        `Good luck, Managers! Let's see those dream teams. 🚀`;
-  } else if (validType === 'closing') {
+  } else {
     finalDescription = `Hello <@&${ROLE_ID}>, Ace here! 📢 Attention Managers, the clock is ticking for **Game Week ${weekNumber}**!\n\n` +
                        `The stadium gates are about to close. This is your final chance to finalize your strategy before the matches begin.\n\n` +
                        `**Final Check:**\n` +
                        `✅ **Review:** Ensure your best athletes are in the starting lineup.\n` +
                        `⚔️ **Challenge:** Double-check your captain selection for maximum points.\n` +
                        `🔒 **Lock:** Submit your team before the deadline hits!`;
-}
+  }
 
-  // 4. Image Handling
-const imageFileName = getImageName(validType);
-// We join the root directory with the assets folder
-const imagePath = resolve(process.cwd(), 'assets', imageFileName);
-let attachment = null;
-
-if (existsSync(imagePath)) {
-    attachment = new AttachmentBuilder(readFileSync(imagePath), { name: imageFileName });
-    console.log(`${logPrefix} Image found: ${imagePath}`);
-} else {
-    console.error(`${logPrefix} Image NOT found: ${imagePath}`);
-}
+  // 4. Image Handling (Corrected path for Railway)
+  const imageFileName = getImageName(validType);
+  // Path logic: From src/utils, go up twice to reach root, then into assets/
+  const imagePath = resolve(__dirname, '../../assets', imageFileName);
+  
+  let attachment = null;
+  if (existsSync(imagePath)) {
+    attachment = new AttachmentBuilder(imagePath, { name: imageFileName });
+    console.log(`${logPrefix} ✅ Image found: ${imageFileName}`);
+  } else {
+    console.error(`${logPrefix} ❌ Image NOT found at: ${imagePath}`);
+  }
 
   // 5. Dynamic Countdown for Closing
   let countdownText = "";
   if (validType === 'closing') {
     const deadline = new Date(now);
-    // Target: Thursday at 18:59 (matching your scheduler)
+    // Target: Next (or current) Thursday at 18:59
     const dayDiff = (4 - now.getDay() + 7) % 7;
     deadline.setDate(now.getDate() + dayDiff);
     deadline.setHours(18, 59, 0, 0);
@@ -133,7 +138,7 @@ if (existsSync(imagePath)) {
   // 8. Execution
   try {
     const messageOptions = { 
-      content: `<@&${ROLE_ID}>`, // This triggers the ping
+      content: `<@&${ROLE_ID}>`, 
       embeds: [embed], 
       components 
     };
