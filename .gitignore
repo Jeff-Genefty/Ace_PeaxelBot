@@ -33,4 +33,5 @@ data/activity.json
 # Autoriser spécifiquement les athlètes
 !data/config.json
 !data/athletes.json
+!data/giveaway.json
 
