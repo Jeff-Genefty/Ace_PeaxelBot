@@ -11,6 +11,7 @@ export const data = new SlashCommandBuilder()
             .setRequired(true)
             .addChoices(
                 { name: 'Annonces (Opening/Closing)', value: 'announce' },
+                { name: 'Welcome Message', value: 'welcome' }, 
                 { name: 'Spotlight', value: 'spotlight' },
                 { name: 'Logs Admin', value: 'logs' },
                 { name: 'Feedback', value: 'feedback' }
