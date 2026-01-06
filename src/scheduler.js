@@ -15,47 +15,42 @@ let lastSentCloseWeek = null;
  * Updates the Bot's Presence (Status) based on the current schedule
  */
 export function updatePresence(client, customText = null) {
+  if (!client.user) return;
+
   const now = getParisDate();
   const dayIndex = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
   const hours = now.getHours();
   let week = getCurrentWeekNumber();
 
-  // SUNDAY FIX: If it's Sunday, we keep showing the current week number 
-  // instead of jumping to the next one prematurely.
+  // SUNDAY FIX: Keep showing current week number
   if (dayIndex === 0) {
     week = week - 1;
   }
 
-  const dayName = getCurrentDayName();
   let statusText = customText;
 
   if (!statusText) {
-    switch (dayName) {
-      case 'Monday':
-        statusText = `GW ${week} is LIVE! 🟢`;
-        break;
-      case 'Wednesday':
-        statusText = `New Spotlight is out! 🌟`;
-        break;
-      case 'Thursday':
-        // Dynamic Thursday status: Show "closing soon" before 7 PM Paris time.
-        if (hours < 19) {
-          statusText = `⌛ GW ${week} closing soon!`;
-        } else {
-          statusText = `🚫 GW ${week} is CLOSED`;
-        }
-        break;
-      case 'Friday':
-      case 'Saturday':
-      case 'Sunday':
-        statusText = `Peaxel • Game Week ${week} 🎮`;
-        break;
-      default:
-        statusText = `Peaxel • GW ${week}`;
+    const baseStatus = `Gameweek : ${week}`;
+
+    if (dayIndex === 1) {
+      statusText = `${baseStatus} | LIVE 🟢`;
+    } 
+    else if (dayIndex === 3 && hours >= 16) {
+      statusText = `${baseStatus} | Spotlight 🌟`;
+    } 
+    else if (dayIndex === 4) {
+      if (hours < 19) {
+        statusText = `${baseStatus} | Closing Soon ⏳`;
+      } else {
+        statusText = `${baseStatus} | Locked 🚫`;
+      }
+    } 
+    else {
+      statusText = baseStatus;
     }
   }
 
-  client.user.setActivity(statusText, { type: ActivityType.Playing });
+  client.user.setActivity(statusText, { type: ActivityType.Watching });
   console.log(`${logPrefix} Status updated to: ${statusText}`);
 }
 
@@ -63,7 +58,7 @@ export function updatePresence(client, customText = null) {
  * Initializes all scheduled tasks for the bot
  */
 export function initScheduler(client) {
-  const timezone = process.env.TZ || 'Europe/Paris';
+  const timezone = 'Europe/Paris';
   
   console.log(`${logPrefix} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`${logPrefix} 🚀 Scheduler online:`);
@@ -85,8 +80,7 @@ export function initScheduler(client) {
       const success = await sendWeeklyMessage(client, { isManual: false, type: 'opening' });
       if (success) {
         lastSentOpenWeek = weekKey;
-        // Force "LIVE" status immediately after posting
-        updatePresence(client, `GW ${getCurrentWeekNumber()} is LIVE! 🟢`);
+        updatePresence(client);
       }
     } catch (error) {
       console.error(`${logPrefix} [Opening] Error:`, error.message);
@@ -100,7 +94,7 @@ export function initScheduler(client) {
       if (!athlete) return console.log(`${logPrefix} [Spotlight] No unposted athletes found.`);
 
       const config = getConfig();
-      const channelId = config.channels.spotlight || process.env.SPOTLIGHT_CHANNEL_ID || '1369976259613954059';
+      const channelId = config.channels?.spotlight || '1369976259613954059';
       
       const channel = await client.channels.fetch(channelId);
       if (!channel?.isTextBased()) return console.error(`${logPrefix} [Spotlight] Target channel not found.`);
@@ -122,7 +116,7 @@ export function initScheduler(client) {
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setLabel('View Profile 🃏').setStyle(ButtonStyle.Link).setURL(athlete.peaxelLink),
         new ButtonBuilder().setLabel('Instagram 📸').setStyle(ButtonStyle.Link).setURL(athlete.igLink),
-        new ButtonBuilder().setLabel('Play Peaxel 🎮').setStyle(ButtonStyle.Link).setURL("https://peaxel.me/game")
+        new ButtonBuilder().setLabel('Play Peaxel 🎮').setStyle(ButtonStyle.Link).setURL("https://game.peaxel.me")
       );
 
       await channel.send({ 
@@ -132,7 +126,7 @@ export function initScheduler(client) {
       });
       
       console.log(`${logPrefix} [Spotlight] Posted: ${athlete.name}`);
-      updatePresence(client, `Spotlight: ${athlete.name} 🌟`);
+      updatePresence(client);
 
     } catch (error) {
       console.error(`${logPrefix} [Spotlight] Error:`, error.message);
@@ -149,8 +143,7 @@ export function initScheduler(client) {
       const success = await sendWeeklyMessage(client, { isManual: false, type: 'closing' });
       if (success) {
         lastSentCloseWeek = weekKey;
-        // Update presence to "CLOSED" immediately after posting
-        updatePresence(client, `🚫 GW ${getCurrentWeekNumber()} is CLOSED`);
+        updatePresence(client);
       }
     } catch (error) {
       console.error(`${logPrefix} [Closing] Error:`, error.message);
@@ -158,7 +151,6 @@ export function initScheduler(client) {
   }, { scheduled: true, timezone });
 
   // --- 4. HOURLY REFRESH ---
-  // Refreshes every hour to ensure Thursday status changes (Closing/Closed) are accurate
   cron.schedule('0 * * * *', () => {
     updatePresence(client);
   }, { scheduled: true, timezone });

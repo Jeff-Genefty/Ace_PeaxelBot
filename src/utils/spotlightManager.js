@@ -70,3 +70,21 @@ export function getUnpostedAthletesCount() {
     const athletes = loadAthletes();
     return athletes.filter(a => a.posted === false).length;
 }
+
+/**
+ * Picks a random athlete FOR PREVIEW ONLY (does NOT mark as posted)
+ */
+export function getPreviewAthlete() {
+    try {
+        const athletes = loadAthletes();
+        if (athletes.length === 0) return null;
+
+               const available = athletes; 
+
+        const randomIndex = Math.floor(Math.random() * available.length);
+        return available[randomIndex];
+    } catch (error) {
+        console.error(`${logPrefix} ❌ Error picking preview athlete:`, error.message);
+        return null;
+    }
+}

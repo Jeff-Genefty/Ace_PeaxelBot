@@ -23,7 +23,7 @@ export function setupWelcomeListener(client) {
         const playUrl = msgConfig.opening.playUrl || "https://game.peaxel.me/";
 
         // 3. Préparation de l'image
-        const imagePath = resolve(process.cwd(), 'assets', 'welcome-image.jpg');
+        const imagePath = resolve(process.cwd(), 'assets', 'welcome-image.png');
         
         // 4. Construction de l'Embed
         const embed = new EmbedBuilder()

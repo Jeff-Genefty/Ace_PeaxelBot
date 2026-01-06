@@ -77,34 +77,46 @@ export function recordError(errorMessage) {
 }
 
 /**
- * Enhanced: Get the next publication (Monday 00:01 OR Thursday 16:00)
- */
+ * Enhanced: Get the next publication (Opening, Spotlight, or Closing)*/
 export function getNextScheduledRun() {
-  const timezone = process.env.TZ || 'Europe/Paris';
+  const timezone = 'Europe/Paris';
   const now = new Date();
-  const parisTime = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+  
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: 'numeric', second: 'numeric',
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(now);
+  const p = {};
+  parts.forEach(v => p[v.type] = v.value);
+  const parisTime = new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
 
-  // Schedules: [Day (0=Sun, 1=Mon...), Hour, Minute]
   const schedules = [
-    { day: 1, hour: 0, min: 1, label: 'Opening' },
-    { day: 4, hour: 16, min: 0, label: 'Closing' }
+    { day: 1, hour: 0, min: 0, label: 'Opening' },    
+    { day: 3, hour: 16, min: 0, label: 'Spotlight' },  
+    { day: 4, hour: 18, min: 59, label: 'Closing' }   
   ];
 
   let nextRun = null;
+  let nextLabel = '';
 
   for (const sched of schedules) {
     let target = new Date(parisTime);
+    
     const diff = (sched.day + 7 - target.getDay()) % 7;
     target.setDate(target.getDate() + diff);
     target.setHours(sched.hour, sched.min, 0, 0);
 
-    // If target is in the past, move to next week
     if (target <= parisTime) {
       target.setDate(target.getDate() + 7);
     }
 
     if (!nextRun || target < nextRun) {
       nextRun = target;
+      nextLabel = sched.label;
     }
   }
 
@@ -112,6 +124,7 @@ export function getNextScheduledRun() {
   
   return {
     nextRun,
+    label: nextLabel,
     hoursUntil: Math.floor(msUntil / (1000 * 60 * 60)),
     timezone
   };
