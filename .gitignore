@@ -26,10 +26,11 @@ dist/
 build/
 
 # === Bot Database & Activity ===
-# On ignore les fichiers de données qui changent tout le temps
-data/*.json
-athletes.json
 
-# Mais on autorise Git à suivre le dossier data s'il contient un .gitkeep
-!data/.gitkeep
+data/activity.json
+data/config.json
+# data/*.json  
+
+# Autoriser spécifiquement les athlètes
+!data/athletes.json
 

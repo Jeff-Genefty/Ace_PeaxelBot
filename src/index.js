@@ -7,6 +7,7 @@ import { initScheduler } from './scheduler.js';
 import { handleFeedbackButton, handleFeedbackSubmit } from './handlers/feedbackHandler.js';
 import { initDiscordLogger, logCommandUsage } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
+import { setupWelcomeListener } from './listeners/welcomeListener.js';
 
 config();
 
@@ -14,11 +15,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const logPrefix = '[Peaxel Bot]';
 
-// 1. Setup Client
+// 1. Setup Client avec les INTENTS nécessaires
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessageReactions
+    GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMembers, // INDISPENSABLE pour détecter les nouveaux membres
+    GatewayIntentBits.GuildMessages // Utile pour la stabilité générale
   ]
 });
 
@@ -43,8 +46,6 @@ async function loadAndRegisterCommands() {
     }
     console.log(`${logPrefix} ✅ ${client.commands.size} commands loaded in memory.`);
 
-    // --- AUTO-REGISTER LOGIC ---
-    // On enregistre les commandes auprès de l'API Discord au démarrage
     if (process.env.DISCORD_TOKEN && process.env.DISCORD_CLIENT_ID) {
       const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
       console.log(`${logPrefix} 🔄 Syncing commands with Discord...`);
@@ -71,7 +72,6 @@ client.once(Events.ClientReady, async (readyClient) => {
 
 // 4. Interaction Router
 client.on(Events.InteractionCreate, async (interaction) => {
-  // --- Slash Commands ---
   if (interaction.isChatInputCommand() || interaction.isContextMenuCommand()) {
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
@@ -91,15 +91,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
   }
-
-  // --- Buttons ---
   else if (interaction.isButton()) {
     if (interaction.customId === 'feedback_button') {
       await handleFeedbackButton(interaction).catch(err => console.error(err));
     }
   }
-
-  // --- Modals ---
   else if (interaction.isModalSubmit()) {
     if (interaction.customId === 'feedback_modal') {
       await handleFeedbackSubmit(interaction).catch(err => console.error(err));
@@ -118,7 +114,9 @@ process.on('SIGTERM', shutdown);
 
 // 6. Start
 (async () => {
-  // On charge et on enregistre les commandes avant le login
+  // Initialisation du listener AVANT le login
+  setupWelcomeListener(client);
+  
   await loadAndRegisterCommands();
   
   client.login(process.env.DISCORD_TOKEN).catch(err => {
