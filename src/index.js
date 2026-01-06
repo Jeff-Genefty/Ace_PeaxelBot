@@ -1,6 +1,6 @@
-import { Client, GatewayIntentBits, Collection, Events, REST, Routes } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, REST, Routes, MessageFlags } from 'discord.js';
 import { config } from 'dotenv';
-import { readdirSync } from 'fs';
+import { readdirSync, readFileSync, writeFileSync } from 'fs'; // Ajout de read/write
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { initScheduler } from './scheduler.js';
@@ -15,13 +15,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const logPrefix = '[Peaxel Bot]';
 
-// 1. Setup Client avec les INTENTS nécessaires
+// 1. Setup Client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildMembers, // INDISPENSABLE pour détecter les nouveaux membres
-    GatewayIntentBits.GuildMessages // Utile pour la stabilité générale
+    GatewayIntentBits.GuildMembers, 
+    GatewayIntentBits.GuildMessages 
   ]
 });
 
@@ -83,7 +83,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     } catch (error) {
       console.error(`${logPrefix} Error in /${interaction.commandName}:`, error);
-      const msg = { content: '❌ Command error.', ephemeral: true };
+      const msg = { content: '❌ Command error.', flags: [MessageFlags.Ephemeral] };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(msg);
       } else {
@@ -91,11 +91,43 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
   }
+  
+  // GESTION DES BOUTONS
   else if (interaction.isButton()) {
+    // Bouton de Feedback existant
     if (interaction.customId === 'feedback_button') {
       await handleFeedbackButton(interaction).catch(err => console.error(err));
     }
+    
+    // NOUVEAU : Bouton de Giveaway Automatique
+    else if (interaction.customId === 'join_giveaway') {
+      const GIVEAWAY_FILE = './data/giveaways.json';
+      try {
+        const rawData = readFileSync(GIVEAWAY_FILE, 'utf-8');
+        const data = JSON.parse(rawData);
+
+        if (data.participants.includes(interaction.user.id)) {
+          return await interaction.reply({ 
+            content: '❌ You are already registered for this giveaway!', 
+            flags: [MessageFlags.Ephemeral] 
+          });
+        }
+
+        data.participants.push(interaction.user.id);
+        writeFileSync(GIVEAWAY_FILE, JSON.stringify(data, null, 2));
+
+        await interaction.reply({ 
+          content: '✅ You have successfully joined the giveaway! Good luck! 🍀', 
+          flags: [MessageFlags.Ephemeral] 
+        });
+      } catch (error) {
+        console.error(`${logPrefix} Giveaway Join Error:`, error);
+        await interaction.reply({ content: '❌ Database error. Try again later.', flags: [MessageFlags.Ephemeral] });
+      }
+    }
   }
+  
+  // GESTION DES MODALS
   else if (interaction.isModalSubmit()) {
     if (interaction.customId === 'feedback_modal') {
       await handleFeedbackSubmit(interaction).catch(err => console.error(err));
@@ -114,9 +146,7 @@ process.on('SIGTERM', shutdown);
 
 // 6. Start
 (async () => {
-  // Initialisation du listener AVANT le login
   setupWelcomeListener(client);
-  
   await loadAndRegisterCommands();
   
   client.login(process.env.DISCORD_TOKEN).catch(err => {
