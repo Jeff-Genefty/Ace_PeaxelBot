@@ -34,8 +34,8 @@ export function setupWelcomeListener(client) {
                 `Peaxel is the ultimate Fantasy Sport ecosystem where you manage real-life athletes and earn rewards. 🏆\n\n` +
                 `**🚀 YOUR NEXT STEPS:**\n\n` +
                 `1️⃣ **Claim your Free Cards:** Register at [game.peaxel.me](${playUrl}) to get your first athlete.\n\n` +
-                `2️⃣ **Get up to 5 FREE Cards:** Check our guide to see how to expand your roster! 🎁\n\n` +
-                `3️⃣ **Join the Zealy Quests:** Complete missions for XP. [Join here](https://zealy.io/c/peaxel).\n\n` +
+                `2️⃣ **Get up to 5 FREE Cards:** Check our guide in #faq to see how to expand your roster! 🎁\n\n` +
+                `3️⃣ **Join the Zealy Quests:** Complete missions for XP. [Join here](https://zealy.io/cw/peaxel-quest/questboard).\n\n` +
                 `*Ready to own the game? Let us know if you need help!* 🚀`
             )
             .setColor('#00ff00')
@@ -50,11 +50,11 @@ export function setupWelcomeListener(client) {
             new ButtonBuilder()
                 .setLabel('How to get 5 Free Cards')
                 .setStyle(ButtonStyle.Link)
-                .setURL(playUrl),
+                .setURL('https://peaxel.me/win-freecards-on-peaxel/'),
             new ButtonBuilder()
                 .setLabel('Zealy Quests')
                 .setStyle(ButtonStyle.Link)
-                .setURL('https://zealy.io/c/peaxel')
+                .setURL('https://zealy.io/cw/peaxel-quest/questboard')
         );
 
         const options = { 
