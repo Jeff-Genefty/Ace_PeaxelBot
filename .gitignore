@@ -27,11 +27,11 @@ build/
 
 # === Bot Database & Activity ===
 
+# On ignore l'activité pour ne pas écraser les stats à chaque mise à jour
 data/activity.json
-# data/*.json  
 
-# Autoriser spécifiquement les athlètes
+# On AUTORISE les fichiers de configuration et de jeu
 !data/config.json
 !data/athletes.json
-!data/giveaway.json
+!data/giveaways.json
 

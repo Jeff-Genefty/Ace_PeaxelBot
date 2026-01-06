@@ -1,7 +1,7 @@
 # 🎮 Peaxel Discord Bot
 
 The official Discord assistant for the **Peaxel** project.  
-This bot automates community engagement through scheduled announcements, athlete spotlights, and integrated feedback systems.
+This bot automates community engagement through scheduled announcements, athlete spotlights, interactive games, and weekend events.
 
 > Built with care by **Genefty**, specialists in community automation & engagement.
 
@@ -9,27 +9,48 @@ This bot automates community engagement through scheduled announcements, athlete
 
 ## ✨ Core Features
 
-- 📅 **Bi-Weekly Automated Announcements**
-  - **Mondays (00:01 – Paris time)**: Lineup opening with dynamic countdowns  
-  - **Thursdays (07:00 PM – Paris time)**: Lineup closing reminders with real-time countdown timestamps
+### 📅 Weekly Cycle Automation
+- **Mondays (00:00 – Paris)**: Lineup opening with dynamic countdowns.
+- **Tuesdays (19:00 – Paris)**: **Scout Quiz** — Automated "Guess the Athlete" pseudo game.
+- **Wednesdays (16:00 – Paris)**: **Athlete Spotlight** — Featured talent showcase from the ecosystem.
+- **Thursdays (18:59 – Paris)**: Lineup closing reminders with real-time timestamps.
+- **Weekends (Sat 10:00 - Sun 20:00)**: **Automated Giveaway** — Saturday launch and Sunday automated draw.
 
-- 🌟 **Weekly Athlete Spotlight**  
-  Every Wednesday at **4:00 PM (Paris)**, featuring a unique athlete from the ecosystem.
+### 🤖 Smart Interactions
+- **Help Center (`/help`)**: Interactive FAQ redirecting to official docs and Ace AI support.
+- **Interactive Buttons**: Quick access to **Play Now**, **Leaderboard**, and **Join Giveaway**.
+- **Feedback System**: Integrated modal forms to collect player ratings and suggestions.
 
-- 🎨 **Rich Embeds**  
-  Visually attractive messages with custom branding, footers, and images.
+---
 
-- 🔘 **Interactive Buttons**  
-  Quick access actions: **Play Now**, **Leaderboard**, **Give Feedback**.
+## 🚀 Command List
 
-- 💬 **Feedback System**  
-  Integrated modal forms to collect player ratings and suggestions.
+| Command | Description | Permission |
+| :--- | :--- | :--- |
+| `/help` | Interactive FAQ & Redirection to documentation. | Everyone |
+| `/ping` | Check bot latency and API health. | Everyone |
+| `/status` | Real-time health, Gameweek stats & unposted athletes. | Admin |
+| `/setup` | Configure Announcement and Log channels. | Admin |
+| `/spotlight-test` | Manually trigger an athlete showcase for testing. | Admin |
+| `/scout-quiz` | Manually trigger a "Guess the Athlete" quiz. | Admin |
+| `/opening-manual` | Force the Monday opening announcement. | Admin |
+| `/closing-manual` | Force the Thursday closing announcement. | Admin |
+| `/giveaway-start` | Manually launch a giveaway event. | Admin |
 
-- 📊 **Activity Tracking**  
-  Persistent logs of sent posts, feedback count, and uptime monitoring.
+---
 
-- 📝 **Advanced Logging**  
-  Dedicated admin channel for real-time bot events and error tracking.
+## 🛠️ Technical Setup
 
-- 🛡️ **Anti-Spam Protection**  
-  Built-in logic to prevent duplicate posts for the same weekly cycle.
+### Prerequisites
+- Node.js 18+
+- Discord Bot Token & Client ID
+- JSON Database files in `/data` (`config.json`, `athletes.json`, `giveaways.json`, `activity.json`)
+
+### Installation
+1. Clone the repository.
+2. Run `npm install`.
+3. Configure your `.env` file with `DISCORD_TOKEN` and `DISCORD_CLIENT_ID`.
+4. Launch with `npm start`.
+
+### Deployment
+Optimized for **Railway.app** or **Docker**. Ensures data persistence for all JSON storage files.
