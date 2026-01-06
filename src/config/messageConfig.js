@@ -23,7 +23,8 @@ const DEFAULT_CONFIG = {
     playButtonLabel: "🎮 Play Now",
     leaderboardButtonLabel: "📊 Leaderboard",
     showPlayButton: true,
-    showLeaderboardButton: true
+    showLeaderboardButton: true,
+    showFeedbackButton: true // Activé par défaut ici
   },
   closing: {
     title: "⚠️ ACE FINAL WARNING | LINEUP CLOSING FOR WEEK {WEEK_NUMBER} ⏱️",
@@ -36,7 +37,8 @@ const DEFAULT_CONFIG = {
     playButtonLabel: "🎮 Play Now",
     leaderboardButtonLabel: "📊 Leaderboard",
     showPlayButton: true,
-    showLeaderboardButton: true
+    showLeaderboardButton: true,
+    showFeedbackButton: true // Activé par défaut ici
   }
 };
 
