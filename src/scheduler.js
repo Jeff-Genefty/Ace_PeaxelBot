@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { sendWeeklyMessage } from './utils/sendWeeklyMessage.js';
-import { getRandomAthlete } from './utils/spotlightManager.js';
+import { getRandomAthlete, getPreviewAthlete } from './utils/spotlightManager.js';
 import { getCurrentWeekNumber, getParisDate, getCurrentDayName } from './utils/week.js';
 import { getConfig } from './utils/configManager.js';
 
@@ -22,7 +22,6 @@ export function updatePresence(client, customText = null) {
   const hours = now.getHours();
   let week = getCurrentWeekNumber();
 
-  // SUNDAY FIX: Keep showing current week number
   if (dayIndex === 0) {
     week = week - 1;
   }
@@ -35,6 +34,9 @@ export function updatePresence(client, customText = null) {
     if (dayIndex === 1) {
       statusText = `${baseStatus} | LIVE 🟢`;
     } 
+    else if (dayIndex === 2 && hours >= 19) {
+      statusText = `${baseStatus} | Quiz Time 🎲`;
+    }
     else if (dayIndex === 3 && hours >= 16) {
       statusText = `${baseStatus} | Spotlight 🌟`;
     } 
@@ -63,11 +65,11 @@ export function initScheduler(client) {
   console.log(`${logPrefix} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`${logPrefix} 🚀 Scheduler online:`);
   console.log(`${logPrefix} 📅 Opening: Monday at 00:00 (Paris)`);
+  console.log(`${logPrefix} 🎲 Quiz: Tuesday at 19:00 (Paris)`);
   console.log(`${logPrefix} 🌟 Spotlight: Wednesday at 16:00 (Paris)`);
   console.log(`${logPrefix} ⚠️ Closing: Thursday at 18:59 (Paris)`);
   console.log(`${logPrefix} ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
-  // Initial presence update on startup
   updatePresence(client);
 
   // --- 1. LINEUP OPENING (Monday 00:00) ---
@@ -87,7 +89,58 @@ export function initScheduler(client) {
     }
   }, { scheduled: true, timezone });
 
-  // --- 2. ATHLETE SPOTLIGHT (Wednesday 16:00) ---
+  // --- 2. AUTOMATIC SCOUT QUIZ (Tuesday 19:00) ---
+  cron.schedule('0 19 * * 2', async () => {
+    try {
+      const athlete = getPreviewAthlete();
+      if (!athlete) return;
+
+      const config = getConfig();
+      const channelId = config.channels?.announce || '1369976259613954059';
+      const channel = await client.channels.fetch(channelId);
+
+      const quizEmbed = new EmbedBuilder()
+        .setTitle('🎲 SCOUT QUIZ: Guess the Athlete!')
+        .setDescription('Find the **IN-GAME PSEUDO** of this athlete to win a reward!')
+        .addFields(
+          { name: '📍 Nationality', value: athlete.nationality, inline: true },
+          { name: '🏆 Sport', value: athlete.sport, inline: true },
+          { name: '🗂️ Category', value: athlete.category, inline: true },
+          { name: '💡 Hint', value: `The pseudo starts with **${athlete.name.charAt(0).toUpperCase()}**` }
+        )
+        .setColor('#FACC15')
+        .setFooter({ text: 'Note: You must provide the exact in-game pseudo (e.g., SHAHMALARANI)' });
+
+      await channel.send({ content: '✨ **Weekly Scout Quiz is LIVE!** @everyone', embeds: [quizEmbed] });
+      updatePresence(client, `Quiz Active 🎲`);
+
+      const filter = m => m.content.toUpperCase() === athlete.name.toUpperCase();
+      const collector = channel.createMessageCollector({ filter, time: 7200000, max: 1 });
+
+      collector.on('collect', async m => {
+        const winEmbed = new EmbedBuilder()
+          .setTitle('🏆 WE HAVE A WINNER!')
+          .setDescription(`Congratulations <@${m.author.id}>! You found the correct athlete: **${athlete.name.toUpperCase()}**.\n\n` +
+                          `📩 To claim your reward, please open a ticket here: <#1369976260066803794>`)
+          .setColor('#2ECC71')
+          .setThumbnail(athlete.image);
+
+        await channel.send({ embeds: [winEmbed] });
+        updatePresence(client);
+      });
+
+      collector.on('end', (collected, reason) => {
+        if (reason === 'time' && collected.size === 0) {
+          channel.send(`⏰ **Quiz Ended!** No one found the answer in time. It was **${athlete.name.toUpperCase()}**.`);
+          updatePresence(client);
+        }
+      });
+    } catch (error) {
+      console.error(`${logPrefix} [Quiz] Error:`, error.message);
+    }
+  }, { scheduled: true, timezone });
+
+  // --- 3. ATHLETE SPOTLIGHT (Wednesday 16:00) ---
   cron.schedule('0 16 * * 3', async () => {
     try {
       const athlete = getRandomAthlete();
@@ -95,9 +148,7 @@ export function initScheduler(client) {
 
       const config = getConfig();
       const channelId = config.channels?.spotlight || '1369976259613954059';
-      
       const channel = await client.channels.fetch(channelId);
-      if (!channel?.isTextBased()) return console.error(`${logPrefix} [Spotlight] Target channel not found.`);
 
       const embed = new EmbedBuilder()
         .setTitle(`🌟 WEEKLY SPOTLIGHT: ${athlete.name.toUpperCase()}`)
@@ -119,27 +170,19 @@ export function initScheduler(client) {
         new ButtonBuilder().setLabel('Play Peaxel 🎮').setStyle(ButtonStyle.Link).setURL("https://game.peaxel.me")
       );
 
-      await channel.send({ 
-        content: "✨ **New Athlete Spotlight is live!**",
-        embeds: [embed], 
-        components: [row] 
-      });
-      
-      console.log(`${logPrefix} [Spotlight] Posted: ${athlete.name}`);
+      await channel.send({ content: "✨ **New Athlete Spotlight is live!**", embeds: [embed], components: [row] });
       updatePresence(client);
-
     } catch (error) {
       console.error(`${logPrefix} [Spotlight] Error:`, error.message);
     }
   }, { scheduled: true, timezone });
 
-  // --- 3. LINEUP CLOSING (Thursday 18:59) ---
+  // --- 4. LINEUP CLOSING (Thursday 18:59) ---
   cron.schedule('59 18 * * 4', async () => {
     const weekKey = getWeekKey();
     if (lastSentCloseWeek === weekKey) return;
 
     try {
-      console.log(`${logPrefix} [Closing] Executing weekly closing post...`);
       const success = await sendWeeklyMessage(client, { isManual: false, type: 'closing' });
       if (success) {
         lastSentCloseWeek = weekKey;
@@ -150,15 +193,12 @@ export function initScheduler(client) {
     }
   }, { scheduled: true, timezone });
 
-  // --- 4. HOURLY REFRESH ---
+  // --- 5. HOURLY REFRESH ---
   cron.schedule('0 * * * *', () => {
     updatePresence(client);
   }, { scheduled: true, timezone });
 }
 
-/**
- * Generates a unique key for the current week to prevent duplicate posts
- */
 function getWeekKey() {
   const now = getParisDate();
   return `${now.getFullYear()}-W${getCurrentWeekNumber()}`;
