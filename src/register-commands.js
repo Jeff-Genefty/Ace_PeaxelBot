@@ -25,9 +25,15 @@ async function registerCommands() {
     const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.js'));
     
     for (const file of commandFiles) {
-      const command = await import(`file://${join(commandsPath, file)}`);
-      if (command.data) {
+      const commandModule = await import(`file://${join(commandsPath, file)}`);
+      
+      // Handle both default and named exports
+      const command = commandModule.default || commandModule;
+
+      if (command && command.data) {
         commands.push(command.data.toJSON());
+      } else {
+        console.warn(`${logPrefix} ⚠️  The command at ${file} is missing a required "data" property.`);
       }
     }
 
