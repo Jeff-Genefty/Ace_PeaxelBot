@@ -37,23 +37,29 @@ async function loadAndRegisterCommands() {
     
     for (const file of commandFiles) {
       const filePath = join(commandsPath, file);
-      const command = await import(`file://${filePath}`);
+      const commandModule = await import(`file://${filePath}`);
       
-      if (command.data && command.execute) {
+      const command = commandModule.default || commandModule;
+      
+      if (command && command.data && command.execute) {
         client.commands.set(command.data.name, command);
         commandsToRegister.push(command.data.toJSON());
+        console.log(`${logPrefix} Command detected: /${command.data.name}`);
+      } else {
+        console.warn(`${logPrefix} ⚠️ Failed to load ${file}: missing data or execute.`);
       }
     }
-    console.log(`${logPrefix} ✅ ${client.commands.size} commands loaded in memory.`);
+    console.log(`${logPrefix} ✅ ${client.commands.size} commands successfully loaded in memory.`);
 
     if (process.env.DISCORD_TOKEN && process.env.DISCORD_CLIENT_ID) {
       const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
       console.log(`${logPrefix} 🔄 Syncing commands with Discord...`);
       
-      await rest.put(
-        Routes.applicationCommands(process.env.DISCORD_CLIENT_ID),
-        { body: commandsToRegister }
-      );
+      const route = process.env.DISCORD_GUILD_ID 
+        ? Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.DISCORD_GUILD_ID)
+        : Routes.applicationCommands(process.env.DISCORD_CLIENT_ID);
+
+      await rest.put(route, { body: commandsToRegister });
       console.log(`${logPrefix} ✅ Commands synchronized successfully.`);
     }
   } catch (err) {
