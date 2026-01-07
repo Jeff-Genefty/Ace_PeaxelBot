@@ -98,13 +98,21 @@ export function initScheduler(client) {
     try {
       const athlete = getPreviewAthlete();
       if (!athlete) return;
+      
       const config = getConfig();
-      const channelId = config.channels?.announce || '1369976257047167059';
-      const channel = await client.channels.fetch(channelId);
+      const announceChannelId = config.channels?.announce || '1369976257047167059';
+      const generalChannelId = '1369976259613954059'; 
+
+      const announceChannel = await client.channels.fetch(announceChannelId);
+      const generalChannel = await client.channels.fetch(generalChannelId);
 
       const quizEmbed = new EmbedBuilder()
         .setTitle('🎲 SCOUT QUIZ: Guess the Athlete!')
-        .setDescription('Find the **IN-GAME PSEUDO** of this athlete to win a reward!')
+        .setDescription(
+          `Find the **IN-GAME PSEUDO** of this athlete to win a reward!\n\n` +
+          `👉 **HOW TO PLAY:**\n` +
+          `Go to <#${generalChannelId}> and type the **EXACT** pseudo.`
+        )
         .addFields(
           { name: '📍 Nationality', value: athlete.nationality, inline: true },
           { name: '🏆 Sport', value: athlete.sport, inline: true },
@@ -112,13 +120,14 @@ export function initScheduler(client) {
           { name: '💡 Hint', value: `The pseudo starts with **${athlete.name.charAt(0).toUpperCase()}**` }
         )
         .setColor('#FACC15')
-        .setFooter({ text: 'Note: Provide the exact in-game pseudo (e.g., SHAHMALARANI)' });
+        .setFooter({ text: 'Note: You must provide the exact in-game pseudo (e.g., SHAHMALARANI)' });
 
-      await channel.send({ content: '✨ **Weekly Scout Quiz is LIVE!** @everyone', embeds: [quizEmbed] });
+      await announceChannel.send({ content: '✨ **Weekly Scout Quiz is LIVE!** @everyone', embeds: [quizEmbed] });
       updatePresence(client, `Quiz Active 🎲`);
 
-      const filter = m => m.content.toUpperCase() === athlete.name.toUpperCase();
-      const collector = channel.createMessageCollector({ filter, time: 7200000, max: 1 });
+      // --- COLLECTOR LOGIC ---
+      const filter = m => m.content.toUpperCase().trim() === athlete.name.toUpperCase();
+      const collector = generalChannel.createMessageCollector({ filter, time: 7200000, max: 1 });
 
       collector.on('collect', async m => {
         const winEmbed = new EmbedBuilder()
@@ -127,13 +136,16 @@ export function initScheduler(client) {
                           `📩 To claim your reward, please open a ticket here: <#1369976260066803794>`)
           .setColor('#2ECC71')
           .setThumbnail(athlete.image);
-        await channel.send({ embeds: [winEmbed] });
+
+        await announceChannel.send({ embeds: [winEmbed] });
+        await m.reply(`🏆 **Correct!** You won the Scout Quiz! Check <#${announceChannelId}> for details.`);
+        
         updatePresence(client);
       });
 
       collector.on('end', (collected, reason) => {
         if (reason === 'time' && collected.size === 0) {
-          channel.send(`⏰ **Quiz Ended!** No one found the answer. It was **${athlete.name.toUpperCase()}**.`);
+          announceChannel.send(`⏰ **Quiz Ended!** No one found the answer. It was **${athlete.name.toUpperCase()}**.`);
           updatePresence(client);
         }
       });
