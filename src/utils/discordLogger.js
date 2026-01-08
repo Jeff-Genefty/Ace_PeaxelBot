@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import { getConfig } from './configManager.js';
 
 const logPrefix = '[Peaxel Logger]';
 let logChannel = null;
@@ -15,7 +16,8 @@ const LOG_LEVELS = {
  * Initialize the Logger
  */
 export async function initDiscordLogger(client) {
-  const channelId = process.env.LOG_CHANNEL_ID;
+const config = getConfig();
+  const channelId = config.channels?.logs;
   
   if (!channelId) {
     console.log(`${logPrefix} LOG_CHANNEL_ID not set. Discord logging disabled.`);

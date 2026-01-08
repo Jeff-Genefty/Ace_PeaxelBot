@@ -32,23 +32,42 @@ export async function execute(interaction) {
             { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
             { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
             { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true },
+            { name: "📝 Description", value: athlete.description || "No description available." }
+        );
+
+    if (athlete.birthdate) {
+        embed.addFields({ name: "🎂 Birthdate", value: athlete.birthdate, inline: true });
+    }
+
+    const locationValue = `${athlete.city || ''} ${athlete.club || ''}`.trim();
+    if (locationValue && locationValue.toUpperCase() !== "N/A") {
+        embed.addFields({ name: "📍 Location & Club", value: locationValue, inline: true });
+    }
+
+    if (athlete.goal && athlete.goal.toUpperCase() !== "N/A") {
+        embed.addFields(
             { name: '\u200B', value: '\u200B', inline: false },
-            { name: "📝 Description", value: athlete.description || "No description available." },
+            { name: "🎯 Personal Goal", value: athlete.goal }
+        );
+    }
+
+    if (prizesText) {
+        embed.addFields(
             { name: '\u200B', value: '\u200B', inline: false },
-            { name: "🎂 Birthdate", value: athlete.birthdate || "N/A", inline: true },
-            { name: "📍 Location & Club", value: `${athlete.city || ''} ${athlete.club || ''}`.trim() || "N/A", inline: true },
-            { name: '\u200B', value: '\u200B', inline: false },
-            { name: "🎯 Personal Goal", value: athlete.goal || "N/A" },
-            { name: '\u200B', value: '\u200B', inline: false },
-            { name: "⭐ Achievements", value: prizesText || "N/A" },
-            { name: '\u200B', value: '\u200B', inline: false },
-            { 
-                name: "📣 COACH ACE CHALLENGE", 
-                value: `Is **${athleteName}** part of your strategy? 🔥\n` +
-                       `Drop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` 
-            }
-        )
-        .setImage(athlete.talent_card_image_url || null)
+            { name: "⭐ Achievements", value: prizesText }
+        );
+    }
+
+    embed.addFields(
+        { name: '\u200B', value: '\u200B', inline: false },
+        { 
+            name: "📣 COACH ACE CHALLENGE", 
+            value: `Is **${athleteName}** part of your strategy? 🔥\n` +
+                   `Drop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` 
+        }
+    );
+
+    embed.setImage(athlete.talent_card_image_url || null)
         .setFooter({ text: "Peaxel • Athlete Spotlight Series", iconURL: 'https://media.peaxel.me/logo.png' })
         .setTimestamp();
 
