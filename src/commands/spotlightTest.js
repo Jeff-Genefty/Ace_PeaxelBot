@@ -32,9 +32,7 @@ export async function execute(interaction) {
             { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
             { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
             { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true },
-            { name: '\u200B', value: '\u200B', inline: false },
-            { name: "📝 Description", value: athlete.description || "No description available." },
-            { name: '\u200B', value: '\u200B', inline: false },
+            { name: "📝 Description", value: athlete.description || "No description available." }
         );
 
     if (athlete.birthdate) {
@@ -84,13 +82,24 @@ export async function execute(interaction) {
             .setURL("https://game.peaxel.me")
     );
 
-    if (athlete.instagram_talent && typeof athlete.instagram_talent === 'string' && athlete.instagram_talent.startsWith('http')) {
-        row.addComponents(
-            new ButtonBuilder()
-                .setLabel('Instagram')
-                .setStyle(ButtonStyle.Link)
-                .setURL(athlete.instagram_talent)
-        );
+    const socialMedia = [
+        { key: 'instagram_talent', label: 'Instagram' },
+        { key: 'tiktok', label: 'TikTok' },
+        { key: 'x_twitter', label: 'X (Twitter)' },
+        { key: 'facebook', label: 'Facebook' },
+        { key: 'linkedin', label: 'LinkedIn' }
+    ];
+
+    for (const social of socialMedia) {
+        const url = athlete[social.key];
+        if (url && typeof url === 'string' && url.startsWith('http') && row.components.length < 5) {
+            row.addComponents(
+                new ButtonBuilder()
+                    .setLabel(social.label)
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(url)
+            );
+        }
     }
 
     const introText = `@everyone\n\nIt's time for our **Weekly Athlete Spotlight**! 🚀\n` +
