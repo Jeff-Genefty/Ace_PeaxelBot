@@ -1,14 +1,26 @@
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } from 'discord.js';
+import { getPreviewAthlete } from '../utils/spotlightManager.js';
+
+export const data = new SlashCommandBuilder()
+    .setName('spotlight-test')
+    .setDescription('Test the final airy Spotlight layout')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+
 export async function execute(interaction) {
     const athlete = getPreviewAthlete();
-    if (!athlete) return interaction.reply({ content: "❌ No athlete found.", ephemeral: true });
 
-    const generalChannelId = '1369976259613954059';
+    if (!athlete) {
+        return await interaction.reply({ content: "❌ No athlete found.", ephemeral: true });
+    }
+
+    const generalChannelId = '1369976259613954059'; 
     const athleteName = (athlete.name || "Athlete").toUpperCase();
 
-    // Preparation of achievements list
     let prizesText = "";
     for (let i = 1; i <= 5; i++) {
-        if (athlete[`prize${i}`]) prizesText += `• ${athlete[`prize${i}`]}\n`;
+        if (athlete[`prize${i}`]) {
+            prizesText += `• ${athlete[`prize${i}`]}\n`;
+        }
     }
 
     const embed = new EmbedBuilder()
@@ -17,30 +29,19 @@ export async function execute(interaction) {
         .setColor("#FACC15")
         .setThumbnail(athlete.talent_profile_image_url || null)
         .addFields(
-            // Section 1: Stats
             { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
             { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
             { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true },
-            { name: '\u200B', value: '\u200B' }, // Space
-
-            // Section 2: Description
+            { name: '\u200B', value: '\u200B', inline: false },
             { name: "📝 Description", value: athlete.description || "No description available." },
-            { name: '\u200B', value: '\u200B' }, // Space
-
-            // Section 3: Birthdate & Location
+            { name: '\u200B', value: '\u200B', inline: false },
             { name: "🎂 Birthdate", value: athlete.birthdate || "N/A", inline: true },
             { name: "📍 Location & Club", value: `${athlete.city || ''} ${athlete.club || ''}`.trim() || "N/A", inline: true },
-            { name: '\u200B', value: '\u200B' }, // Space
-
-            // Section 4: Personal Goal
+            { name: '\u200B', value: '\u200B', inline: false },
             { name: "🎯 Personal Goal", value: athlete.goal || "N/A" },
-            { name: '\u200B', value: '\u200B' }, // Space
-
-            // Section 5: Achievements
+            { name: '\u200B', value: '\u200B', inline: false },
             { name: "⭐ Achievements", value: prizesText || "N/A" },
-            { name: '\u200B', value: '\u200B' }, // Space
-
-            // Section 6: Challenge
+            { name: '\u200B', value: '\u200B', inline: false },
             { 
                 name: "📣 COACH ACE CHALLENGE", 
                 value: `Is **${athleteName}** part of your strategy? 🔥\n` +
@@ -52,12 +53,23 @@ export async function execute(interaction) {
         .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('View Profile 🃏').setStyle(ButtonStyle.Link).setURL(athlete.peaxelLink || "https://game.peaxel.me"),
-        new ButtonBuilder().setLabel('Play on Peaxel 🎮').setStyle(ButtonStyle.Link).setURL("https://game.peaxel.me")
+        new ButtonBuilder()
+            .setLabel('View Profile 🃏')
+            .setStyle(ButtonStyle.Link)
+            .setURL(athlete.peaxelLink || "https://game.peaxel.me"),
+        new ButtonBuilder()
+            .setLabel('Play on Peaxel 🎮')
+            .setStyle(ButtonStyle.Link)
+            .setURL("https://game.peaxel.me")
     );
 
-    if (athlete.instagram_talent) {
-        row.addComponents(new ButtonBuilder().setLabel('Instagram').setStyle(ButtonStyle.Link).setURL(athlete.instagram_talent));
+    if (athlete.instagram_talent && typeof athlete.instagram_talent === 'string' && athlete.instagram_talent.startsWith('http')) {
+        row.addComponents(
+            new ButtonBuilder()
+                .setLabel('Instagram')
+                .setStyle(ButtonStyle.Link)
+                .setURL(athlete.instagram_talent)
+        );
     }
 
     const introText = `@everyone\n\nIt's time for our **Weekly Athlete Spotlight**! 🚀\n` +
