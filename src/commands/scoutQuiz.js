@@ -16,15 +16,13 @@ export default {
 
         const config = getConfig();
         const announceChannelId = config.channels?.announce || interaction.channelId;
-        const generalChannelId = '1369976255746805770'; // 👈 TON ID SALON GENERAL
+        const generalChannelId = '1369976259613954059'; // Salon général fixe
 
         const announceChannel = await interaction.client.channels.fetch(announceChannelId);
         const generalChannel = await interaction.client.channels.fetch(generalChannelId);
 
-        // 1. On confirme à l'admin que c'est lancé
         await interaction.reply({ content: `✅ Quiz lancé dans <#${announceChannelId}>. Réponses écoutées dans <#${generalChannelId}>.`, ephemeral: true });
 
-        // 2. Envoi de l'annonce
         const quizEmbed = new EmbedBuilder()
             .setTitle('🎲 SCOUT QUIZ: Guess the Athlete!')
             .setDescription(
@@ -43,7 +41,6 @@ export default {
 
         await announceChannel.send({ content: '✨ **Manual Scout Quiz is LIVE!** @everyone', embeds: [quizEmbed] });
 
-        // 3. Collector sur le salon GENERAL
         const filter = m => m.content.toUpperCase().trim() === athlete.name.toUpperCase();
         const collector = generalChannel.createMessageCollector({ filter, time: 7200000, max: 1 });
 
