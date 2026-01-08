@@ -3,14 +3,14 @@ import { getPreviewAthlete } from '../utils/spotlightManager.js';
 
 export const data = new SlashCommandBuilder()
     .setName('spotlight-test')
-    .setDescription('Test the airy Spotlight layout')
+    .setDescription('Test the airy Spotlight layout with the latest athlete data structure')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction) {
     const athlete = getPreviewAthlete();
 
     if (!athlete) {
-        return await interaction.reply({ content: "❌ No athlete found.", ephemeral: true });
+        return await interaction.reply({ content: "❌ No athlete found in the database.", ephemeral: true });
     }
 
     const generalChannelId = '1369976259613954059'; 
@@ -24,7 +24,7 @@ export async function execute(interaction) {
 
     const embed = new EmbedBuilder()
         .setTitle(`🌟 SPOTLIGHT OF THE WEEK: ${athlete.name?.toUpperCase() || "UNKNOWN"}`)
-        .setURL(athlete.peaxelLink || "https://peaxel.me")
+        .setURL(athlete.peaxelLink || "https://game.peaxel.me")
         .setColor("#FACC15")
         .setThumbnail(athlete.talent_profile_image_url || null)
         .setImage(athlete.talent_card_image_url || null)
@@ -68,33 +68,36 @@ export async function execute(interaction) {
     const row1 = new ActionRowBuilder();
     const row2 = new ActionRowBuilder();
 
+    const profileLink = athlete.peaxelLink && typeof athlete.peaxelLink === 'string' ? athlete.peaxelLink : "https://game.peaxel.me";
+    
     row1.addComponents(
         new ButtonBuilder()
             .setLabel('View Profile 🃏')
             .setStyle(ButtonStyle.Link)
-            .setURL(typeof athlete.peaxelLink === 'string' && athlete.peaxelLink.startsWith('http') ? athlete.peaxelLink : "https://peaxel.me")
+            .setURL(profileLink)
     );
     
-    if (athlete.gameLink && typeof athlete.gameLink === 'string' && athlete.gameLink.startsWith('http')) {
-        row1.addComponents(
-            new ButtonBuilder().setLabel('Play on Peaxel 🎮').setStyle(ButtonStyle.Link).setURL(athlete.gameLink)
-        );
-    }
+    row1.addComponents(
+        new ButtonBuilder()
+            .setLabel('Play on Peaxel 🎮')
+            .setStyle(ButtonStyle.Link)
+            .setURL("https://game.peaxel.me")
+    );
 
-    if (athlete.instagram_talent && typeof athlete.instagram_talent === 'string' && athlete.instagram_talent.startsWith('http')) {
+    if (athlete.instagram_talent && typeof athlete.instagram_talent === 'string') {
         row1.addComponents(new ButtonBuilder().setLabel('Instagram').setStyle(ButtonStyle.Link).setURL(athlete.instagram_talent));
     }
-    if (athlete.tiktok && typeof athlete.tiktok === 'string' && athlete.tiktok.startsWith('http')) {
-        row1.addComponents(new ButtonBuilder().setLabel('TikTok').setStyle(ButtonStyle.Link).setURL(athlete.tiktok));
+    
+    if (athlete.tiktok && typeof athlete.tiktok === 'string') {
+        row2.addComponents(new ButtonBuilder().setLabel('TikTok').setStyle(ButtonStyle.Link).setURL(athlete.tiktok));
     }
-    if (athlete.x_twitter && typeof athlete.x_twitter === 'string' && athlete.x_twitter.startsWith('http')) {
-        row1.addComponents(new ButtonBuilder().setLabel('X (Twitter)').setStyle(ButtonStyle.Link).setURL(athlete.x_twitter));
+    if (athlete.x_twitter && typeof athlete.x_twitter === 'string') {
+        row2.addComponents(new ButtonBuilder().setLabel('X (Twitter)').setStyle(ButtonStyle.Link).setURL(athlete.x_twitter));
     }
-
-    if (athlete.facebook && typeof athlete.facebook === 'string' && athlete.facebook.startsWith('http')) {
+    if (athlete.facebook && typeof athlete.facebook === 'string') {
         row2.addComponents(new ButtonBuilder().setLabel('Facebook').setStyle(ButtonStyle.Link).setURL(athlete.facebook));
     }
-    if (athlete.linkedin && typeof athlete.linkedin === 'string' && athlete.linkedin.startsWith('http')) {
+    if (athlete.linkedin && typeof athlete.linkedin === 'string') {
         row2.addComponents(new ButtonBuilder().setLabel('LinkedIn').setStyle(ButtonStyle.Link).setURL(athlete.linkedin));
     }
 
