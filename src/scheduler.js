@@ -179,7 +179,9 @@ cron.schedule('0 16 * * 3', async () => {
             { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
             { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
             { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true },
-            { name: "📝 Description", value: athlete.description || "No description available." }
+            { name: '\u200B', value: '\u200B', inline: false },
+            { name: "📝 Description", value: athlete.description || "No description available." },
+            { name: '\u200B', value: '\u200B', inline: false },
         );
 
     if (athlete.birthdate) {
