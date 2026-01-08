@@ -21,41 +21,27 @@ import { recordWeeklyPost } from './activityTracker.js';
 import { logWeeklyPost } from './discordLogger.js';
 import { getConfig } from './configManager.js';
 
-// ES Modules helpers for paths
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-/**
- * Sends the Peaxel weekly announcement (Opening or Closing)
- * @param {import('discord.js').Client} client 
- * @param {Object} options 
- */
 export async function sendWeeklyMessage(client, { isManual = false, type = 'opening' } = {}) {
   const logPrefix = '[Peaxel Send]';
   
-  // 1. Dynamic fetch of the announcement channel
   const configDB = getConfig();
   const channelId = configDB.channels.announce || process.env.ANNOUNCE_CHANNEL_ID;
-  
-  // Role ID for pings (@betatester or Manager role)
   const ROLE_ID = "1369976254685642925"; 
 
   if (!channelId) {
-    console.error(`${logPrefix} Missing ANNOUNCE_CHANNEL_ID (DB or Env)`);
+    console.error(`${logPrefix} Missing ANNOUNCE_CHANNEL_ID`);
     return false;
   }
 
   const channel = await client.channels.fetch(channelId).catch(() => null);
-  if (!channel?.isTextBased()) {
-    console.error(`${logPrefix} Invalid channel: ${channelId}`);
-    return false;
-  }
+  if (!channel?.isTextBased()) return false;
 
-  // 2. Load context and handle Sunday date logic
   const now = new Date();
   let weekNumber = getCurrentWeekNumber();
   
-  // SUNDAY FIX: If it's Sunday, we are still closing/referencing the "current" week
   if (now.getDay() === 0) {
     weekNumber = weekNumber - 1;
   }
@@ -65,7 +51,6 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
   const validType = (type === 'opening' || type === 'closing') ? type : 'opening';
   const typeConfig = config[validType]; 
 
-  // 3. Professional "Ace" Message Content
   let finalDescription = "";
 
   if (validType === 'opening') {
@@ -85,7 +70,6 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
                        `🔒 **Lock:** Submit your team before the deadline hits!`;
   }
 
-  // 4. Image Handling 
   const imageFileName = getImageName(validType);
   const imagePath = resolve(process.cwd(), `./assets/${imageFileName}`);
   let attachment = null;
@@ -94,20 +78,19 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
     attachment = new AttachmentBuilder(readFileSync(imagePath), { name: imageFileName });
   }
 
-  // 5. Dynamic Countdown for Closing
   let countdownText = "";
   if (validType === 'closing') {
     const deadline = new Date(now);
-    // Target: Next (or current) Thursday at 18:59
     const dayDiff = (4 - now.getDay() + 7) % 7;
     deadline.setDate(now.getDate() + dayDiff);
-    deadline.setHours(18, 59, 0, 0);
+    
+    // MODIFICATION ICI : On règle sur 23:59 au lieu de 18:59
+    deadline.setHours(23, 59, 0, 0);
 
     const unix = Math.floor(deadline.getTime() / 1000);
     countdownText = `\n\n⏱️ **TIME REMAINING:**\n> Lineups lock in **<t:${unix}:R>**\n> Deadline: <t:${unix}:f>`;
   }
 
-  // 6. Build Embed
   const embed = new EmbedBuilder()
     .setTitle(`ACE NOTIFICATION | GW #${weekNumber} ${validType.toUpperCase()} IS NOW LIVE`)
     .setDescription(finalDescription + countdownText)
@@ -117,7 +100,6 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
 
   if (attachment) embed.setImage(`attachment://${imageFileName}`);
 
-  // 7. Build Buttons
   const buttons = [];
   if (typeConfig.showPlayButton && typeConfig.playUrl) {
     buttons.push(new ButtonBuilder().setLabel(typeConfig.playButtonLabel).setStyle(ButtonStyle.Link).setURL(typeConfig.playUrl));
@@ -131,7 +113,6 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
 
   const components = buttons.length > 0 ? [new ActionRowBuilder().addComponents(buttons)] : [];
 
-  // 8. Execution
   try {
     const messageOptions = { 
       content: `<@&${ROLE_ID}>`, 
@@ -142,18 +123,16 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
 
     const sentMessage = await channel.send(messageOptions);
 
-    // Add reactions
     if (reactionsConfig.enabled) {
       for (const emoji of reactionsConfig.reactions) {
         await sentMessage.react(emoji).catch(() => null);
       }
     }
 
-    // Analytics & Logging
     recordWeeklyPost(isManual, weekNumber);
     await logWeeklyPost(isManual, weekNumber, channel.name);
 
-    console.log(`${logPrefix} ✅ Weekly ${type} successfully sent to #${channel.name}`);
+    console.log(`${logPrefix} ✅ Weekly ${type} sent to #${channel.name}`);
     return true;
   } catch (error) {
     console.error(`${logPrefix} ❌ Send failed:`, error);
