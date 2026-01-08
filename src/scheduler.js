@@ -21,6 +21,7 @@ export function updatePresence(client, customText = null) {
   const now = getParisDate();
   const dayIndex = now.getDay(); 
   const hours = now.getHours();
+  const minutes = now.getMinutes();
   let week = getCurrentWeekNumber();
 
   if (dayIndex === 0) {
@@ -42,7 +43,8 @@ export function updatePresence(client, customText = null) {
       statusText = `${baseStatus} | Spotlight 🌟`;
     } 
     else if (dayIndex === 4) {
-      if (hours < 19) {
+      // Logic adjusted to trigger Locked only at 18:59 or 19:00
+      if (hours < 18 || (hours === 18 && minutes < 59)) {
         statusText = `${baseStatus} | Closing Soon ⏳`;
       } else {
         statusText = `${baseStatus} | Locked 🚫`;

@@ -18,13 +18,11 @@ const defaultConfig = {
 export function getConfig() {
     try {
         if (!fs.existsSync(CONFIG_FILE)) {
-            console.log('[Config] File not found, using default');
             return defaultConfig;
         }
         const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
         const parsed = JSON.parse(data);
         
-        // FUSION : On s'assure que l'objet retourné a TOUJOURS la structure defaultConfig
         return {
             ...defaultConfig,
             ...parsed,
@@ -38,7 +36,6 @@ export function getConfig() {
 
 export function getChannel(type) {
     const config = getConfig();
-    // Utilisation de l'optional chaining pour éviter les erreurs si channels est indéfini
     return config.channels?.[type] || null;
 }
 
@@ -51,6 +48,5 @@ export function setChannel(type, channelId) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-    console.log(`[Config] Saved channel ${type}: ${channelId}`);
     return true;
 }
