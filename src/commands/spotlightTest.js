@@ -3,7 +3,7 @@ import { getPreviewAthlete } from '../utils/spotlightManager.js';
 
 export const data = new SlashCommandBuilder()
     .setName('spotlight-test')
-    .setDescription('Test l\'affichage complet du Spotlight avec les nouvelles données')
+    .setDescription('Test l\'affichage aéré du Spotlight')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction) {
@@ -23,25 +23,28 @@ export async function execute(interaction) {
     }
 
     const embed = new EmbedBuilder()
-        .setTitle(`🌟 TEST SPOTLIGHT: ${athlete.name.toUpperCase()}`)
+        .setTitle(`🌟 SPOTLIGHT OF THE WEEK: ${athlete.name.toUpperCase()}`)
         .setURL(athlete.peaxelLink)
-        .setDescription(athlete.description || "No description available.") 
         .setColor("#FACC15")
         .setThumbnail(athlete.talent_profile_image_url || null)
         .setImage(athlete.talent_card_image_url || null)
         .addFields(
             { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
             { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
-            { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true }
-        );
+            { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true },
+            // Champ vide pour forcer le passage à la ligne et aérer
+            { name: '\u200B', value: '\u200B' }
+        )
+        .addFields({ name: "📝 Description", value: athlete.description || "No description available." });
 
-    if (athlete.city || athlete.club) {
-        embed.addFields({ 
-            name: "📍 Location & Club", 
-            value: `${athlete.city || ''}${athlete.city && athlete.club ? ' - ' : ''}${athlete.club || ''}` || "N/A" 
-        });
+    if (athlete.birthdate) {
+        embed.addFields({ name: "🎂 Birthdate", value: athlete.birthdate, inline: true });
     }
 
+    if (athlete.city || athlete.club) {
+        const location = `${athlete.city || ''}${athlete.city && athlete.club ? ' - ' : ''}${athlete.club || ''}`;
+        embed.addFields({ name: "📍 Location & Club", value: location || "N/A", inline: true });
+    }
 
     if (athlete.goal) {
         embed.addFields({ name: "🎯 Personal Goal", value: athlete.goal });
@@ -51,13 +54,16 @@ export async function execute(interaction) {
         embed.addFields({ name: "⭐ Achievements", value: prizesText });
     }
 
-    embed.addFields({ 
-        name: "📣 COACH ACE CHALLENGE", 
-        value: `Is **${athlete.name.toUpperCase()}** part of your strategy? 🔥\n\n` +
-               `Drop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` 
-    });
+    embed.addFields(
+        { name: '\u200B', value: '\u200B' },
+        { 
+            name: "📣 COACH ACE CHALLENGE", 
+            value: `Is **${athlete.name.toUpperCase()}** part of your strategy? 🔥\n\n` +
+                   `Drop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` 
+        }
+    );
 
-    embed.setFooter({ text: "Peaxel • Athlete Spotlight Series (Test Mode)", iconURL: 'https://media.peaxel.me/logo.png' })
+    embed.setFooter({ text: "Peaxel • Athlete Spotlight Series", iconURL: 'https://media.peaxel.me/logo.png' })
          .setTimestamp();
 
     const row1 = new ActionRowBuilder();
@@ -79,13 +85,12 @@ export async function execute(interaction) {
 
     if (athlete.facebook) row2.addComponents(new ButtonBuilder().setLabel('Facebook').setStyle(ButtonStyle.Link).setURL(athlete.facebook));
     if (athlete.linkedin) row2.addComponents(new ButtonBuilder().setLabel('LinkedIn').setStyle(ButtonStyle.Link).setURL(athlete.linkedin));
-    if (athlete.card_video) row2.addComponents(new ButtonBuilder().setLabel('Watch Video 🎥').setStyle(ButtonStyle.Link).setURL(athlete.card_video));
 
     const components = [row1];
     if (row2.components.length > 0) components.push(row2);
 
     await interaction.reply({ 
-        content: "🛠️ **Rendu du nouveau format Spotlight (Mode Test) :**", 
+        content: "🛠️ **Rendu du Spotlight (Aéré) :**", 
         embeds: [embed], 
         components: components 
     });
