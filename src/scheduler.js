@@ -148,46 +148,115 @@ export function initScheduler(client) {
     }
   }, { scheduled: true, timezone });
 
-  // --- 3. ATHLETE SPOTLIGHT (Wednesday 16:00) ---
-  cron.schedule('0 16 * * 3', async () => {
-    try {
-      const athlete = getRandomAthlete();
-      if (!athlete) return;
-      
-      const config = getConfig();
-      const channelId = config.channels?.spotlight || '1369976259613954059';
-      const generalChannelId = '1369976259613954059'; 
-      const channel = await client.channels.fetch(channelId);
+// --- 3. ATHLETE SPOTLIGHT (Wednesday 16:00) ---
+cron.schedule('0 16 * * 3', async () => {
+  try {
+    const athlete = getRandomAthlete();
+    if (!athlete) return;
+    
+    const config = getConfig();
+    const channelId = config.channels?.spotlight || '1369976259613954059';
+    const generalChannelId = '1369976259613954059'; 
+    const channel = await client.channels.fetch(channelId);
 
-      const embed = new EmbedBuilder()
-        .setTitle(`🌟 WEEKLY SPOTLIGHT: ${athlete.name.toUpperCase()}`)
-        .setDescription(`Discover this week's featured talent from the Peaxel ecosystem!`)
-        .setColor("#FACC15")
-        .addFields(
-          { name: "📍 Nationality", value: athlete.nationality, inline: true },
-          { name: "🗂️ Category", value: athlete.category, inline: true },
-          { name: "🏆 Sport", value: athlete.sport, inline: true },
-          { name: "📝 Description", value: athlete.description.length > 300 ? athlete.description.substring(0, 300) + '...' : athlete.description },
-          { 
-            name: "📣 COACH ACE CHALLENGE", 
-            value: `Is **${athlete.name.toUpperCase()}** part of your strategy? 🔥\n\n` +
-                   `Drop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` 
-          }
-        )
-        .setImage(athlete.image)
-        .setFooter({ text: "Peaxel • Athlete Spotlight Series" });
+    let prizesText = "";
+    for (let i = 1; i <= 5; i++) {
+        if (athlete[`prize${i}`]) {
+            prizesText += `• ${athlete[`prize${i}`]}\n`;
+        }
+    }
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('View Profile 🃏').setStyle(ButtonStyle.Link).setURL(athlete.peaxelLink),
-        new ButtonBuilder().setLabel('Play Peaxel 🎮').setStyle(ButtonStyle.Link).setURL("https://game.peaxel.me")
-      );
+    const embed = new EmbedBuilder()
+      .setTitle(`🌟 WEEKLY SPOTLIGHT: ${athlete.name.toUpperCase()}`)
+      .setURL(athlete.peaxelLink)
+      .setDescription(athlete.description) 
+      .setColor("#FACC15")
+      .setThumbnail(athlete.talent_profile_image_url || null)
+      .setImage(athlete.talent_card_image_url || null)
+      .addFields(
+        { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
+        { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
+        { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true }
+      );
 
-      await channel.send({ content: "✨ **New Athlete Spotlight is live!** @everyone", embeds: [embed], components: [row] });
-      updatePresence(client, `Spotlight 🌟`);
-    } catch (error) {
-      console.error(`${logPrefix} [Spotlight] Error:`, error.message);
-    }
-  }, { scheduled: true, timezone });
+    if (athlete.city || athlete.club) {
+        embed.addFields({ 
+            name: "📍 Location & Club", 
+            value: `${athlete.city || ''}${athlete.city && athlete.club ? ' - ' : ''}${athlete.club || ''}` || "N/A" 
+        });
+    }
+
+    if (athlete.goal) {
+        embed.addFields({ name: "🎯 Personal Goal", value: athlete.goal });
+    }
+
+    if (prizesText) {
+        embed.addFields({ name: "⭐ Achievements", value: prizesText });
+    }
+
+    embed.addFields({ 
+        name: "📣 COACH ACE CHALLENGE", 
+        value: `Is **${athlete.name.toUpperCase()}** part of your strategy? 🔥\n\n` +
+               `Drop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` 
+    });
+
+    embed.setFooter({ text: "Peaxel • Athlete Spotlight Series", iconURL: 'https://media.peaxel.me/logo.png' });
+
+    const row = new ActionRowBuilder();
+    
+    row.addComponents(
+      new ButtonBuilder()
+        .setLabel('View Profile 🃏')
+        .setStyle(ButtonStyle.Link)
+        .setURL(athlete.peaxelLink)
+    );
+
+    // Bouton Jeu (Si présent)
+    if (athlete.gameLink) {
+        row.addComponents(
+            new ButtonBuilder()
+                .setLabel('Play on Peaxel 🎮')
+                .setStyle(ButtonStyle.Link)
+                .setURL("https://game.peaxel.me") 
+        );
+    }
+
+    if (athlete.instagram_talent) {
+        row.addComponents(new ButtonBuilder().setLabel('Instagram').setStyle(ButtonStyle.Link).setURL(athlete.instagram_talent));
+    }
+    if (athlete.tiktok) {
+        row.addComponents(new ButtonBuilder().setLabel('TikTok').setStyle(ButtonStyle.Link).setURL(athlete.tiktok));
+    }
+    if (athlete.x_twitter) {
+        row.addComponents(new ButtonBuilder().setLabel('X (Twitter)').setStyle(ButtonStyle.Link).setURL(athlete.x_twitter));
+    }
+
+    const row2 = new ActionRowBuilder();
+    if (athlete.facebook) {
+        row2.addComponents(new ButtonBuilder().setLabel('Facebook').setStyle(ButtonStyle.Link).setURL(athlete.facebook));
+    }
+    if (athlete.linkedin) {
+        row2.addComponents(new ButtonBuilder().setLabel('LinkedIn').setStyle(ButtonStyle.Link).setURL(athlete.linkedin));
+    }
+    if (athlete.card_video) {
+        row2.addComponents(new ButtonBuilder().setLabel('Watch Video 🎥').setStyle(ButtonStyle.Link).setURL(athlete.card_video));
+    }
+
+    const components = [row];
+    if (row2.components.length > 0) components.push(row2);
+
+    await channel.send({ 
+        content: "✨ **New Athlete Spotlight is live!** @everyone", 
+        embeds: [embed], 
+        components: components 
+    });
+    
+    updatePresence(client, `Spotlight 🌟`);
+
+  } catch (error) {
+    console.error(`${logPrefix} [Spotlight] Error:`, error.message);
+  }
+}, { scheduled: true, timezone });
 
   // --- 4. LINEUP CLOSING (Thursday 18:59) ---
   cron.schedule('59 18 * * 4', async () => {

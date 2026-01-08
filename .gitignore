@@ -35,3 +35,5 @@ data/activity.json
 !data/athletes.json
 !data/giveaways.json
 
+# script-generated data files (can be ignored)
+sync_peaxel.js
