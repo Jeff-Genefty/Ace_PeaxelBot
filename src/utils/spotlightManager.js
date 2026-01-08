@@ -2,11 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Définition propre du chemin absolu
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// On remonte de deux crans pour sortir de /src/utils et entrer dans /data
 const ATHLETES_FILE = path.join(__dirname, '../../data/athletes.json');
 
 const logPrefix = '[Spotlight Manager]';
@@ -36,7 +34,6 @@ export function getRandomAthlete() {
         const athletes = loadAthletes();
         if (athletes.length === 0) return null;
 
-        // Filtrer les athlètes non postés
         const available = athletes.filter(a => a.posted === false);
 
         if (available.length === 0) {
@@ -44,11 +41,9 @@ export function getRandomAthlete() {
             return null;
         }
 
-        // Sélection aléatoire
         const randomIndex = Math.floor(Math.random() * available.length);
         const selected = available[randomIndex];
 
-        // Mise à jour de l'état "posted"
         const originalIndex = athletes.findIndex(a => a.name === selected.name);
         if (originalIndex !== -1) {
             athletes[originalIndex].posted = true;

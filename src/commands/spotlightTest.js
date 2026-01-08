@@ -3,14 +3,14 @@ import { getPreviewAthlete } from '../utils/spotlightManager.js';
 
 export const data = new SlashCommandBuilder()
     .setName('spotlight-test')
-    .setDescription('Test the airy Spotlight layout with the latest athlete data structure')
+    .setDescription('Test l\'affichage aéré du Spotlight')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction) {
     const athlete = getPreviewAthlete();
 
     if (!athlete) {
-        return await interaction.reply({ content: "❌ No athlete found in the database.", ephemeral: true });
+        return await interaction.reply({ content: "❌ Aucun athlète trouvé.", ephemeral: true });
     }
 
     const generalChannelId = '1369976259613954059'; 
@@ -23,8 +23,8 @@ export async function execute(interaction) {
     }
 
     const embed = new EmbedBuilder()
-        .setTitle(`🌟 SPOTLIGHT OF THE WEEK: ${athlete.name?.toUpperCase() || "UNKNOWN"}`)
-        .setURL(athlete.peaxelLink || "https://game.peaxel.me")
+        .setTitle(`🌟 SPOTLIGHT OF THE WEEK: ${athlete.name.toUpperCase()}`)
+        .setURL(athlete.peaxelLink)
         .setColor("#FACC15")
         .setThumbnail(athlete.talent_profile_image_url || null)
         .setImage(athlete.talent_card_image_url || null)
@@ -32,6 +32,7 @@ export async function execute(interaction) {
             { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
             { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
             { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true },
+            // Champ vide pour forcer le passage à la ligne et aérer
             { name: '\u200B', value: '\u200B' }
         )
         .addFields({ name: "📝 Description", value: athlete.description || "No description available." });
@@ -57,7 +58,7 @@ export async function execute(interaction) {
         { name: '\u200B', value: '\u200B' },
         { 
             name: "📣 COACH ACE CHALLENGE", 
-            value: `Is **${athlete.name?.toUpperCase()}** part of your strategy? 🔥\n\n` +
+            value: `Is **${athlete.name.toUpperCase()}** part of your strategy? 🔥\n\n` +
                    `Drop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` 
         }
     );
@@ -68,45 +69,28 @@ export async function execute(interaction) {
     const row1 = new ActionRowBuilder();
     const row2 = new ActionRowBuilder();
 
-    const profileLink = athlete.peaxelLink && typeof athlete.peaxelLink === 'string' ? athlete.peaxelLink : "https://game.peaxel.me";
-    
     row1.addComponents(
-        new ButtonBuilder()
-            .setLabel('View Profile 🃏')
-            .setStyle(ButtonStyle.Link)
-            .setURL(profileLink)
+        new ButtonBuilder().setLabel('View Profile 🃏').setStyle(ButtonStyle.Link).setURL(athlete.peaxelLink)
     );
     
-    row1.addComponents(
-        new ButtonBuilder()
-            .setLabel('Play on Peaxel 🎮')
-            .setStyle(ButtonStyle.Link)
-            .setURL("https://game.peaxel.me")
-    );
-
-    if (athlete.instagram_talent && typeof athlete.instagram_talent === 'string') {
-        row1.addComponents(new ButtonBuilder().setLabel('Instagram').setStyle(ButtonStyle.Link).setURL(athlete.instagram_talent));
-    }
-    
-    if (athlete.tiktok && typeof athlete.tiktok === 'string') {
-        row2.addComponents(new ButtonBuilder().setLabel('TikTok').setStyle(ButtonStyle.Link).setURL(athlete.tiktok));
-    }
-    if (athlete.x_twitter && typeof athlete.x_twitter === 'string') {
-        row2.addComponents(new ButtonBuilder().setLabel('X (Twitter)').setStyle(ButtonStyle.Link).setURL(athlete.x_twitter));
-    }
-    if (athlete.facebook && typeof athlete.facebook === 'string') {
-        row2.addComponents(new ButtonBuilder().setLabel('Facebook').setStyle(ButtonStyle.Link).setURL(athlete.facebook));
-    }
-    if (athlete.linkedin && typeof athlete.linkedin === 'string') {
-        row2.addComponents(new ButtonBuilder().setLabel('LinkedIn').setStyle(ButtonStyle.Link).setURL(athlete.linkedin));
+    if (athlete.gameLink) {
+        row1.addComponents(
+            new ButtonBuilder().setLabel('Play on Peaxel 🎮').setStyle(ButtonStyle.Link).setURL("https://game.peaxel.me")
+        );
     }
 
-    const components = [];
-    if (row1.components.length > 0) components.push(row1);
+    if (athlete.instagram_talent) row1.addComponents(new ButtonBuilder().setLabel('Instagram').setStyle(ButtonStyle.Link).setURL(athlete.instagram_talent));
+    if (athlete.tiktok) row1.addComponents(new ButtonBuilder().setLabel('TikTok').setStyle(ButtonStyle.Link).setURL(athlete.tiktok));
+    if (athlete.x_twitter) row1.addComponents(new ButtonBuilder().setLabel('X (Twitter)').setStyle(ButtonStyle.Link).setURL(athlete.x_twitter));
+
+    if (athlete.facebook) row2.addComponents(new ButtonBuilder().setLabel('Facebook').setStyle(ButtonStyle.Link).setURL(athlete.facebook));
+    if (athlete.linkedin) row2.addComponents(new ButtonBuilder().setLabel('LinkedIn').setStyle(ButtonStyle.Link).setURL(athlete.linkedin));
+
+    const components = [row1];
     if (row2.components.length > 0) components.push(row2);
 
     await interaction.reply({ 
-        content: "🛠️ **Spotlight Rendering (Test Mode):**", 
+        content: "🛠️ **Rendu du Spotlight (Aéré) :**", 
         embeds: [embed], 
         components: components 
     });
