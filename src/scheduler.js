@@ -5,6 +5,7 @@ import { sendWeeklyMessage } from './utils/sendWeeklyMessage.js';
 import { getRandomAthlete, getPreviewAthlete } from './utils/spotlightManager.js';
 import { getCurrentWeekNumber, getParisDate } from './utils/week.js';
 import { getConfig } from './utils/configManager.js';
+import { sendAceMotivation } from './utils/rewardSystem.js';
 
 const logPrefix = '[Peaxel Scheduler]';
 const GIVEAWAY_FILE = './data/giveaways.json';
@@ -12,9 +13,6 @@ const GIVEAWAY_FILE = './data/giveaways.json';
 let lastSentOpenWeek = null;
 let lastSentCloseWeek = null;
 
-/**
- * Updates the Bot's Presence (Status)
- */
 export function updatePresence(client, customText = null) {
   if (!client.user) return;
 
@@ -58,9 +56,6 @@ export function updatePresence(client, customText = null) {
   client.user.setActivity(statusText, { type: ActivityType.Watching });
 }
 
-/**
- * Initializes all scheduled tasks
- */
 export function initScheduler(client) {
   const timezone = 'Europe/Paris';
   
@@ -249,7 +244,16 @@ export function initScheduler(client) {
     }
   }, { scheduled: true, timezone });
 
-  // --- 5. GIVEAWAY LAUNCH (Saturday 10:00) ---
+  // --- 5. COACH ACE MOTIVATION (Daily 08:00, 14:00, 20:00) ---
+  cron.schedule('0 8,14,20 * * *', async () => {
+    try {
+      await sendAceMotivation(client);
+    } catch (error) {
+      console.error(`${logPrefix} [Motivation] Error:`, error.message);
+    }
+  }, { scheduled: true, timezone });
+
+  // --- 6. GIVEAWAY LAUNCH (Saturday 10:00) ---
   cron.schedule('0 10 * * 6', async () => {
     try {
       if (!fs.existsSync('./data')) fs.mkdirSync('./data');
@@ -271,7 +275,7 @@ export function initScheduler(client) {
     }
   }, { scheduled: true, timezone });
 
-  // --- 6. GIVEAWAY DRAW (Sunday 20:00) ---
+  // --- 7. GIVEAWAY DRAW (Sunday 20:00) ---
   cron.schedule('0 20 * * 0', async () => {
     try {
       if (!fs.existsSync(GIVEAWAY_FILE)) return;
@@ -296,7 +300,7 @@ export function initScheduler(client) {
     }
   }, { scheduled: true, timezone });
 
-  // --- 7. HOURLY REFRESH ---
+  // --- 8. HOURLY REFRESH ---
   cron.schedule('0 * * * *', () => updatePresence(client), { scheduled: true, timezone });
 }
 

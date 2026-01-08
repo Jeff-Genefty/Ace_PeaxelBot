@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Collection, Events, REST, Routes, MessageFlags } from 'discord.js';
 import { config } from 'dotenv';
-import { readdirSync, readFileSync, writeFileSync } from 'fs'; // Ajout de read/write
+import { readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { initScheduler } from './scheduler.js';
@@ -8,6 +8,7 @@ import { handleFeedbackButton, handleFeedbackSubmit } from './handlers/feedbackH
 import { initDiscordLogger, logCommandUsage } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
 import { setupWelcomeListener } from './listeners/welcomeListener.js';
+import { handleMessageReward } from './utils/rewardSystem.js';
 
 config();
 
@@ -15,7 +16,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const logPrefix = '[Peaxel Bot]';
 
-// 1. Setup Client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -28,7 +28,6 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// 2. Command Loader & Auto-Register
 async function loadAndRegisterCommands() {
   const commandsPath = join(__dirname, 'commands');
   const commandsToRegister = [];
@@ -39,7 +38,6 @@ async function loadAndRegisterCommands() {
     for (const file of commandFiles) {
       const filePath = join(commandsPath, file);
       const commandModule = await import(`file://${filePath}`);
-      
       const command = commandModule.default || commandModule;
       
       if (command && command.data && command.execute) {
@@ -50,7 +48,7 @@ async function loadAndRegisterCommands() {
         console.warn(`${logPrefix} ⚠️ Failed to load ${file}: missing data or execute.`);
       }
     }
-    console.log(`${logPrefix} ✅ ${client.commands.size} commands successfully loaded in memory.`);
+    console.log(`${logPrefix} ✅ ${client.commands.size} commands successfully loaded.`);
 
     if (process.env.DISCORD_TOKEN && process.env.DISCORD_CLIENT_ID) {
       const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
@@ -61,23 +59,24 @@ async function loadAndRegisterCommands() {
         : Routes.applicationCommands(process.env.DISCORD_CLIENT_ID);
 
       await rest.put(route, { body: commandsToRegister });
-      console.log(`${logPrefix} ✅ Commands synchronized successfully.`);
+      console.log(`${logPrefix} ✅ Commands synchronized.`);
     }
   } catch (err) {
-    console.error(`${logPrefix} ❌ Error during command loading/registration:`, err.message);
+    console.error(`${logPrefix} ❌ Error during command loading:`, err.message);
   }
 }
 
-// 3. Ready Event
 client.once(Events.ClientReady, async (readyClient) => {
   console.log(`${logPrefix} 🚀 System Online | ${readyClient.user.tag}`);
-  
   recordBotStart();
   await initDiscordLogger(readyClient);
   initScheduler(readyClient);
 });
 
-// 4. Interaction Router
+client.on(Events.MessageCreate, async (message) => {
+  await handleMessageReward(message);
+});
+
 client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isChatInputCommand() || interaction.isContextMenuCommand()) {
     const command = client.commands.get(interaction.commandName);
@@ -99,14 +98,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
   
-  // GESTION DES BOUTONS
   else if (interaction.isButton()) {
-    // Bouton de Feedback existant
     if (interaction.customId === 'feedback_button') {
       await handleFeedbackButton(interaction).catch(err => console.error(err));
     }
     
-    // NOUVEAU : Bouton de Giveaway Automatique
     else if (interaction.customId === 'join_giveaway') {
       const GIVEAWAY_FILE = './data/giveaways.json';
       try {
@@ -129,12 +125,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       } catch (error) {
         console.error(`${logPrefix} Giveaway Join Error:`, error);
-        await interaction.reply({ content: '❌ Database error. Try again later.', flags: [MessageFlags.Ephemeral] });
+        await interaction.reply({ content: '❌ Database error.', flags: [MessageFlags.Ephemeral] });
       }
     }
   }
   
-  // GESTION DES MODALS
   else if (interaction.isModalSubmit()) {
     if (interaction.customId === 'feedback_modal') {
       await handleFeedbackSubmit(interaction).catch(err => console.error(err));
@@ -142,7 +137,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
-// 5. Graceful Shutdown
 const shutdown = () => {
   console.log(`${logPrefix} Shutting down...`);
   client.destroy();
@@ -151,7 +145,6 @@ const shutdown = () => {
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
 
-// 6. Start
 (async () => {
   setupWelcomeListener(client);
   await loadAndRegisterCommands();
