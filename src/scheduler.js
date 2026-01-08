@@ -24,9 +24,7 @@ export function updatePresence(client, customText = null) {
   const minutes = now.getMinutes();
   let week = getCurrentWeekNumber();
 
-  if (dayIndex === 0) {
-    week = week - 1;
-  }
+  if (dayIndex === 0) week = week - 1;
 
   let statusText = customText;
 
@@ -43,7 +41,6 @@ export function updatePresence(client, customText = null) {
       statusText = `${baseStatus} | Spotlight 🌟`;
     } 
     else if (dayIndex === 4) {
-      // Logic adjusted to trigger Locked only at 18:59 or 19:00
       if (hours < 18 || (hours === 18 && minutes < 59)) {
         statusText = `${baseStatus} | Closing Soon ⏳`;
       } else {
@@ -111,9 +108,9 @@ export function initScheduler(client) {
               `⚠️ *Precision is key! Only the exact spelling will be validated.*`
           )
           .addFields(
-              { name: '📍 Nationality', value: athlete.nationality, inline: true },
-              { name: '🏆 Sport', value: athlete.sport, inline: true },
-              { name: '🗂️ Category', value: athlete.category, inline: true },
+              { name: '📍 Nationality', value: athlete.nationality || "N/A", inline: true },
+              { name: '🏆 Sport', value: athlete.sport || "N/A", inline: true },
+              { name: '🗂️ Category', value: athlete.category || "N/A", inline: true },
               { name: '💡 Scouting Hint', value: `The pseudo starts with the letter: **${athlete.name.charAt(0).toUpperCase()}**` }
           )
           .setColor('#FACC15')
@@ -139,141 +136,103 @@ export function initScheduler(client) {
         updatePresence(client);
       });
 
-      collector.on('end', (collected, reason) => {
-        if (reason === 'time' && collected.size === 0) {
-          announceChannel.send(`⏰ **Quiz Ended!** No one found the answer. It was **${athlete.name.toUpperCase()}**.`);
-          updatePresence(client);
-        }
-      });
+      collector.on('collect', () => collector.stop());
     } catch (error) {
       console.error(`${logPrefix} [Quiz] Error:`, error.message);
     }
   }, { scheduled: true, timezone });
 
-// --- 3. ATHLETE SPOTLIGHT (Wednesday 16:00) ---
-cron.schedule('0 16 * * 3', async () => {
-  try {
-    const athlete = getRandomAthlete();
-    if (!athlete) return;
-    
-    const config = getConfig();
-    const channelId = config.channels?.spotlight || '1369976259613954059';
-    const generalChannelId = '1369976259613954059'; 
-    const channel = await client.channels.fetch(channelId);
+  // --- 3. ATHLETE SPOTLIGHT (Wednesday 16:00) ---
+  cron.schedule('0 16 * * 3', async () => {
+    try {
+      const athlete = getRandomAthlete();
+      if (!athlete) return;
+      
+      const config = getConfig();
+      const channelId = config.channels?.spotlight || '1369976259613954059';
+      const generalChannelId = '1369976259613954059'; 
+      const channel = await client.channels.fetch(channelId);
 
-    const athleteName = (athlete.name || "Athlete").toUpperCase();
+      const athleteName = (athlete.name || "Athlete").toUpperCase();
+      let prizesText = "";
+      for (let i = 1; i <= 5; i++) {
+        if (athlete[`prize${i}`]) prizesText += `• ${athlete[`prize${i}`]}\n`;
+      }
 
-    let prizesText = "";
-    for (let i = 1; i <= 5; i++) {
-        if (athlete[`prize${i}`]) {
-            prizesText += `• ${athlete[`prize${i}`]}\n`;
-        }
-    }
-
-    const embed = new EmbedBuilder()
+      const embed = new EmbedBuilder()
         .setTitle(`🌟 SPOTLIGHT OF THE WEEK: ${athleteName}`)
         .setURL(athlete.peaxelLink || "https://game.peaxel.me")
         .setColor("#FACC15")
         .setThumbnail(athlete.talent_profile_image_url || null)
         .addFields(
-            { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
-            { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
-            { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true },
-            { name: '\u200B', value: '\u200B', inline: false },
-            { name: "📝 Description", value: athlete.description || "No description available." },
-            { name: '\u200B', value: '\u200B', inline: false },
+          { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
+          { name: "🗂️ Category", value: athlete.main_category || "N/A", inline: true },
+          { name: "🏆 Sport", value: athlete.occupation || "N/A", inline: true },
+          { name: "📝 Description", value: athlete.description || "No description available." }
         );
 
-    if (athlete.birthdate) {
+      if (athlete.birthdate) {
         embed.addFields({ name: "🎂 Birthdate", value: athlete.birthdate, inline: true });
-    }
+      }
 
-    const locationValue = `${athlete.city || ''} ${athlete.club || ''}`.trim();
-    if (locationValue && locationValue.toUpperCase() !== "N/A") {
+      const locationValue = `${athlete.city || ''} ${athlete.club || ''}`.trim();
+      if (locationValue && locationValue.toUpperCase() !== "N/A") {
         embed.addFields({ name: "📍 Location & Club", value: locationValue, inline: true });
-    }
+      }
 
-    if (athlete.goal && athlete.goal.toUpperCase() !== "N/A") {
-        embed.addFields(
-            { name: '\u200B', value: '\u200B', inline: false },
-            { name: "🎯 Personal Goal", value: athlete.goal }
-        );
-    }
+      if (athlete.goal && athlete.goal.toUpperCase() !== "N/A") {
+        embed.addFields({ name: '\u200B', value: '\u200B', inline: false }, { name: "🎯 Personal Goal", value: athlete.goal });
+      }
 
-    if (prizesText) {
-        embed.addFields(
-            { name: '\u200B', value: '\u200B', inline: false },
-            { name: "⭐ Achievements", value: prizesText }
-        );
-    }
+      if (prizesText) {
+        embed.addFields({ name: '\u200B', value: '\u200B', inline: false }, { name: "⭐ Achievements", value: prizesText });
+      }
 
-    embed.addFields(
+      embed.addFields(
         { name: '\u200B', value: '\u200B', inline: false },
-        { 
-            name: "📣 COACH ACE CHALLENGE", 
-            value: `Is **${athleteName}** part of your strategy? 🔥\n` +
-                   `Drop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` 
-        }
-    );
+        { name: "📣 COACH ACE CHALLENGE", value: `Is **${athleteName}** part of your strategy? 🔥\nDrop a screenshot in <#${generalChannelId}> if you have this athlete! 🏟️` }
+      );
 
-    embed.setImage(athlete.talent_card_image_url || null)
+      embed.setImage(athlete.talent_card_image_url || null)
         .setFooter({ text: "Peaxel • Athlete Spotlight Series", iconURL: 'https://media.peaxel.me/logo.png' })
         .setTimestamp();
 
-    // Buttons logic
-    const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setLabel('View Profile 🃏')
-            .setStyle(ButtonStyle.Link)
-            .setURL(athlete.peaxelLink || "https://game.peaxel.me"),
-        new ButtonBuilder()
-            .setLabel('Play on Peaxel 🎮')
-            .setStyle(ButtonStyle.Link)
-            .setURL("https://game.peaxel.me")
-    );
+      const row1 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('View Profile 🃏').setStyle(ButtonStyle.Link).setURL(athlete.peaxelLink || "https://game.peaxel.me"),
+        new ButtonBuilder().setLabel('Play on Peaxel 🎮').setStyle(ButtonStyle.Link).setURL("https://game.peaxel.me")
+      );
 
-    const row2 = new ActionRowBuilder();
+      const row2 = new ActionRowBuilder();
+      const socialMedia = [
+        { key: 'instagram_talent', label: 'Instagram', emoji: '📸' },
+        { key: 'tiktok', label: 'TikTok', emoji: '🎵' },
+        { key: 'x_twitter', label: 'X (Twitter)', emoji: '🐦' },
+        { key: 'facebook', label: 'Facebook', emoji: '👥' },
+        { key: 'linkedin', label: 'LinkedIn', emoji: '💼' },
+        { key: 'card_video', label: 'Watch Video', emoji: '🎥' }
+      ];
 
-    const socialMedia = [
-        { key: 'instagram_talent', label: 'Instagram' },
-        { key: 'tiktok', label: 'TikTok' },
-        { key: 'x_twitter', label: 'X (Twitter)' },
-        { key: 'facebook', label: 'Facebook' },
-        { key: 'linkedin', label: 'LinkedIn' },
-        { key: 'card_video', label: 'Watch Video 🎥' }
-    ];
-
-    for (const social of socialMedia) {
+      for (const social of socialMedia) {
         const url = athlete[social.key];
         if (url && typeof url === 'string' && url.startsWith('http')) {
-            const btn = new ButtonBuilder().setLabel(social.label).setStyle(ButtonStyle.Link).setURL(url);
-            
-            if (row1.components.length < 5) {
-                row1.addComponents(btn);
-            } else if (row2.components.length < 5) {
-                row2.addComponents(btn);
-            }
+          const btn = new ButtonBuilder().setLabel(`${social.emoji} ${social.label}`).setStyle(ButtonStyle.Link).setURL(url);
+          if (row1.components.length < 5) row1.addComponents(btn);
+          else if (row2.components.length < 5) row2.addComponents(btn);
         }
+      }
+
+      const components = [row1];
+      if (row2.components.length > 0) components.push(row2);
+
+      const introText = `@everyone\n\nIt's time for our **Weekly Athlete Spotlight**! 🚀\nEvery week, we focus on a new rising talent from the Peaxel ecosystem. Discover their journey, achievements, and goals below! 👇`;
+
+      await channel.send({ content: introText, embeds: [embed], components: components });
+      updatePresence(client, `Spotlight 🌟`);
+
+    } catch (error) {
+      console.error(`${logPrefix} [Spotlight] Error:`, error.message);
     }
-
-    const components = [row1];
-    if (row2.components.length > 0) components.push(row2);
-
-    const introText = `@everyone\n\nIt's time for our **Weekly Athlete Spotlight**! 🚀\n` +
-                      `Every week, we focus on a new rising talent from the Peaxel ecosystem. Discover their journey, achievements, and goals below! 👇`;
-
-    await channel.send({ 
-        content: introText, 
-        embeds: [embed], 
-        components: components 
-    });
-    
-    updatePresence(client, `Spotlight 🌟`);
-
-  } catch (error) {
-    console.error(`${logPrefix} [Spotlight] Error:`, error.message);
-  }
-}, { scheduled: true, timezone });
+  }, { scheduled: true, timezone });
 
   // --- 4. LINEUP CLOSING (Thursday 18:59) ---
   cron.schedule('59 18 * * 4', async () => {
