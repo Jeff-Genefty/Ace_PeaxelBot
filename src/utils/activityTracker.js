@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { getFeedbackStats } from './feedbackStore.js'; // Import the new stats utility
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,7 +14,7 @@ const DEFAULT_ACTIVITY = {
   lastWeeklyPostWeek: null,
   lastManualPost: null,
   totalPostsSent: 0,
-  totalFeedbackReceived: 0,
+  totalFeedbackReceived: 0, // Keep for legacy, but we will use feedbackStore for display
   botStartedAt: null,
   lastError: null
 };
@@ -43,6 +44,20 @@ function saveActivity(activity) {
   }
 }
 
+/**
+ * Returns synchronized stats for the status command
+ */
+export function getGlobalStats() {
+    const activity = loadActivity();
+    const feedbackData = getFeedbackStats(); // Live data from feedbackStore.js
+
+    return {
+        totalPosts: activity.totalPostsSent,
+        feedbackCount: feedbackData.total,
+        averageRating: feedbackData.average
+    };
+}
+
 export function recordWeeklyPost(isManual, weekNumber) {
   const activity = loadActivity();
   const now = new Date().toISOString();
@@ -58,6 +73,9 @@ export function recordWeeklyPost(isManual, weekNumber) {
   saveActivity(activity);
 }
 
+/**
+ * Updated: This now acts as a bridge, though getFeedbackStats() is the primary source
+ */
 export function recordFeedback() {
   const activity = loadActivity();
   activity.totalFeedbackReceived++;
@@ -77,7 +95,8 @@ export function recordError(errorMessage) {
 }
 
 /**
- * Enhanced: Get the next publication (Opening, Spotlight, or Closing)*/
+ * Get the next publication (Opening, Spotlight, or Closing)
+ */
 export function getNextScheduledRun() {
   const timezone = 'Europe/Paris';
   const now = new Date();

@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import { loadActivity, getNextScheduledRun, getUptime } from '../utils/activityTracker.js';
+import { getNextScheduledRun, getUptime, getGlobalStats, loadActivity } from '../utils/activityTracker.js'; // Added getGlobalStats
 import { loadMessageConfig, parseColor } from '../config/messageConfig.js';
 import { getCurrentWeekNumber } from '../utils/week.js';
 import { getUnpostedAthletesCount } from '../utils/spotlightManager.js';
@@ -14,6 +14,9 @@ export async function execute(interaction) {
   const activity = loadActivity();
   const allConfigs = loadMessageConfig();
   const athletesLeft = getUnpostedAthletesCount();
+  
+  // Fetch synchronized stats (Feedback count + Average)
+  const stats = getGlobalStats();
   
   const primaryConfig = allConfigs.opening || allConfigs; 
   const nextRun = getNextScheduledRun(); 
@@ -39,8 +42,8 @@ export async function execute(interaction) {
       {
         name: '📢 Configured Channels',
         value: `**Main:** ${channelAnnounce ? `<#${channelAnnounce}>` : '`Not Set`'}\n` +
-               `**Welcome:** ${channelWelcome ? `<#${channelWelcome}>` : '`Not Set`'}\n` +
-               `**Spotlight:** ${channelSpotlight ? `<#${channelSpotlight}>` : '`Not Set`'}`,
+                `**Welcome:** ${channelWelcome ? `<#${channelWelcome}>` : '`Not Set`'}\n` +
+                `**Spotlight:** ${channelSpotlight ? `<#${channelSpotlight}>` : '`Not Set`'}`,
         inline: true
       },
       { name: '\u200B', value: '📅 **Publication Schedule**', inline: false },
@@ -57,7 +60,7 @@ export async function execute(interaction) {
       { name: '\u200B', value: '📈 **Performance & Activity**', inline: false },
       {
         name: '📊 Global Stats',
-        value: `**Total Posts:** \`${activity.totalPostsSent}\`\n**Feedback:** \`${activity.totalFeedbackReceived}\``,
+        value: `**Total Posts:** \`${stats.totalPosts}\`\n**Feedback:** \`${stats.feedbackCount}\` (\`${stats.averageRating}/5\` ⭐)`,
         inline: true
       },
       {
@@ -71,14 +74,14 @@ export async function execute(interaction) {
         inline: true
       }
     )
-    .setFooter({ text: 'Ace System Monitor • Version 1.2.0' })
+    .setFooter({ text: 'Ace System Monitor • Version 1.2.1' })
     .setTimestamp();
 
   if (activity.lastError) {
     const errorTime = `<t:${Math.floor(new Date(activity.lastError.timestamp).getTime() / 1000)}:R>`;
     embed.addFields({
       name: '⚠️ Last Known Error',
-      value: `\`\`\`${activity.lastError.message}\`\`\`\nOccurred: ${errorTime}`,
+      value: `\`\`\`${activity.lastError.message}\`\`\nOccurred: ${errorTime}`,
       inline: false
     });
   }
