@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { initScheduler } from './scheduler.js';
-import { handleFeedbackButton, handleFeedbackSubmit } from './handlers/feedbackHandler.js';
+import { handleFeedbackButton, handleFeedbackSubmit, updateFeedbackStatsChannel } from './handlers/feedbackHandler.js'; // Added update import
 import { initDiscordLogger, logCommandUsage } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
 import { setupWelcomeListener } from './listeners/welcomeListener.js';
@@ -71,6 +71,9 @@ client.once(Events.ClientReady, async (readyClient) => {
   recordBotStart();
   await initDiscordLogger(readyClient);
   initScheduler(readyClient);
+  
+  // Refresh feedback stats channel on startup
+  await updateFeedbackStatsChannel(readyClient);
 });
 
 client.on(Events.MessageCreate, async (message) => {
