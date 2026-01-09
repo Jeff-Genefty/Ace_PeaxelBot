@@ -244,8 +244,9 @@ export function initScheduler(client) {
     }
   }, { scheduled: true, timezone });
 
-  // --- 5. COACH ACE MOTIVATION (Daily 08:00, 14:00, 20:00) ---
-  cron.schedule('0 8,14,20 * * *', async () => {
+  // --- 5. COACH ACE RANDOM MOTIVATION ---
+  // Runs EVERY HOUR, but Ace only speaks if he "feels like it" (random check inside)
+  cron.schedule('0 * * * *', async () => {
     try {
       await sendAceMotivation(client);
     } catch (error) {
