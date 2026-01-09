@@ -1,114 +1,120 @@
 import { EmbedBuilder } from 'discord.js';
 
-// --- Configuration ---
 let messageCounter = 0;
-// Déclenchement aléatoire entre 60 et 120 messages
 let nextThreshold = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
 
-/**
- * Gère la détection des messages et l'attribution des récompenses
- */
+const MY_ADMIN_ID = '927495286681636884';
+const BANNED_ROLES = [
+    '1370009354442379344', 
+    '1369976254757081176', 
+    '1369985998913667123', 
+    '1369976254757081174'
+];
+
 export async function handleMessageReward(message) {
-    // Uniquement dans le général, ignore les bots
     if (message.author.bot || message.channel.id !== '1369976259613954059') return;
+
+    if (Math.random() < 0.05) {
+        const emojis = ['⚽', '🏟️', '🔥', '🧠', '⭐', '📈', '🤝'];
+        const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+        await message.react(randomEmoji).catch(() => null);
+    }
 
     messageCounter++;
 
     if (messageCounter >= nextThreshold) {
+        const isExcluded = message.member.roles.cache.some(role => BANNED_ROLES.includes(role.id));
+        
+        if (isExcluded) {
+            messageCounter = Math.floor(nextThreshold * 0.9); 
+            return;
+        }
+
         messageCounter = 0;
         nextThreshold = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
         
-        // 75% de chance que Ace intervienne réellement pour éviter une trop grande régularité
         if (Math.random() < 0.75) {
             await triggerAceRecognition(message);
         }
     }
 }
 
-/**
- * Logique RP de Coach Ace qui offre une récompense
- */
 async function triggerAceRecognition(message) {
     const user = message.author;
-    const adminId = '927495286681636884'; // Ton ID pour le tag
-    
-    // 50% chance entre Carte et XP Zealy
     const isCard = Math.random() < 0.5;
     
     const embed = new EmbedBuilder()
         .setTitle(`👨‍🏫 COACH ACE IS WATCHING...`)
         .setColor('#FACC15')
-        .setThumbnail('https://media.peaxel.me/ace-coach.png')
+        .setThumbnail('assets/unnamed.png')
         .setTimestamp()
-        .setFooter({ text: 'Peaxel Loyalty Reward • Keep the chat alive!' });
+        .setFooter({ text: 'Peaxel Loyalty Reward • Play Fair, Win Big!' });
 
     if (isCard) {
-        // --- RÉCOMPENSE : FREE CARD ---
         const variations = [
-            `Ton analyse tactique dans le chat est impressionnante ! 🏟️`,
-            `J'aime l'énergie que tu apportes au stade aujourd'hui ! 🚀`,
-            `Ta passion pour l'écosystème Peaxel mérite d'être saluée. 🏆`
+            `Your tactical analysis is spot on! 🏟️`,
+            `I love the energy you're bringing to the stadium today! 🚀`,
+            `Your passion for the Peaxel ecosystem deserves a reward. 🏆`
         ];
         const randomText = variations[Math.floor(Math.random() * variations.length)];
 
         embed.setDescription(
             `Hey <@${user.id}>, ${randomText}\n\n` +
-            `Pour te récompenser, je t'offre une **Free Athlete Card 🃏** !`
+            `I'm granting you a **Free Athlete Card 🃏**!`
         );
         embed.addFields({ 
-            name: '📩 COMMENT RÉCLAMER', 
-            value: `Ouvre un ticket dans <#1369976260066803794> avec un screenshot de ce message !` 
+            name: '📩 HOW TO CLAIM', 
+            value: `Open a ticket in <#1369976260066803794> and provide a screenshot of this message!` 
         });
 
         await message.reply({ 
-            content: `⚡ **Félicitations Manager !**`, 
+            content: `⚡ **Congratulations Manager!**`, 
             embeds: [embed] 
         });
 
     } else {
-        // --- RÉCOMPENSE : XP ZEALY ---
         const xpAmounts = [50, 100, 150, 200];
         const selectedXP = xpAmounts[Math.floor(Math.random() * xpAmounts.length)];
         
         embed.setDescription(
-            `Hey <@${user.id}>, ton implication ici aide la communauté à grandir ! 📈\n\n` +
-            `Je t'accorde un bonus de **${selectedXP} XP sur Zealy** pour booster ton rang.`
+            `Hey <@${user.id}>, your involvement is helping this community grow! 📈\n\n` +
+            `I've awarded you **${selectedXP} XP on Zealy** to boost your rank.`
         );
         embed.addFields({ 
-            name: 'ℹ️ INFOS', 
-            value: `Le gain sera ajouté manuellement sur ton compte Zealy par la direction.` 
+            name: 'ℹ️ STATUS', 
+            value: `The management will manually add this to your Zealy profile shortly.` 
         });
 
         await message.reply({ 
-            content: `⚡ **Félicitations Manager !** (cc <@${adminId}> pour l'XP)`, 
+            content: `⚡ **Congratulations Manager!** (Attention <@${MY_ADMIN_ID}>: Manual XP update required)`, 
             embeds: [embed] 
         });
     }
 }
 
-/**
- * Message de motivation proactif de Ace
- */
 export async function sendAceMotivation(client) {
     const channelId = '1369976259613954059'; 
     const channel = await client.channels.fetch(channelId);
     if (!channel) return;
 
+    if (Math.random() > 0.40) return;
+
     const motivations = [
-        "🏟️ **Le stade est un peu calme aujourd'hui !** Qui est prêt pour la prochaine Gameweek ? N'oubliez pas que je garde toujours un œil sur les managers les plus actifs... des récompenses (XP, Free Cards) tombent souvent ! 👀",
-        "🔥 **Manager, ta stratégie est-elle prête ?** Discutez tactique ici, partagez vos pépites ! Les plus passionnés d'entre vous pourraient bien recevoir un cadeau surprise de ma part. 🎁",
-        "📢 **Avis aux scouts !** L'activité ici est récompensée. XP Zealy et Cartes gratuites sont en jeu. Mais attention : celui qui spamme pour forcer la chance sera disqualifié par la direction ! Restez naturels. 🚫",
-        "✨ **Coach Ace à l'écoute...** J'aime voir de l'entraide entre managers. Continuez à faire vivre ce salon, et les récompenses continueront de tomber ! 🃏"
+        "🏟️ **The stadium feels a bit quiet!** Who's ready for the next Gameweek? I'm scouting for the most active managers... rewards (XP, Free Cards) drop when you least expect them! 👀",
+        "🔥 **Managers, is your strategy locked in?** Share your gems and tactical tips! The most passionate among you might just get a surprise gift from me. 🎁",
+        "📢 **Scout Alert!** Activity here pays off. Zealy XP and Free Cards are in play. But remember: spamming to force your luck will lead to disqualification. Stay natural, stay sharp. 🚫",
+        "✨ **Coach Ace in the building...** I love seeing managers helping each other out. Keep the chat alive, and the rewards will keep dropping! 🃏",
+        "🧠 **Knowledge is power.** Who's tracking the latest athlete performances? Active discussion is the key to victory, and victory leads to prizes! 🏆"
     ];
 
     const randomText = motivations[Math.floor(Math.random() * motivations.length)];
 
     const embed = new EmbedBuilder()
-        .setTitle("👨‍🏫 CONSEIL DE COACH ACE")
+        .setTitle("👨‍🏫 COACH ACE'S BRIEFING")
         .setDescription(randomText)
         .setColor("#FACC15")
-        .setThumbnail('https://media.peaxel.me/ace-coach.png')
-        .setFooter({ text: "Peaxel • Fair-play et Activité" });
+        .setThumbnail('assets/unnamed.png')
+        .setFooter({ text: "Peaxel • Fair Play & Activity" });
 
     await channel.send({ embeds: [embed] });
 }
