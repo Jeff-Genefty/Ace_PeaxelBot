@@ -48,8 +48,8 @@ function saveRewardDate(userId) {
 export async function handleMessageReward(message) {
     if (message.author.bot || message.channel.id !== '1369976259613954059') return;
 
-    // --- Random Reaction (5% chance) ---
-    if (Math.random() < 0.15) {
+    // --- Random Reaction (25% chance) ---
+    if (Math.random() < 0.25) {
         const emojis = ['⚽', '🏟️', '🔥', '🧠', '⭐', '📈', '🤝'];
         const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
         await message.react(randomEmoji).catch(() => null);
@@ -147,7 +147,7 @@ export async function sendAceMotivation(client) {
     if (!channel) return;
 
     // ACE DECIDES: 25% chance to actually speak when the scheduler runs
-    if (Math.random() > 0.25) return;
+    if (Math.random() > 0.10) return;
 
     const imagePath = resolve(process.cwd(), './assets/unnamed.png');
     const file = new AttachmentBuilder(imagePath);
