@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { resolve, join } from 'path';
 
-// Using a robust path for the data directory (compatible with Railway Volumes)
+// Pointing to the persistent Railway Volume
 const DATA_DIR = resolve('./data');
 const DB_PATH = join(DATA_DIR, 'feedbacks.json');
 
@@ -10,7 +10,7 @@ const DB_PATH = join(DATA_DIR, 'feedbacks.json');
  * @param {Object} data - The feedback object to store
  */
 export function saveFeedbackData(data) {
-    // Ensure the data directory exists (important for the first run with the Volume)
+    // Ensure the volume directory exists
     if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
     }
@@ -44,7 +44,6 @@ export function hasAlreadySubmitted(userId) {
         if (!Array.isArray(data)) return false;
         return data.some(f => f.userId === userId);
     } catch (error) {
-        console.error('[FeedbackStore] Error checking submission:', error.message);
         return false;
     }
 }
@@ -70,7 +69,6 @@ export function getFeedbackStats() {
 
         return { total, average };
     } catch (error) {
-        console.error('[FeedbackStore] Error calculating stats:', error.message);
         return { total: 0, average: "0" };
     }
 }

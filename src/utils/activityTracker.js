@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { join, resolve } from 'path'; // Switched to resolve for absolute path mapping
+import { join, resolve } from 'path';
 import { getFeedbackStats } from './feedbackStore.js';
 
-// Using resolve('./data') ensures we point to the Railway Volume at /app/data
+// Absolute path to point to the Railway Volume
 const DATA_DIR = resolve('./data');
 const ACTIVITY_FILE = join(DATA_DIR, 'activity.json');
 
@@ -17,7 +17,7 @@ const DEFAULT_ACTIVITY = {
 };
 
 /**
- * Ensures the data directory exists
+ * Ensures the data directory exists in the volume
  */
 function ensureDataDir() {
   if (!existsSync(DATA_DIR)) {
@@ -26,8 +26,7 @@ function ensureDataDir() {
 }
 
 /**
- * Loads activity data from the JSON file
- * @returns {Object}
+ * Loads activity data from the persistent volume
  */
 export function loadActivity() {
   try {
@@ -42,8 +41,7 @@ export function loadActivity() {
 }
 
 /**
- * Saves activity data to the JSON file
- * @param {Object} activity 
+ * Saves activity data to the persistent volume
  */
 function saveActivity(activity) {
   try {
@@ -55,9 +53,7 @@ function saveActivity(activity) {
 }
 
 /**
- * Returns synchronized stats for the status command
- * Combines activity data with live feedback database stats
- * @returns {Object}
+ * Returns merged stats for the status command
  */
 export function getGlobalStats() {
     const activity = loadActivity();
@@ -70,11 +66,6 @@ export function getGlobalStats() {
     };
 }
 
-/**
- * Records a weekly post event
- * @param {boolean} isManual 
- * @param {number} weekNumber 
- */
 export function recordWeeklyPost(isManual, weekNumber) {
   const activity = loadActivity();
   const now = new Date().toISOString();
@@ -90,28 +81,12 @@ export function recordWeeklyPost(isManual, weekNumber) {
   saveActivity(activity);
 }
 
-/**
- * Legacy bridge to track feedback count in activity file
- */
-export function recordFeedback() {
-  const activity = loadActivity();
-  activity.totalFeedbackReceived++;
-  saveActivity(activity);
-}
-
-/**
- * Records bot startup time
- */
 export function recordBotStart() {
   const activity = loadActivity();
   activity.botStartedAt = new Date().toISOString();
   saveActivity(activity);
 }
 
-/**
- * Records the last known system error
- * @param {string} errorMessage 
- */
 export function recordError(errorMessage) {
   const activity = loadActivity();
   activity.lastError = { message: errorMessage, timestamp: new Date().toISOString() };
@@ -120,7 +95,6 @@ export function recordError(errorMessage) {
 
 /**
  * Logic to calculate the next scheduled publication time (Paris Timezone)
- * @returns {Object}
  */
 export function getNextScheduledRun() {
   const timezone = 'Europe/Paris';
@@ -149,14 +123,11 @@ export function getNextScheduledRun() {
 
   for (const sched of schedules) {
     let target = new Date(parisTime);
-    
     const diff = (sched.day + 7 - target.getDay()) % 7;
     target.setDate(target.getDate() + diff);
     target.setHours(sched.hour, sched.min, 0, 0);
 
-    if (target <= parisTime) {
-      target.setDate(target.getDate() + 7);
-    }
+    if (target <= parisTime) target.setDate(target.getDate() + 7);
 
     if (!nextRun || target < nextRun) {
       nextRun = target;
@@ -165,7 +136,6 @@ export function getNextScheduledRun() {
   }
 
   const msUntil = nextRun.getTime() - parisTime.getTime();
-  
   return {
     nextRun,
     label: nextLabel,
@@ -174,18 +144,11 @@ export function getNextScheduledRun() {
   };
 }
 
-/**
- * Formats bot uptime into a readable string
- * @param {string} startTime 
- * @returns {string}
- */
 export function getUptime(startTime) {
   if (!startTime) return 'Unknown';
   const diff = new Date() - new Date(startTime);
-  
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
   const minutes = Math.floor((diff % 3600000) / 60000);
-  
   return `${days}d ${hours}h ${minutes}m`;
 }

@@ -1,10 +1,10 @@
 import { Client, GatewayIntentBits, Collection, Events, REST, Routes, MessageFlags } from 'discord.js';
 import { config } from 'dotenv';
-import { readdirSync, readFileSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import fs, { readdirSync, readFileSync, writeFileSync } from 'fs';
+import { join, dirname, resolve } from 'path'; // Added resolve
 import { fileURLToPath } from 'url';
 import { initScheduler } from './scheduler.js';
-import { handleFeedbackButton, handleFeedbackSubmit, updateFeedbackStatsChannel } from './handlers/feedbackHandler.js'; // Added update import
+import { handleFeedbackButton, handleFeedbackSubmit, updateFeedbackStatsChannel } from './handlers/feedbackHandler.js';
 import { initDiscordLogger, logCommandUsage } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
 import { setupWelcomeListener } from './listeners/welcomeListener.js';
@@ -40,20 +40,15 @@ async function loadAndRegisterCommands() {
       const commandModule = await import(`file://${filePath}`);
       const command = commandModule.default || commandModule;
       
-      if (command && command.data && command.execute) {
+      if (command?.data && command.execute) {
         client.commands.set(command.data.name, command);
         commandsToRegister.push(command.data.toJSON());
         console.log(`${logPrefix} Command detected: /${command.data.name}`);
-      } else {
-        console.warn(`${logPrefix} ⚠️ Failed to load ${file}: missing data or execute.`);
       }
     }
-    console.log(`${logPrefix} ✅ ${client.commands.size} commands successfully loaded.`);
 
     if (process.env.DISCORD_TOKEN && process.env.DISCORD_CLIENT_ID) {
       const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-      console.log(`${logPrefix} 🔄 Syncing commands with Discord...`);
-      
       const route = process.env.DISCORD_GUILD_ID 
         ? Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.DISCORD_GUILD_ID)
         : Routes.applicationCommands(process.env.DISCORD_CLIENT_ID);
@@ -62,7 +57,7 @@ async function loadAndRegisterCommands() {
       console.log(`${logPrefix} ✅ Commands synchronized.`);
     }
   } catch (err) {
-    console.error(`${logPrefix} ❌ Error during command loading:`, err.message);
+    console.error(`${logPrefix} ❌ Error loading commands:`, err.message);
   }
 }
 
@@ -71,8 +66,6 @@ client.once(Events.ClientReady, async (readyClient) => {
   recordBotStart();
   await initDiscordLogger(readyClient);
   initScheduler(readyClient);
-  
-  // Refresh feedback stats channel on startup
   await updateFeedbackStatsChannel(readyClient);
 });
 
@@ -93,11 +86,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } catch (error) {
       console.error(`${logPrefix} Error in /${interaction.commandName}:`, error);
       const msg = { content: '❌ Command error.', flags: [MessageFlags.Ephemeral] };
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(msg);
-      } else {
-        await interaction.reply(msg);
-      }
+      if (interaction.replied || interaction.deferred) await interaction.followUp(msg);
+      else await interaction.reply(msg);
     }
   }
   
@@ -107,10 +97,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     
     else if (interaction.customId === 'join_giveaway') {
-      const GIVEAWAY_FILE = './data/giveaways.json';
+      // Use Volume path for giveaways
+      const DATA_DIR = resolve('./data');
+      const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
+      
       try {
-        const rawData = readFileSync(GIVEAWAY_FILE, 'utf-8');
-        const data = JSON.parse(rawData);
+        if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+
+        let data = { participants: [] };
+        if (fs.existsSync(GIVEAWAY_FILE)) {
+          data = JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8'));
+        }
 
         if (data.participants.includes(interaction.user.id)) {
           return await interaction.reply({ 
@@ -141,7 +138,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 const shutdown = () => {
-  console.log(`${logPrefix} Shutting down...`);
   client.destroy();
   process.exit(0);
 };
@@ -151,9 +147,5 @@ process.on('SIGTERM', shutdown);
 (async () => {
   setupWelcomeListener(client);
   await loadAndRegisterCommands();
-  
-  client.login(process.env.DISCORD_TOKEN).catch(err => {
-    console.error(`${logPrefix} Login failed:`, err.message);
-    process.exit(1);
-  });
+  client.login(process.env.DISCORD_TOKEN);
 })();

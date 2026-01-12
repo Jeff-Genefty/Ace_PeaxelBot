@@ -1,15 +1,15 @@
 import fs from 'fs';
 import { resolve, join } from 'path';
 
-// Paths configuration
-const ATHLETES_SOURCE = resolve('./src/config/athletes.json'); // Static source (Git)
-const STATE_PATH = join(resolve('./data'), 'spotlight_state.json'); // Dynamic state (Volume)
+// 1. Static source tracked by Git
+const ATHLETES_SOURCE = resolve('./src/config/athletes.json'); 
+// 2. Dynamic state tracked in Railway Volume
+const STATE_PATH = join(resolve('./data'), 'spotlight_state.json');
 
 const logPrefix = '[Spotlight Manager]';
 
 /**
- * Internal helper to load the list of already posted athlete names
- * @returns {string[]} Array of athlete names
+ * Loads the list of already posted athlete names from the volume
  */
 function getPostedNames() {
     if (!fs.existsSync(STATE_PATH)) return [];
@@ -23,7 +23,7 @@ function getPostedNames() {
 }
 
 /**
- * Picks a random unposted athlete, records their name, and saves state.
+ * Picks a random unposted athlete and saves their name to state
  */
 export function getRandomAthlete() {
     try {
@@ -35,7 +35,6 @@ export function getRandomAthlete() {
         const allAthletes = JSON.parse(fs.readFileSync(ATHLETES_SOURCE, 'utf-8'));
         const postedNames = getPostedNames();
 
-        // Filter athletes that haven't been posted yet
         const available = allAthletes.filter(a => !postedNames.includes(a.name));
 
         if (available.length === 0) {
@@ -43,10 +42,9 @@ export function getRandomAthlete() {
             return null;
         }
 
-        const randomIndex = Math.floor(Math.random() * available.length);
-        const selected = available[randomIndex];
+        const selected = available[Math.floor(Math.random() * available.length)];
 
-        // Save the name to the persistent state
+        // Persist the name to the volume
         postedNames.push(selected.name);
         fs.writeFileSync(STATE_PATH, JSON.stringify(postedNames, null, 2));
 
@@ -58,9 +56,6 @@ export function getRandomAthlete() {
     }
 }
 
-/**
- * Counts how many athletes have NOT been posted yet
- */
 export function getUnpostedAthletesCount() {
     try {
         if (!fs.existsSync(ATHLETES_SOURCE)) return 0;
@@ -72,15 +67,11 @@ export function getUnpostedAthletesCount() {
     }
 }
 
-/**
- * Picks a random athlete FOR PREVIEW ONLY (does NOT save state)
- */
 export function getPreviewAthlete() {
     try {
         if (!fs.existsSync(ATHLETES_SOURCE)) return null;
         const allAthletes = JSON.parse(fs.readFileSync(ATHLETES_SOURCE, 'utf-8'));
-        const randomIndex = Math.floor(Math.random() * allAthletes.length);
-        return allAthletes[randomIndex];
+        return allAthletes[Math.floor(Math.random() * allAthletes.length)];
     } catch (error) {
         console.error(`${logPrefix} ❌ Error picking preview athlete:`, error.message);
         return null;
