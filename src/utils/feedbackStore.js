@@ -1,18 +1,31 @@
 import fs from 'fs';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
 
-const DB_PATH = resolve('./data/feedbacks.json');
+// Using a robust path for the data directory (compatible with Railway Volumes)
+const DATA_DIR = resolve('./data');
+const DB_PATH = join(DATA_DIR, 'feedbacks.json');
 
 /**
  * Saves a new feedback entry to the JSON database
  * @param {Object} data - The feedback object to store
  */
 export function saveFeedbackData(data) {
-    if (!fs.existsSync('./data')) fs.mkdirSync('./data');
+    // Ensure the data directory exists (important for the first run with the Volume)
+    if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
     
-    const existingData = fs.existsSync(DB_PATH) 
-        ? JSON.parse(fs.readFileSync(DB_PATH, 'utf-8')) 
-        : [];
+    let existingData = [];
+    
+    if (fs.existsSync(DB_PATH)) {
+        try {
+            const fileContent = fs.readFileSync(DB_PATH, 'utf-8');
+            existingData = JSON.parse(fileContent);
+        } catch (error) {
+            console.error('[FeedbackStore] Error parsing JSON, starting fresh:', error.message);
+            existingData = [];
+        }
+    }
         
     existingData.push(data);
     fs.writeFileSync(DB_PATH, JSON.stringify(existingData, null, 2));
@@ -26,7 +39,9 @@ export function saveFeedbackData(data) {
 export function hasAlreadySubmitted(userId) {
     if (!fs.existsSync(DB_PATH)) return false;
     try {
-        const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+        const fileContent = fs.readFileSync(DB_PATH, 'utf-8');
+        const data = JSON.parse(fileContent);
+        if (!Array.isArray(data)) return false;
         return data.some(f => f.userId === userId);
     } catch (error) {
         console.error('[FeedbackStore] Error checking submission:', error.message);
@@ -42,12 +57,16 @@ export function getFeedbackStats() {
     if (!fs.existsSync(DB_PATH)) return { total: 0, average: "0" };
     
     try {
-        const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-        if (data.length === 0) return { total: 0, average: "0" };
+        const fileContent = fs.readFileSync(DB_PATH, 'utf-8');
+        const data = JSON.parse(fileContent);
+        
+        if (!Array.isArray(data) || data.length === 0) {
+            return { total: 0, average: "0" };
+        }
 
         const total = data.length;
-        const sum = data.reduce((acc, curr) => acc + curr.rating, 0);
-        const average = (sum / total).toFixed(1); // Format to 1 decimal place (e.g., 4.5)
+        const sum = data.reduce((acc, curr) => acc + (Number(curr.rating) || 0), 0);
+        const average = (sum / total).toFixed(1);
 
         return { total, average };
     } catch (error) {

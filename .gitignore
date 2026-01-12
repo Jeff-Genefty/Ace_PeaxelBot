@@ -1,40 +1,38 @@
-# Dependencies
+# === Dependencies ===
 node_modules/
 
-# Environment variables (CRITICAL: Never commit these)
+# === Environment variables ===
 .env
 .env.local
 .env.*.local
 
-# Logs
+# === Logs ===
 logs/
 *.log
 npm-debug.log*
 
-# OS generated files
+# === OS generated files ===
 .DS_Store
 Thumbs.db
 
-# IDE
+# === IDE ===
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Build / Temp
+# === Build / Temp ===
 dist/
 build/
 
-# === Bot Database & Activity ===
+# === Railway Volume (Persistent Data) ===
+# We ignore the entire data folder content so Git never overwrites the Volume
+data/*
 
-# On ignore l'activité pour ne pas écraser les stats à chaque mise à jour
-data/activity.json
-
-# On AUTORISE les fichiers de configuration et de jeu
+# Exceptions: Keep the folder structure and critical fixed config
+!data/.gitkeep
 !data/config.json
-!data/athletes.json
-!data/giveaways.json
 
-# script-generated data files (can be ignored)
+# === Scripts & Misc ===
 sync_peaxel.js
 List_active_talents - Data.csv

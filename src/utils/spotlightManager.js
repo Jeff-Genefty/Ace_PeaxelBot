@@ -1,40 +1,42 @@
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { resolve, join } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const ATHLETES_FILE = path.join(__dirname, '../../data/athletes.json');
+// Paths configuration
+const ATHLETES_SOURCE = resolve('./src/config/athletes.json'); // Static source (Git)
+const STATE_PATH = join(resolve('./data'), 'spotlight_state.json'); // Dynamic state (Volume)
 
 const logPrefix = '[Spotlight Manager]';
 
 /**
- * Internal helper to load athletes from the JSON file
+ * Internal helper to load the list of already posted athlete names
+ * @returns {string[]} Array of athlete names
  */
-function loadAthletes() {
+function getPostedNames() {
+    if (!fs.existsSync(STATE_PATH)) return [];
     try {
-        if (!fs.existsSync(ATHLETES_FILE)) {
-            console.error(`${logPrefix} ❌ athletes.json NOT FOUND at: ${ATHLETES_FILE}`);
-            return [];
-        }
-        const rawData = fs.readFileSync(ATHLETES_FILE, 'utf-8');
+        const rawData = fs.readFileSync(STATE_PATH, 'utf-8');
         return JSON.parse(rawData);
     } catch (error) {
-        console.error(`${logPrefix} ❌ Error parsing athletes.json:`, error.message);
+        console.error(`${logPrefix} ❌ Error reading state file:`, error.message);
         return [];
     }
 }
 
 /**
- * Picks a random unposted athlete, marks them as posted, and saves the DB.
+ * Picks a random unposted athlete, records their name, and saves state.
  */
 export function getRandomAthlete() {
     try {
-        const athletes = loadAthletes();
-        if (athletes.length === 0) return null;
+        if (!fs.existsSync(ATHLETES_SOURCE)) {
+            console.error(`${logPrefix} ❌ Source athletes.json NOT FOUND at: ${ATHLETES_SOURCE}`);
+            return null;
+        }
 
-        const available = athletes.filter(a => a.posted === false);
+        const allAthletes = JSON.parse(fs.readFileSync(ATHLETES_SOURCE, 'utf-8'));
+        const postedNames = getPostedNames();
+
+        // Filter athletes that haven't been posted yet
+        const available = allAthletes.filter(a => !postedNames.includes(a.name));
 
         if (available.length === 0) {
             console.warn(`${logPrefix} ⚠️ No unposted athletes remaining!`);
@@ -44,13 +46,11 @@ export function getRandomAthlete() {
         const randomIndex = Math.floor(Math.random() * available.length);
         const selected = available[randomIndex];
 
-        const originalIndex = athletes.findIndex(a => a.name === selected.name);
-        if (originalIndex !== -1) {
-            athletes[originalIndex].posted = true;
-            fs.writeFileSync(ATHLETES_FILE, JSON.stringify(athletes, null, 2));
-            console.log(`${logPrefix} ✅ Selected and marked: ${selected.name}`);
-        }
+        // Save the name to the persistent state
+        postedNames.push(selected.name);
+        fs.writeFileSync(STATE_PATH, JSON.stringify(postedNames, null, 2));
 
+        console.log(`${logPrefix} ✅ Selected and recorded: ${selected.name}`);
         return selected;
     } catch (error) {
         console.error(`${logPrefix} ❌ Error picking athlete:`, error.message);
@@ -62,22 +62,25 @@ export function getRandomAthlete() {
  * Counts how many athletes have NOT been posted yet
  */
 export function getUnpostedAthletesCount() {
-    const athletes = loadAthletes();
-    return athletes.filter(a => a.posted === false).length;
+    try {
+        if (!fs.existsSync(ATHLETES_SOURCE)) return 0;
+        const allAthletes = JSON.parse(fs.readFileSync(ATHLETES_SOURCE, 'utf-8'));
+        const postedNames = getPostedNames();
+        return allAthletes.filter(a => !postedNames.includes(a.name)).length;
+    } catch (e) {
+        return 0;
+    }
 }
 
 /**
- * Picks a random athlete FOR PREVIEW ONLY (does NOT mark as posted)
+ * Picks a random athlete FOR PREVIEW ONLY (does NOT save state)
  */
 export function getPreviewAthlete() {
     try {
-        const athletes = loadAthletes();
-        if (athletes.length === 0) return null;
-
-               const available = athletes; 
-
-        const randomIndex = Math.floor(Math.random() * available.length);
-        return available[randomIndex];
+        if (!fs.existsSync(ATHLETES_SOURCE)) return null;
+        const allAthletes = JSON.parse(fs.readFileSync(ATHLETES_SOURCE, 'utf-8'));
+        const randomIndex = Math.floor(Math.random() * allAthletes.length);
+        return allAthletes[randomIndex];
     } catch (error) {
         console.error(`${logPrefix} ❌ Error picking preview athlete:`, error.message);
         return null;

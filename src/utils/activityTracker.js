@@ -1,12 +1,9 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
-import { getFeedbackStats } from './feedbackStore.js'; // Import the new stats utility
+import { join, resolve } from 'path'; // Switched to resolve for absolute path mapping
+import { getFeedbackStats } from './feedbackStore.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const DATA_DIR = join(__dirname, '../../data');
+// Using resolve('./data') ensures we point to the Railway Volume at /app/data
+const DATA_DIR = resolve('./data');
 const ACTIVITY_FILE = join(DATA_DIR, 'activity.json');
 
 const DEFAULT_ACTIVITY = {
@@ -14,15 +11,24 @@ const DEFAULT_ACTIVITY = {
   lastWeeklyPostWeek: null,
   lastManualPost: null,
   totalPostsSent: 0,
-  totalFeedbackReceived: 0, // Keep for legacy, but we will use feedbackStore for display
+  totalFeedbackReceived: 0,
   botStartedAt: null,
   lastError: null
 };
 
+/**
+ * Ensures the data directory exists
+ */
 function ensureDataDir() {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+  if (!existsSync(DATA_DIR)) {
+    mkdirSync(DATA_DIR, { recursive: true });
+  }
 }
 
+/**
+ * Loads activity data from the JSON file
+ * @returns {Object}
+ */
 export function loadActivity() {
   try {
     if (existsSync(ACTIVITY_FILE)) {
@@ -35,6 +41,10 @@ export function loadActivity() {
   return { ...DEFAULT_ACTIVITY };
 }
 
+/**
+ * Saves activity data to the JSON file
+ * @param {Object} activity 
+ */
 function saveActivity(activity) {
   try {
     ensureDataDir();
@@ -46,10 +56,12 @@ function saveActivity(activity) {
 
 /**
  * Returns synchronized stats for the status command
+ * Combines activity data with live feedback database stats
+ * @returns {Object}
  */
 export function getGlobalStats() {
     const activity = loadActivity();
-    const feedbackData = getFeedbackStats(); // Live data from feedbackStore.js
+    const feedbackData = getFeedbackStats();
 
     return {
         totalPosts: activity.totalPostsSent,
@@ -58,6 +70,11 @@ export function getGlobalStats() {
     };
 }
 
+/**
+ * Records a weekly post event
+ * @param {boolean} isManual 
+ * @param {number} weekNumber 
+ */
 export function recordWeeklyPost(isManual, weekNumber) {
   const activity = loadActivity();
   const now = new Date().toISOString();
@@ -74,7 +91,7 @@ export function recordWeeklyPost(isManual, weekNumber) {
 }
 
 /**
- * Updated: This now acts as a bridge, though getFeedbackStats() is the primary source
+ * Legacy bridge to track feedback count in activity file
  */
 export function recordFeedback() {
   const activity = loadActivity();
@@ -82,12 +99,19 @@ export function recordFeedback() {
   saveActivity(activity);
 }
 
+/**
+ * Records bot startup time
+ */
 export function recordBotStart() {
   const activity = loadActivity();
   activity.botStartedAt = new Date().toISOString();
   saveActivity(activity);
 }
 
+/**
+ * Records the last known system error
+ * @param {string} errorMessage 
+ */
 export function recordError(errorMessage) {
   const activity = loadActivity();
   activity.lastError = { message: errorMessage, timestamp: new Date().toISOString() };
@@ -95,7 +119,8 @@ export function recordError(errorMessage) {
 }
 
 /**
- * Get the next publication (Opening, Spotlight, or Closing)
+ * Logic to calculate the next scheduled publication time (Paris Timezone)
+ * @returns {Object}
  */
 export function getNextScheduledRun() {
   const timezone = 'Europe/Paris';
@@ -149,6 +174,11 @@ export function getNextScheduledRun() {
   };
 }
 
+/**
+ * Formats bot uptime into a readable string
+ * @param {string} startTime 
+ * @returns {string}
+ */
 export function getUptime(startTime) {
   if (!startTime) return 'Unknown';
   const diff = new Date() - new Date(startTime);
