@@ -3,6 +3,7 @@ import {
   ActionRowBuilder, EmbedBuilder, AttachmentBuilder 
 } from 'discord.js';
 import { saveFeedbackData, hasAlreadySubmitted, getFeedbackStats } from '../utils/feedbackStore.js';
+import { getConfig } from '../utils/configManager.js'; // Import config to find the general channel
 import fs from 'fs';
 import { resolve } from 'path';
 
@@ -69,7 +70,7 @@ export async function handleFeedbackButton(interaction) {
 
 /**
  * Processes the modal submission
- * Saves data, updates the stats channel, and notifies admins
+ * Saves data, updates stats, notifies admins, and announces publicly
  */
 export async function handleFeedbackSubmit(interaction) {
   const rating = interaction.fields.getTextInputValue('feedback_rating');
@@ -94,13 +95,28 @@ export async function handleFeedbackSubmit(interaction) {
     comments: comments.replace(/,/g, ';')
   };
   
-  // 1. Save to local JSON database
+  // 1. Save to local JSON database (Railway Volume)
   saveFeedbackData(feedbackEntry);
 
   // 2. Update the Voice Channel Stats immediately
   await updateFeedbackStatsChannel(interaction.client);
 
-  // 3. Forward feedback to the specific admin channel
+  // 3. ANNOUNCEMENT: Post in the Welcome/General channel to boost engagement
+  try {
+    const config = getConfig();
+    const generalChannelId = config.channels?.welcome || '1369976259613954059'; 
+    const generalChannel = await interaction.client.channels.fetch(generalChannelId);
+
+    if (generalChannel) {
+      await generalChannel.send({
+        content: `🚀 **New Activity!** <@${interaction.user.id}> just published a feedback! \n*Managers, share your thoughts too by using the feedback button!*`
+      });
+    }
+  } catch (error) {
+    console.error('[FeedbackHandler] Public announcement failed:', error.message);
+  }
+
+  // 4. Forward feedback to the specific admin channel (Logs)
   const feedbackChannelId = process.env.FEEDBACK_CHANNEL_ID || '1369976255998591000';
   
   try {
@@ -136,7 +152,6 @@ export async function handleFeedbackSubmit(interaction) {
 
 /**
  * Updates the designated stats channel name
- * Format: "Feedback: 12 | 4.5 ⭐"
  */
 export async function updateFeedbackStatsChannel(client) {
     const statsChannelId = process.env.FEEDBACK_STATS_CHANNEL_ID;
@@ -157,14 +172,10 @@ export async function updateFeedbackStatsChannel(client) {
             
             await channel.setName(newName);
             console.log(`[FeedbackHandler] ✅ Stats channel updated successfully.`);
-        } else {
-            console.error(`[FeedbackHandler] ❌ Channel with ID ${statsChannelId} could not be found.`);
         }
     } catch (error) {
         if (error.status === 429) {
             console.error('[FeedbackHandler] ⏳ Rate Limited! Discord limits channel renaming to 2 times per 10 minutes.');
-        } else if (error.code === 50013) {
-            console.error('[FeedbackHandler] 🚫 Missing Permissions! The bot needs "Manage Channel" on the voice channel.');
         } else {
             console.error('[FeedbackHandler] ❌ Stats channel update failed:', error.message);
         }

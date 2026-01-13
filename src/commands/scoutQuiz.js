@@ -9,7 +9,7 @@ export default {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
-        // Fetch a random athlete from the source (Git config)
+        // Fetch a random athlete (Independent of the Spotlight "posted" status)
         const athlete = getPreviewAthlete();
         
         if (!athlete) {
@@ -20,8 +20,9 @@ export default {
         }
 
         const config = getConfig();
+        // Dynamic channel fetching from config
         const announceChannelId = config.channels?.announce || interaction.channelId;
-        const generalChannelId = config.channels?.welcome || '1369976259613954059'; // Fallback to your fixed ID
+        const generalChannelId = config.channels?.welcome || '1369976259613954059'; 
 
         try {
             const announceChannel = await interaction.client.channels.fetch(announceChannelId);
@@ -34,6 +35,7 @@ export default {
                 });
             }
 
+            // Confirm to admin that quiz is launching
             await interaction.reply({ 
                 content: `✅ Quiz launched in <#${announceChannelId}>. Answers tracked in <#${generalChannelId}>.`, 
                 ephemeral: true 
@@ -51,26 +53,26 @@ export default {
                     `⚠️ *Precision is key! Only exact spelling will be validated.*`
                 )
                 .addFields(
-                    // Using correct properties from your JSON format
-                    { name: '📍 Nationality', value: athlete.main_nationality || 'Unknown', inline: true },
-                    { name: '🏆 Occupation', value: athlete.occupation || 'Professional', inline: true },
-                    { name: '🗂️ Category', value: athlete.main_category || 'Elite', inline: true },
+                    // Aligned with athletes.json format
+                    { name: '📍 Nationality', value: athlete.main_nationality || 'N/A', inline: true },
+                    { name: '🏆 Occupation', value: athlete.occupation || 'N/A', inline: true },
+                    { name: '🗂️ Category', value: athlete.main_category || 'N/A', inline: true },
                     { name: '💡 Scouting Hint', value: `Our sources tell us the name starts with: **${athlete.name.charAt(0).toUpperCase()}**` }
                 )
                 .setColor('#FACC15')
                 .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png') 
                 .setFooter({ text: 'Tournament Points and Cards are at stake! Good luck, Managers.' });
 
-            await announceChannel.send({ content: '✨ **Manual Scout Quiz is LIVE!** @everyone', embeds: [quizEmbed] });
+            await announceChannel.send({ content: '✨ **Weekly Scout Quiz is LIVE!** @everyone', embeds: [quizEmbed] });
 
-            // Filter for the collector
+            // Filter logic
             const filter = m => {
                 const userGuess = m.content.toUpperCase().trim();
                 const correctAnswer = athlete.name.toUpperCase().trim();
                 return userGuess === correctAnswer;
             };
 
-            // 2-hour window for the quiz
+            // Collector setup
             const collector = generalChannel.createMessageCollector({ filter, time: 7200000, max: 1 });
 
             collector.on('collect', async m => {
@@ -83,6 +85,7 @@ export default {
                         `Please open a ticket to receive your **Free Athlete Card**!`
                     )
                     .setColor('#2ECC71')
+                    // Correct key for profile image
                     .setThumbnail(athlete.talent_profile_image_url || 'https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png')
                     .setFooter({ text: 'Peaxel • Identification Successful' })
                     .setTimestamp();
