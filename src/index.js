@@ -1,7 +1,7 @@
-import { Client, GatewayIntentBits, Collection, Events, REST, Routes, MessageFlags } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, REST, Routes, MessageFlags, EmbedBuilder } from 'discord.js'; 
 import { config } from 'dotenv';
 import fs, { readdirSync, readFileSync, writeFileSync } from 'fs';
-import { join, dirname, resolve } from 'path'; // Added resolve
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { initScheduler } from './scheduler.js';
 import { handleFeedbackButton, handleFeedbackSubmit, updateFeedbackStatsChannel } from './handlers/feedbackHandler.js';
@@ -9,6 +9,7 @@ import { initDiscordLogger, logCommandUsage } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
 import { setupWelcomeListener } from './listeners/welcomeListener.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
+import { getConfig } from './utils/configManager.js'; 
 
 config();
 
@@ -97,7 +98,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
     
     else if (interaction.customId === 'join_giveaway') {
-      // Use Volume path for giveaways
       const DATA_DIR = resolve('./data');
       const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
       
@@ -118,6 +118,23 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         data.participants.push(interaction.user.id);
         writeFileSync(GIVEAWAY_FILE, JSON.stringify(data, null, 2));
+
+        // --- GIVEAWAY LOGGING ---
+        const configData = getConfig();
+        const logChannelId = configData.channels?.logs;
+        if (logChannelId) {
+          const logChannel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
+          if (logChannel) {
+            const logEmbed = new EmbedBuilder()
+              .setTitle('🎟️ New Giveaway Entry')
+              .setDescription(`**User:** <@${interaction.user.id}>\n**User ID:** \`${interaction.user.id}\`\n**Total Participants:** ${data.participants.length}`)
+              .setColor('#3498DB')
+              .setTimestamp();
+            
+            await logChannel.send({ embeds: [logEmbed] });
+          }
+        }
+        // ------------------------
 
         await interaction.reply({ 
           content: '✅ You have successfully joined the giveaway! Good luck! 🍀', 
