@@ -97,54 +97,77 @@ client.on(Events.InteractionCreate, async (interaction) => {
       await handleFeedbackButton(interaction).catch(err => console.error(err));
     }
     
-    else if (interaction.customId === 'join_giveaway') {
-      const DATA_DIR = resolve('./data');
-      const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
-      
-      try {
+else if (interaction.customId === 'join_giveaway') {
+    const DATA_DIR = resolve('./data');
+    const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
+    
+    try {
         if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
         let data = { participants: [] };
         if (fs.existsSync(GIVEAWAY_FILE)) {
-          data = JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8'));
+            data = JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8'));
         }
 
         if (data.participants.includes(interaction.user.id)) {
-          return await interaction.reply({ 
-            content: '❌ You are already registered for this giveaway!', 
-            flags: [MessageFlags.Ephemeral] 
-          });
+            return await interaction.reply({ 
+                content: '❌ You are already registered for this giveaway!', 
+                flags: [MessageFlags.Ephemeral] 
+            });
         }
 
         data.participants.push(interaction.user.id);
         writeFileSync(GIVEAWAY_FILE, JSON.stringify(data, null, 2));
 
-        // --- GIVEAWAY LOGGING ---
+        // 1. Calculate time remaining until Sunday 20:00 (Paris Time)
+        const now = getParisDate(); // Make sure this is imported from ./utils/week.js
+        const drawDate = new Date(now);
+        drawDate.setDate(now.getDate() + (7 - now.getDay()) % 7); // Move to next Sunday
+        drawDate.setHours(20, 0, 0, 0);
+        
+        // If it's already Sunday after 20:00, it's for next week (safety)
+        if (now > drawDate) drawDate.setDate(drawDate.getDate() + 7);
+        
+        const diffMs = drawDate - now;
+        const diffHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+
+        // 2. Send hype message to General Channel
         const configData = getConfig();
+        const generalChannelId = configData.channels?.welcome || '1369976259613954059';
+        const generalChannel = await interaction.client.channels.fetch(generalChannelId).catch(() => null);
+
+        if (generalChannel) {
+            await generalChannel.send({
+                content: `🎟️ **New Entry!** <@${interaction.user.id}> just joined the giveaway!\n` +
+                         `👥 **Total participants:** ${data.participants.length}\n` +
+                         `⏳ **Time left:** ${diffHours} hours until the draw!`
+            });
+        }
+
+        // 3. Keep the log in #log (as we did before)
         const logChannelId = configData.channels?.logs;
         if (logChannelId) {
-          const logChannel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
-          if (logChannel) {
-            const logEmbed = new EmbedBuilder()
-              .setTitle('🎟️ New Giveaway Entry')
-              .setDescription(`**User:** <@${interaction.user.id}>\n**User ID:** \`${interaction.user.id}\`\n**Total Participants:** ${data.participants.length}`)
-              .setColor('#3498DB')
-              .setTimestamp();
-            
-            await logChannel.send({ embeds: [logEmbed] });
-          }
+            const logChannel = await interaction.client.channels.fetch(logChannelId).catch(() => null);
+            if (logChannel) {
+                const logEmbed = new EmbedBuilder()
+                    .setTitle('🎟️ New Giveaway Entry')
+                    .setDescription(`**User:** <@${interaction.user.id}>\n**Total Participants:** ${data.participants.length}`)
+                    .setColor('#3498DB')
+                    .setTimestamp();
+                await logChannel.send({ embeds: [logEmbed] });
+            }
         }
-        // ------------------------
 
         await interaction.reply({ 
-          content: '✅ You have successfully joined the giveaway! Good luck! 🍀', 
-          flags: [MessageFlags.Ephemeral] 
+            content: '✅ You have successfully joined the giveaway! Good luck! 🍀', 
+            flags: [MessageFlags.Ephemeral] 
         });
-      } catch (error) {
+
+    } catch (error) {
         console.error(`${logPrefix} Giveaway Join Error:`, error);
         await interaction.reply({ content: '❌ Database error.', flags: [MessageFlags.Ephemeral] });
-      }
     }
+      }
   }
   
   else if (interaction.isModalSubmit()) {

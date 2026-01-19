@@ -1,6 +1,6 @@
 import cron from 'node-cron';
 import fs from 'fs';
-import { ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
 import { sendWeeklyMessage } from './utils/sendWeeklyMessage.js';
 import { getRandomAthlete, getPreviewAthlete } from './utils/spotlightManager.js';
 import { getCurrentWeekNumber, getParisDate } from './utils/week.js';
@@ -197,28 +197,55 @@ export function initScheduler(client) {
         } catch (e) { console.error(`${logPrefix} [Giveaway Launch] Error:`, e.message); }
     }, { scheduled: true, timezone });
 
-    // --- 7. GIVEAWAY DRAW (Sunday 20:00) ---
-    cron.schedule('0 20 * * 0', async () => {
-        try {
-            if (!fs.existsSync(GIVEAWAY_FILE)) return;
-            const config = getConfig();
-            const data = JSON.parse(fs.readFileSync(GIVEAWAY_FILE, 'utf-8'));
-            const channel = await client.channels.fetch(config.channels?.announce || '1369976257047167059');
+// --- 7. GIVEAWAY DRAW (Sunday 20:00) ---
+cron.schedule('0 20 * * 0', async () => {
+    try {
+        if (!fs.existsSync(GIVEAWAY_FILE)) return;
+        const config = getConfig();
+        const data = JSON.parse(fs.readFileSync(GIVEAWAY_FILE, 'utf-8'));
+        const channelId = config.channels?.announce || '1369976257047167059';
+        const channel = await client.channels.fetch(channelId);
 
-            if (!data.participants || data.participants.length === 0) {
-                return await channel.send('😔 **Giveaway Results:** No one participated this weekend.');
-            }
+        if (!data.participants || data.participants.length === 0) {
+            return await channel.send('😔 **Giveaway Results:** No one participated this weekend.');
+        }
 
-            const winnerId = data.participants[Math.floor(Math.random() * data.participants.length)];
-            const winEmbed = new EmbedBuilder()
-                .setTitle('🎉 GIVEAWAY WINNER!')
-                .setDescription(`Congratulations to <@${winnerId}>! You won!\n\n📩 Claim your reward: <#1369976260066803794>`)
-                .setColor('#2ECC71');
+        const winnerId = data.participants[Math.floor(Math.random() * data.participants.length)];
+        
+        // 1. Prepare the local image as an attachment
+        const imageFile = new AttachmentBuilder('./assets/announce.png');
 
-            await channel.send({ content: `🎊 **The Giveaway has ended!**`, embeds: [winEmbed] });
-            fs.writeFileSync(GIVEAWAY_FILE, JSON.stringify({ participants: [] }, null, 2));
-        } catch (e) { console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message); }
-    }, { scheduled: true, timezone });
+        const winEmbed = new EmbedBuilder()
+            .setTitle('🎊 GIVEAWAY RESULTS: WE HAVE A WINNER!')
+            .setDescription(
+                `Congratulations to <@${winnerId}>! You have been randomly selected as our lucky winner! 🥳\n\n` +
+                `🎫 **HOW TO CLAIM:**\n` +
+                `Please head over to <#1369976260066803794> and open a ticket to receive your reward.`
+            )
+            .setColor('#2ECC71')
+            .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png')
+            // 2. Reference the attachment in the image (or footer image)
+            .setImage('attachment://announce.png') 
+            .setFooter({ 
+                text: 'Thank you for being part of the Peaxel community!', 
+                iconURL: 'attachment://announce.png' 
+            })
+            .setTimestamp();
+
+        // 3. Send the message with the attachment and the tag
+        await channel.send({ 
+            content: `🎉 Congratulations <@${winnerId}>! You just won the Peaxel Giveaway! 🏆`, 
+            embeds: [winEmbed],
+            files: [imageFile] 
+        });
+
+        // Reset the giveaway data
+        fs.writeFileSync(GIVEAWAY_FILE, JSON.stringify({ participants: [] }, null, 2));
+        
+    } catch (e) { 
+        console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message); 
+    }
+}, { scheduled: true, timezone });
 }
 
 function getWeekKey() {
