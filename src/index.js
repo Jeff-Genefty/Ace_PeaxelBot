@@ -13,7 +13,7 @@ import { initDiscordLogger, logCommandUsage } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
 import { setupWelcomeListener } from './listeners/welcomeListener.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
-import { getConfig, saveConfig } from './utils/configManager.js'; // Ensure saveConfig is exported in your util
+import { getConfig, setChannel } from './utils/configManager.js'; // Correction: Use setChannel instead of saveConfig
 import { getParisDate } from './utils/week.js';
 
 config();
@@ -98,7 +98,6 @@ app.get('/dashboard', async (req, res) => {
                     .btn-red { background: #e74c3c; color: white; }
                     .log-box { background: #000; padding: 10px; border-radius: 6px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85em; }
                     .log-entry { margin-bottom: 5px; border-bottom: 1px solid #111; padding-bottom: 2px; }
-                    .tag-mod { color: #e74c3c; } .tag-sys { color: #3498db; } .tag-msg { color: #2ecc71; }
                 </style>
             </head>
             <body>
@@ -121,7 +120,6 @@ app.get('/dashboard', async (req, res) => {
                                 </select>
                                 <button class="btn">Update Status</button>
                             </form>
-
                             <h2 style="margin-top:20px">🛡️ Fast Mod</h2>
                             <form action="/dashboard/mod-action?auth=${req.query.auth}" method="POST">
                                 <input type="text" name="targetId" placeholder="User ID">
@@ -138,11 +136,10 @@ app.get('/dashboard', async (req, res) => {
                             <h2>📣 Send Announcement</h2>
                             <form action="/dashboard/send-announce?auth=${req.query.auth}" method="POST">
                                 <input type="text" name="title" placeholder="Title">
-                                <textarea name="message" placeholder="Content (Markdown allowed)..." rows="3"></textarea>
-                                <input type="text" name="chanId" value="${currentConfig.channels?.announces || ''}" placeholder="Channel ID">
+                                <textarea name="message" placeholder="Content..." rows="3"></textarea>
+                                <input type="text" name="chanId" value="${currentConfig.channels?.announce || ''}" placeholder="Channel ID">
                                 <button class="btn">Ship to Discord</button>
                             </form>
-
                             <h2 style="margin-top:20px">🎁 Giveaway</h2>
                             <form action="/dashboard/giveaway-tool?auth=${req.query.auth}" method="POST">
                                 <button name="tool" value="draw" class="btn" style="margin-bottom:5px">🎲 Draw Random Winner</button>
@@ -154,11 +151,11 @@ app.get('/dashboard', async (req, res) => {
                             <h2>⚙️ Configuration Editor</h2>
                             <form action="/dashboard/save-config?auth=${req.query.auth}" method="POST">
                                 <label style="font-size:0.8em">Log Channel ID</label>
-                                <input type="text" name="logChan" value="${currentConfig.channels?.logs || ''}">
+                                <input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
                                 <label style="font-size:0.8em">Announces Channel ID</label>
-                                <input type="text" name="announceChan" value="${currentConfig.channels?.announces || ''}">
+                                <input type="text" name="announce" value="${currentConfig.channels?.announce || ''}">
                                 <label style="font-size:0.8em">Welcome Channel ID</label>
-                                <input type="text" name="welcomeChan" value="${currentConfig.channels?.welcome || ''}">
+                                <input type="text" name="welcome" value="${currentConfig.channels?.welcome || ''}">
                                 <button class="btn">Save Configuration</button>
                             </form>
                             <a href="/dashboard?auth=${req.query.auth}&action=export_feedback" class="btn" style="margin-top:10px; display:block; text-align:center; text-decoration:none; color:black;">📥 Export Feedbacks CSV</a>
@@ -170,7 +167,6 @@ app.get('/dashboard', async (req, res) => {
                                 <input type="text" name="searchId" placeholder="Discord User ID">
                                 <button class="btn">Search Database</button>
                             </form>
-
                             <h2 style="margin-top:20px">🛰️ Live Logs</h2>
                             <div class="log-box">
                                 ${liveLogs.map(l => `<div class="log-entry">
@@ -202,7 +198,7 @@ app.get('/dashboard', async (req, res) => {
     `);
 });
 
-// --- POST ROUTES FOR DASHBOARD ACTIONS ---
+// --- POST ROUTES ---
 
 app.post('/dashboard/update-status', (req, res) => {
     const { statusText, statusType } = req.body;
@@ -217,7 +213,7 @@ app.post('/dashboard/send-announce', async (req, res) => {
         const channel = await client.channels.fetch(chanId);
         const embed = new EmbedBuilder().setTitle(title).setDescription(message).setColor('#FACC15').setTimestamp();
         await channel.send({ embeds: [embed] });
-        addLiveLog("ANNOUNCE", `Message sent to <#${chanId}>`);
+        addLiveLog("ANNOUNCE", `Message sent to ${chanId}`);
         res.redirect(`/dashboard?auth=${req.query.auth}`);
     } catch (e) { res.status(500).send("Error: " + e.message); }
 });
@@ -235,11 +231,14 @@ app.post('/dashboard/mod-action', async (req, res) => {
 });
 
 app.post('/dashboard/save-config', (req, res) => {
-    const { logChan, announceChan, welcomeChan } = req.body;
-    const current = getConfig();
-    current.channels = { logs: logChan, announces: announceChan, welcome: welcomeChan };
-    saveConfig(current); // Use your existing config utility
-    addLiveLog("CONFIG", "Channel IDs updated via Web");
+    const { logs, announce, welcome } = req.body;
+    
+    // Using your setChannel function from configManager.js
+    setChannel('logs', logs);
+    setChannel('announce', announce);
+    setChannel('welcome', welcome);
+    
+    addLiveLog("CONFIG", "Channel IDs updated via Web Dashboard");
     res.redirect(`/dashboard?auth=${req.query.auth}`);
 });
 
@@ -249,7 +248,7 @@ app.post('/dashboard/giveaway-tool', (req, res) => {
         writeFileSync(GIVEAWAY_FILE, JSON.stringify({ participants: [] }, null, 2));
         addLiveLog("GIVEAWAY", "Participants list wiped clean.");
     } else {
-        const data = JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8'));
+        const data = fs.existsSync(GIVEAWAY_FILE) ? JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8')) : { participants: [] };
         if (data.participants.length > 0) {
             const winner = data.participants[Math.floor(Math.random() * data.participants.length)];
             addLiveLog("GIVEAWAY", `Winner drawn: ${winner}`);
@@ -263,7 +262,7 @@ app.post('/dashboard/user-search', async (req, res) => {
     try {
         const user = await client.users.fetch(searchId);
         res.send(`<h3>Result for ${user.tag}</h3><p>ID: ${user.id}</p><p>Bot: ${user.bot}</p><a href="/dashboard?auth=${req.query.auth}">Back</a>`);
-    } catch (e) { res.send("User not found in Discord Cache. <a href='/dashboard?auth=${req.query.auth}'>Back</a>"); }
+    } catch (e) { res.send("User not found. <a href='/dashboard?auth=${req.query.auth}'>Back</a>"); }
 });
 
 app.listen(PORT, () => console.log(`${logPrefix} [Web] Dashboard live on port ${PORT}`));
@@ -312,7 +311,6 @@ client.once(Events.ClientReady, async (readyClient) => {
     await updateFeedbackStatsChannel(readyClient);
 });
 
-// --- TRACKING LISTENERS ---
 client.on(Events.MessageCreate, async (message) => {
     if (!message.author.bot) trackEvent('messagesSent');
     await handleMessageReward(message);
@@ -322,10 +320,13 @@ client.on(Events.GuildMemberAdd, async (member) => {
     trackEvent('membersJoined');
     addLiveLog("JOIN", `${member.user.tag} joined the guild`);
     const configData = getConfig();
-    const logChannel = await client.channels.fetch(configData.channels?.logs).catch(() => null);
-    if (logChannel) {
-        const embed = new EmbedBuilder().setTitle('📥 New Member').setDescription(`<@${member.id}> joined.`).setColor('#2ECC71').setTimestamp();
-        await logChannel.send({ embeds: [embed] });
+    const logChannelId = configData.channels?.logs;
+    if (logChannelId) {
+        const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
+        if (logChannel) {
+            const embed = new EmbedBuilder().setTitle('📥 New Member').setDescription(`<@${member.id}> joined.`).setColor('#2ECC71').setTimestamp();
+            await logChannel.send({ embeds: [embed] });
+        }
     }
 });
 
