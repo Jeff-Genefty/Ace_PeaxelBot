@@ -24,7 +24,7 @@ const __dirname = dirname(__filename);
 const logPrefix = '[Peaxel Bot]';
 
 // --- CONFIGURATION ---
-const PORT = process.env.PORT || 8080; // Correctly defined global port
+const PORT = process.env.PORT || 8080;
 
 // --- DATA PATHS ---
 const DATA_DIR = resolve('./data');
@@ -40,9 +40,9 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const upload = multer({ dest: 'uploads/' });
 
-// --- COLORS (Cyberpunk Neon Theme) ---
-const PRIMARY_PURPLE = '#a855f7'; // Neon Purple
-const NEON_BLUE = '#2dd4bf';     // Cyan/Neon Blue
+// --- COLORS ---
+const PRIMARY_PURPLE = '#a855f7';
+const NEON_BLUE = '#2dd4bf';
 
 // --- INITIALIZE ADMIN ---
 if (!fs.existsSync(USERS_FILE)) {
@@ -54,7 +54,7 @@ if (!fs.existsSync(USERS_FILE)) {
     }
 }
 
-// --- ANALYTICS ENGINE ---
+// --- ANALYTICS & LOGS ---
 let stats = { messagesSent: 0, membersJoined: 0, membersLeft: 0, commandsExecuted: 0, feedbacksReceived: 0, dailyHistory: {} };
 if (fs.existsSync(STATS_FILE)) {
     try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { console.error("Stats load error", e); }
@@ -117,7 +117,6 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     const liveLogs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
     const currentConfig = getConfig();
     let feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
-    let giveawayEntries = fs.existsSync(GIVEAWAY_FILE) ? JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8')) : [];
 
     res.send(`
         <html>
@@ -131,7 +130,8 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     .card { background: #0f0f15; padding: 20px; border-radius: 12px; border: 1px solid #1a1a24; border-top: 3px solid ${PRIMARY_PURPLE}; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
                     h1 { color: ${PRIMARY_PURPLE}; display: flex; justify-content: space-between; align-items: center; text-shadow: 0 0 10px rgba(168,85,247,0.3); }
                     h2 { color: ${NEON_BLUE}; border-bottom: 1px solid #1a1a24; padding-bottom: 10px; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; margin-top:0; }
-                    input, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
+                    label { font-size: 0.8em; color: #888; margin-top: 5px; display: block; }
+                    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
                     .btn { background: linear-gradient(90deg, ${PRIMARY_PURPLE}, #7c3aed); color: white; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-decoration: none; display: inline-block; text-align: center; }
                     .btn-blue { background: linear-gradient(90deg, ${NEON_BLUE}, #0891b2); }
                     .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.8em; border: 1px solid #111; }
@@ -142,15 +142,18 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
             </head>
             <body>
                 <div class="container">
-                    <h1>⚡ PEAXEL OS v2.0 <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none;">DISCONNECT</a></h1>
+                    <h1>⚡ PEAXEL OS v2.1 <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none;">DISCONNECT</a></h1>
                     
                     <div class="grid">
                         <div class="card">
-                            <h2>⚙️ Configuration</h2>
+                            <h2>⚙️ Configuration Matrix</h2>
                             <form action="/dashboard/save-config" method="POST">
-                                <label>Log Channel</label><input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
+                                <label>Logs Channel</label><input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
                                 <label>Announce Channel</label><input type="text" name="announce" value="${currentConfig.channels?.announce || ''}">
-                                <button class="btn">Update Core</button>
+                                <label>Welcome Channel</label><input type="text" name="welcome" value="${currentConfig.channels?.welcome || ''}">
+                                <label>Spotlight Channel</label><input type="text" name="spotlight" value="${currentConfig.channels?.spotlight || ''}">
+                                <label>Feedback Channel</label><input type="text" name="feedback" value="${currentConfig.channels?.feedback || ''}">
+                                <button class="btn">Update Neural Links</button>
                             </form>
                         </div>
 
@@ -158,6 +161,7 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                             <h2>🛡️ Quick Moderation</h2>
                             <form action="/dashboard/mod-action" method="POST">
                                 <input type="text" name="userId" placeholder="Target User ID" required>
+                                <input type="text" name="reason" placeholder="Reason (Optional)">
                                 <div style="display:flex; gap:10px;">
                                     <button name="action" value="kick" class="btn">Kick</button>
                                     <button name="action" value="ban" class="btn" style="background:#ef4444;">Ban</button>
@@ -168,7 +172,14 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         <div class="card">
                             <h2>📣 Cyber Broadcast</h2>
                             <form action="/dashboard/send-announce" method="POST" enctype="multipart/form-data">
+                                <label>Target Frequency (Channel)</label>
+                                <select name="chanId">
+                                    <option value="${currentConfig.channels?.announce}">#Announce</option>
+                                    <option value="${currentConfig.channels?.spotlight}">#Spotlight</option>
+                                    <option value="${currentConfig.channels?.welcome}">#Welcome</option>
+                                </select>
                                 <textarea name="message" placeholder="Input broadcast data..." rows="3" required></textarea>
+                                <label>Overlay Image (Optional)</label>
                                 <input type="file" name="footerImage">
                                 <button class="btn btn-blue">Transmit Signal</button>
                             </form>
@@ -178,6 +189,14 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                             <h2>📡 Live Feed</h2>
                             <div class="log-box">${liveLogs.map(l => `<div><span style="color:${NEON_BLUE}">[${l.time}]</span> <b style="color:${PRIMARY_PURPLE}">${l.action}</b>: ${l.detail}</div>`).join('')}</div>
                         </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>💬 Feedback Vault</h2>
+                        <table>
+                            <thead><tr><th>User</th><th>Rating</th><th>Comment</th></tr></thead>
+                            <tbody>${feedbacks.slice(-8).reverse().map(f => `<tr><td>${f.userTag}</td><td style="color:${NEON_BLUE}">${f.rating}⭐</td><td>${f.comment || f.improve || '-'}</td></tr>`).join('')}</tbody>
+                        </table>
                     </div>
 
                     <div class="card">
@@ -191,14 +210,7 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         type: 'line',
                         data: {
                             labels: ${JSON.stringify(dates)},
-                            datasets: [{ 
-                                label: 'Signals', 
-                                data: ${JSON.stringify(counts)}, 
-                                borderColor: '${PRIMARY_PURPLE}', 
-                                backgroundColor: 'rgba(168, 85, 247, 0.1)', 
-                                tension: 0.4, 
-                                fill: true 
-                            }]
+                            datasets: [{ label: 'Signals', data: ${JSON.stringify(counts)}, borderColor: '${PRIMARY_PURPLE}', backgroundColor: 'rgba(168, 85, 247, 0.1)', tension: 0.4, fill: true }]
                         },
                         options: { scales: { y: { beginAtZero: true, grid: { color: '#1a1a24' } }, x: { grid: { display: false } } } }
                     });
@@ -210,20 +222,38 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
 
 // --- POST ACTIONS ---
 
+app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
+    const { userId, reason, action } = req.body;
+    try {
+        const guild = client.guilds.cache.get(process.env.DISCORD_GUILD_ID);
+        const member = await guild.members.fetch(userId);
+        if (action === 'kick') await member.kick(reason || 'No reason provided');
+        if (action === 'ban') await member.ban({ reason: reason || 'No reason provided' });
+        addLiveLog("MOD", `${action.toUpperCase()}: ${member.user.tag}`);
+        res.redirect('/dashboard');
+    } catch (e) { 
+        console.error(e);
+        res.status(500).send("Mod Error: Member not found or Bot lacks permissions."); 
+    }
+});
+
 app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
-    const { logs, announce } = req.body;
-    setChannel('logs', logs);
-    setChannel('announce', announce);
+    const { logs, announce, welcome, spotlight, feedback } = req.body;
+    if (logs) setChannel('logs', logs);
+    if (announce) setChannel('announce', announce);
+    if (welcome) setChannel('welcome', welcome);
+    if (spotlight) setChannel('spotlight', spotlight);
+    if (feedback) setChannel('feedback', feedback);
     addLiveLog("CONFIG", "Neural links updated");
     res.redirect('/dashboard');
 });
 
 app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage'), async (req, res) => {
-    const { message } = req.body;
+    const { message, chanId } = req.body;
     const file = req.file;
     try {
-        const config = getConfig();
-        const channel = await client.channels.fetch(config.channels.announce);
+        const targetId = chanId || getConfig().channels.announce;
+        const channel = await client.channels.fetch(targetId);
         const embed = new EmbedBuilder()
             .setDescription(message)
             .setColor(PRIMARY_PURPLE)
@@ -234,9 +264,9 @@ app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage
         
         await channel.send(payload);
         if (file) fs.unlinkSync(file.path);
-        addLiveLog("ANNOUNCE", "Broadcast sent");
+        addLiveLog("BROADCAST", `Signal sent to ${channel.name}`);
         res.redirect('/dashboard');
-    } catch (e) { res.status(500).send("Error: " + e.message); }
+    } catch (e) { res.status(500).send("Transmission error: " + e.message); }
 });
 
 app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
