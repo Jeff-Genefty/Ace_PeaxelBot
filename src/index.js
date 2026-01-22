@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, Events, REST, Routes, ActivityType, EmbedBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, REST, Routes, ActivityType, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { config } from 'dotenv';
 import fs, { readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
@@ -33,7 +33,6 @@ const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedbacks.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
 const USERS_FILE = join(DATA_DIR, 'users.json');
-const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -54,7 +53,7 @@ if (!fs.existsSync(USERS_FILE)) {
     }
 }
 
-// --- ANALYTICS & LOGS ---
+// --- ANALYTICS ENGINE ---
 let stats = { messagesSent: 0, membersJoined: 0, membersLeft: 0, commandsExecuted: 0, feedbacksReceived: 0, dailyHistory: {} };
 if (fs.existsSync(STATS_FILE)) {
     try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { console.error("Stats load error", e); }
@@ -128,40 +127,40 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     .container { max-width: 1300px; margin: auto; }
                     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
                     .card { background: #0f0f15; padding: 20px; border-radius: 12px; border: 1px solid #1a1a24; border-top: 3px solid ${PRIMARY_PURPLE}; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-                    h1 { color: ${PRIMARY_PURPLE}; display: flex; justify-content: space-between; align-items: center; text-shadow: 0 0 10px rgba(168,85,247,0.3); }
-                    h2 { color: ${NEON_BLUE}; border-bottom: 1px solid #1a1a24; padding-bottom: 10px; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; margin-top:0; }
-                    label { font-size: 0.8em; color: #888; margin-top: 5px; display: block; }
-                    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
-                    .btn { background: linear-gradient(90deg, ${PRIMARY_PURPLE}, #7c3aed); color: white; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-decoration: none; display: inline-block; text-align: center; }
+                    h1 { color: ${PRIMARY_PURPLE}; display: flex; justify-content: space-between; align-items: center; }
+                    h2 { color: ${NEON_BLUE}; border-bottom: 1px solid #1a1a24; padding-bottom: 10px; font-size: 0.9em; text-transform: uppercase; margin-top:0; }
+                    label { font-size: 0.75em; color: #888; display: block; margin-top: 10px; }
+                    input, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
+                    .btn { background: linear-gradient(90deg, ${PRIMARY_PURPLE}, #7c3aed); color: white; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-align: center; text-decoration: none; display: block; }
                     .btn-blue { background: linear-gradient(90deg, ${NEON_BLUE}, #0891b2); }
-                    .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.8em; border: 1px solid #111; }
-                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
-                    th { text-align: left; color: ${PRIMARY_PURPLE}; padding: 10px; border-bottom: 1px solid #1a1a24; }
-                    td { padding: 10px; border-bottom: 1px solid #1a1a24; }
+                    .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.8em; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                    th { text-align: left; color: ${PRIMARY_PURPLE}; padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.8em; }
+                    td { padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.85em; }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>⚡ PEAXEL OS v2.1 <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none;">DISCONNECT</a></h1>
+                    <h1>⚡ PEAXEL OS v2.2 <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none;">DISCONNECT</a></h1>
                     
                     <div class="grid">
                         <div class="card">
-                            <h2>⚙️ Configuration Matrix</h2>
+                            <h2>⚙️ Configuration</h2>
                             <form action="/dashboard/save-config" method="POST">
-                                <label>Logs Channel</label><input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
+                                <label>Log Channel</label><input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
                                 <label>Announce Channel</label><input type="text" name="announce" value="${currentConfig.channels?.announce || ''}">
                                 <label>Welcome Channel</label><input type="text" name="welcome" value="${currentConfig.channels?.welcome || ''}">
                                 <label>Spotlight Channel</label><input type="text" name="spotlight" value="${currentConfig.channels?.spotlight || ''}">
                                 <label>Feedback Channel</label><input type="text" name="feedback" value="${currentConfig.channels?.feedback || ''}">
-                                <button class="btn">Update Neural Links</button>
+                                <button class="btn">Update Matrix</button>
                             </form>
                         </div>
 
                         <div class="card">
-                            <h2>🛡️ Quick Moderation</h2>
+                            <h2>🛡️ Moderation Core</h2>
                             <form action="/dashboard/mod-action" method="POST">
                                 <input type="text" name="userId" placeholder="Target User ID" required>
-                                <input type="text" name="reason" placeholder="Reason (Optional)">
+                                <input type="text" name="reason" placeholder="Reason for action">
                                 <div style="display:flex; gap:10px;">
                                     <button name="action" value="kick" class="btn">Kick</button>
                                     <button name="action" value="ban" class="btn" style="background:#ef4444;">Ban</button>
@@ -172,14 +171,10 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         <div class="card">
                             <h2>📣 Cyber Broadcast</h2>
                             <form action="/dashboard/send-announce" method="POST" enctype="multipart/form-data">
-                                <label>Target Frequency (Channel)</label>
-                                <select name="chanId">
-                                    <option value="${currentConfig.channels?.announce}">#Announce</option>
-                                    <option value="${currentConfig.channels?.spotlight}">#Spotlight</option>
-                                    <option value="${currentConfig.channels?.welcome}">#Welcome</option>
-                                </select>
-                                <textarea name="message" placeholder="Input broadcast data..." rows="3" required></textarea>
-                                <label>Overlay Image (Optional)</label>
+                                <label>Channel ID (Frequency)</label>
+                                <input type="text" name="chanId" placeholder="Paste Channel ID here" value="${currentConfig.channels?.announce || ''}" required>
+                                <textarea name="message" placeholder="Input message data..." rows="3" required></textarea>
+                                <label>Broadcast Image</label>
                                 <input type="file" name="footerImage">
                                 <button class="btn btn-blue">Transmit Signal</button>
                             </form>
@@ -192,10 +187,20 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     </div>
 
                     <div class="card">
-                        <h2>💬 Feedback Vault</h2>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <h2 style="border:none; margin:0;">💬 Feedback Vault</h2>
+                            <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">DOWNLOAD CSV</a>
+                        </div>
                         <table>
-                            <thead><tr><th>User</th><th>Rating</th><th>Comment</th></tr></thead>
-                            <tbody>${feedbacks.slice(-8).reverse().map(f => `<tr><td>${f.userTag}</td><td style="color:${NEON_BLUE}">${f.rating}⭐</td><td>${f.comment || f.improve || '-'}</td></tr>`).join('')}</tbody>
+                            <thead><tr><th>Date</th><th>User</th><th>Rating</th><th>Content</th></tr></thead>
+                            <tbody>${feedbacks.slice(-10).reverse().map(f => `
+                                <tr>
+                                    <td style="color:#666">${f.timestamp ? new Date(f.timestamp).toLocaleDateString() : 'N/A'}</td>
+                                    <td>${f.userTag}</td>
+                                    <td style="color:${NEON_BLUE}">${f.rating}⭐</td>
+                                    <td>${f.comment || f.improve || '-'}</td>
+                                </tr>`).join('')}
+                            </tbody>
                         </table>
                     </div>
 
@@ -220,20 +225,47 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     `);
 });
 
-// --- POST ACTIONS ---
+// --- POST & EXPORT ACTIONS ---
+
+app.get('/dashboard/export-feedbacks', isAuthenticated, (req, res) => {
+    if (!fs.existsSync(FEEDBACK_FILE)) return res.status(404).send("No feedbacks found.");
+    const feedbacks = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
+    // Build CSV content
+    const header = "Date,User,Rating,Comment\n";
+    const rows = feedbacks.map(f => `"${f.timestamp || ''}","${f.userTag}","${f.rating}","${(f.comment || f.improve || '').replace(/"/g, '""')}"`).join("\n");
+    
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=feedbacks_export.csv');
+    res.status(200).send(header + rows);
+});
 
 app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
     const { userId, reason, action } = req.body;
     try {
-        const guild = client.guilds.cache.get(process.env.DISCORD_GUILD_ID);
-        const member = await guild.members.fetch(userId);
-        if (action === 'kick') await member.kick(reason || 'No reason provided');
-        if (action === 'ban') await member.ban({ reason: reason || 'No reason provided' });
+        const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
+        const member = await guild.members.fetch(userId).catch(() => null);
+        
+        if (!member) return res.status(404).send("Error: User not found in this server.");
+
+        // Hierarchy & Permission check
+        const botMember = guild.members.me;
+        if (member.roles.highest.position >= botMember.roles.highest.position) {
+            return res.status(403).send("Error: This user has a higher or equal role than the bot.");
+        }
+
+        if (action === 'kick') {
+            if (!botMember.permissions.has(PermissionFlagsBits.KickMembers)) return res.status(403).send("Bot lacks Kick permission.");
+            await member.kick(reason || 'Cyber-kick via Dashboard');
+        } else if (action === 'ban') {
+            if (!botMember.permissions.has(PermissionFlagsBits.BanMembers)) return res.status(403).send("Bot lacks Ban permission.");
+            await member.ban({ reason: reason || 'Cyber-ban via Dashboard' });
+        }
+
         addLiveLog("MOD", `${action.toUpperCase()}: ${member.user.tag}`);
         res.redirect('/dashboard');
     } catch (e) { 
         console.error(e);
-        res.status(500).send("Mod Error: Member not found or Bot lacks permissions."); 
+        res.status(500).send("Critial Mod Error: " + e.message); 
     }
 });
 
@@ -244,7 +276,7 @@ app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
     if (welcome) setChannel('welcome', welcome);
     if (spotlight) setChannel('spotlight', spotlight);
     if (feedback) setChannel('feedback', feedback);
-    addLiveLog("CONFIG", "Neural links updated");
+    addLiveLog("CONFIG", "Neural links synchronized");
     res.redirect('/dashboard');
 });
 
@@ -252,8 +284,9 @@ app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage
     const { message, chanId } = req.body;
     const file = req.file;
     try {
-        const targetId = chanId || getConfig().channels.announce;
-        const channel = await client.channels.fetch(targetId);
+        const channel = await client.channels.fetch(chanId);
+        if (!channel) throw new Error("Target frequency not found.");
+
         const embed = new EmbedBuilder()
             .setDescription(message)
             .setColor(PRIMARY_PURPLE)
@@ -264,9 +297,9 @@ app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage
         
         await channel.send(payload);
         if (file) fs.unlinkSync(file.path);
-        addLiveLog("BROADCAST", `Signal sent to ${channel.name}`);
+        addLiveLog("BROADCAST", `Signal sent to #${channel.name}`);
         res.redirect('/dashboard');
-    } catch (e) { res.status(500).send("Transmission error: " + e.message); }
+    } catch (e) { res.status(500).send("Transmission failed: " + e.message); }
 });
 
 app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
