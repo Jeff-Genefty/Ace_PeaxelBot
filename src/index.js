@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, Events, REST, Routes, EmbedBuilder, ActivityType } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, REST, Routes, ActivityType } from 'discord.js';
 import { config } from 'dotenv';
 import fs, { readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
 import bcrypt from 'bcrypt';
-import multer from 'multer'; // ADDED: Multer for image uploads
+import multer from 'multer';
 
 // Utility Imports
 import { initScheduler } from './scheduler.js';
@@ -25,30 +25,25 @@ const logPrefix = '[Peaxel Bot]';
 
 // --- DATA PATHS ---
 const DATA_DIR = resolve('./data');
-const UPLOADS_DIR = resolve('./uploads'); // ADDED: Path for temporary uploads
+const UPLOADS_DIR = resolve('./uploads');
 const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedbacks.json');
-const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
 const USERS_FILE = join(DATA_DIR, 'users.json');
+const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json'); // File to track active giveaway entries
 
-// Ensure directories exist
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-// Configure Multer
 const upload = multer({ dest: 'uploads/' });
 
 // --- INITIALIZE ADMIN ---
 if (!fs.existsSync(USERS_FILE)) {
-    console.log(`${logPrefix} Creating initial admin user...`);
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
-
     if (adminEmail && adminPassword) {
         const hashedPassword = await bcrypt.hash(adminPassword, 10);
-        const initialUser = [{ email: adminEmail, password: hashedPassword }];
-        writeFileSync(USERS_FILE, JSON.stringify(initialUser, null, 2));
+        writeFileSync(USERS_FILE, JSON.stringify([{ email: adminEmail, password: hashedPassword }], null, 2));
     }
 }
 
@@ -81,12 +76,10 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'dev-fallback-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 3600000 }
+    resave: true, // Fixed for Railway memory warning
+    saveUninitialized: true,
+    cookie: { maxAge: 3600000, secure: false } // Set secure: true if using HTTPS
 }));
-
-const PORT = process.env.PORT || 3000;
 
 const isAuthenticated = (req, res, next) => {
     if (req.session.user) return next();
@@ -96,30 +89,7 @@ const isAuthenticated = (req, res, next) => {
 // --- ROUTES ---
 
 app.get('/login', (req, res) => {
-    res.send(`
-        <html>
-            <head>
-                <title>Peaxel Login</title>
-                <style>
-                    body { font-family: 'Inter', sans-serif; background: #0b0b0b; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                    .card { background: #161616; padding: 30px; border-radius: 12px; border-top: 4px solid #FACC15; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-                    input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
-                    button { width: 100%; padding: 12px; background: #FACC15; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-                    h2 { text-align: center; color: #FACC15; }
-                </style>
-            </head>
-            <body>
-                <div class="card">
-                    <h2>PEAXEL LOGIN</h2>
-                    <form action="/login" method="POST">
-                        <input type="email" name="email" placeholder="Email" required>
-                        <input type="password" name="password" placeholder="Password" required>
-                        <button type="submit">Access Dashboard</button>
-                    </form>
-                </div>
-            </body>
-        </html>
-    `);
+    res.send(`<html><head><title>Peaxel Login</title><style>body{font-family:'Inter',sans-serif;background:#0b0b0b;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}.card{background:#161616;padding:30px;border-radius:12px;border-top:4px solid #FACC15;width:320px}input{width:100%;padding:12px;margin:10px 0;background:#222;border:1px solid #333;color:white;border-radius:6px;box-sizing:border-box}button{width:100%;padding:12px;background:#FACC15;border:none;border-radius:6px;font-weight:bold;cursor:pointer}h2{text-align:center;color:#FACC15}</style></head><body><div class="card"><h2>PEAXEL LOGIN</h2><form action="/login" method="POST"><input type="email" name="email" placeholder="Email" required><input type="password" name="password" placeholder="Password" required><button type="submit">Access Dashboard</button></form></div></body></html>`);
 });
 
 app.post('/login', async (req, res) => {
@@ -129,15 +99,22 @@ app.post('/login', async (req, res) => {
     if (user && await bcrypt.compare(password, user.password)) {
         req.session.user = { email: user.email };
         res.redirect('/dashboard');
-    } else {
-        res.redirect('/login?error=1');
-    }
+    } else res.redirect('/login?error=1');
 });
 
-app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/login');
-});
+app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
+
+// NEW: Giveaway Registration Logic (Called by InteractionCreate)
+const registerGiveawayEntry = (user) => {
+    let entries = [];
+    if (fs.existsSync(GIVEAWAY_FILE)) entries = JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8'));
+    if (!entries.find(e => e.id === user.id)) {
+        entries.push({ id: user.id, tag: user.tag, time: new Date().toLocaleString() });
+        writeFileSync(GIVEAWAY_FILE, JSON.stringify(entries, null, 2));
+        return true;
+    }
+    return false;
+};
 
 app.get('/dashboard', isAuthenticated, async (req, res) => {
     const dates = Object.keys(stats.dailyHistory).sort().slice(-7);
@@ -145,18 +122,15 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     const liveLogs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
     const currentConfig = getConfig();
     let feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
+    let giveawayEntries = fs.existsSync(GIVEAWAY_FILE) ? JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8')) : [];
 
-    // CSV Export
+    // Action: Export Feedback
     if (req.query.action === 'export_feedback') {
         if (feedbacks.length === 0) return res.status(404).send('No data');
         const keys = Object.keys(feedbacks[0]);
-        const csvRows = [keys.join(',')];
-        for (const fb of feedbacks) {
-            const values = keys.map(key => `"${(fb[key] || '').toString().replace(/"/g, '""')}"`);
-            csvRows.push(values.join(','));
-        }
+        const csvRows = [keys.join(','), ...feedbacks.map(fb => keys.map(k => `"${(fb[k] || '').toString().replace(/"/g, '""')}"`).join(','))];
         res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename=feedbacks.csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=feedbacks_export.csv');
         return res.send(csvRows.join('\n'));
     }
 
@@ -171,13 +145,15 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
                     .card { background: #161616; padding: 20px; border-radius: 12px; border-top: 4px solid #FACC15; margin-bottom: 20px; }
                     h1 { color: #FACC15; display: flex; justify-content: space-between; align-items: center; }
-                    h2 { color: #FACC15; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1em; }
+                    h2 { color: #FACC15; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1em; margin-top:0; }
                     input, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
                     .btn { background: #FACC15; color: #000; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-decoration: none; display: inline-block; text-align: center; }
+                    .btn-red { background: #ff4444; color: white; }
                     .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.8em; }
                     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
                     th { text-align: left; color: #FACC15; border-bottom: 1px solid #333; padding: 10px; }
                     td { padding: 10px; border-bottom: 1px solid #222; }
+                    .scroll-table { max-height: 250px; overflow-y: auto; }
                 </style>
             </head>
             <body>
@@ -188,35 +164,73 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                             <h2>⚙️ Configuration</h2>
                             <form action="/dashboard/save-config" method="POST">
                                 <label>Log Channel</label><input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
-                                <label>Welcome Channel</label><input type="text" name="welcome" value="${currentConfig.channels?.welcome || ''}">
                                 <label>Announce Channel</label><input type="text" name="announce" value="${currentConfig.channels?.announce || ''}">
-                                <button class="btn">Save Configuration</button>
+                                <button class="btn">Save Config</button>
+                            </form>
+                            <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
+                            <form action="/dashboard/bot-status" method="POST">
+                                <label>Bot Status (Watching...)</label>
+                                <input type="text" name="activity" placeholder="Ex: Peaxel Community">
+                                <button class="btn">Update Status</button>
                             </form>
                         </div>
+
                         <div class="card">
-                            <h2>📣 Quick Announce (Simple Message)</h2>
+                            <h2>🛡️ Moderation</h2>
+                            <form action="/dashboard/mod-action" method="POST">
+                                <input type="text" name="userId" placeholder="User ID" required>
+                                <input type="text" name="reason" placeholder="Reason (Optional)">
+                                <div style="display:flex; gap:10px;">
+                                    <button name="action" value="kick" class="btn">Kick</button>
+                                    <button name="action" value="ban" class="btn btn-red">Ban</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="card">
+                            <h2>📣 Quick Announce</h2>
                             <form action="/dashboard/send-announce" method="POST" enctype="multipart/form-data">
                                 <textarea name="message" placeholder="Votre message..." rows="3" required></textarea>
-                                <input type="text" name="chanId" value="${currentConfig.channels?.announce || ''}" placeholder="Channel ID">
-                                <label style="font-size:0.75em; color:#888;">Optionnel: Joindre une image</label>
-                                <input type="file" name="footerImage" accept="image/*">
-                                <button class="btn">Send Now</button>
+                                <input type="text" name="chanId" value="${currentConfig.channels?.announce || ''}">
+                                <input type="file" name="footerImage">
+                                <button class="btn">Send Broadcast</button>
                             </form>
                         </div>
-                    </div>
-                    <div class="card">
-                        <h2>📡 Live Monitoring</h2>
-                        <div class="log-box">${liveLogs.map(l => `<div><span style="color:#555">[${l.time}]</span> <b>${l.action}</b>: ${l.detail}</div>`).join('')}</div>
-                    </div>
-                    <div class="card">
-                        <h2>💬 Feedbacks</h2>
-                        <div style="overflow-x: auto;">
-                            <table>
-                                <thead><tr>${feedbacks.length > 0 ? Object.keys(feedbacks[0]).map(k => `<th>${k}</th>`).join('') : '<th>No Data</th>'}</tr></thead>
-                                <tbody>${feedbacks.map(f => `<tr>${Object.values(f).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
-                            </table>
+
+                        <div class="card">
+                            <h2>📡 Live Logs</h2>
+                            <div class="log-box">${liveLogs.map(l => `<div><span style="color:#555">[${l.time}]</span> <b>${l.action}</b>: ${l.detail}</div>`).join('')}</div>
                         </div>
                     </div>
+
+                    <div class="grid">
+                        <div class="card">
+                            <h2>🎁 Giveaway Entries (${giveawayEntries.length})</h2>
+                            <div class="scroll-table">
+                                <table>
+                                    <thead><tr><th>User ID</th><th>Pseudo</th><th>Joined At</th></tr></thead>
+                                    <tbody>${giveawayEntries.map(e => `<tr><td>${e.id}</td><td>${e.tag}</td><td>${e.time}</td></tr>`).join('')}</tbody>
+                                </table>
+                            </div>
+                            <form action="/dashboard/clear-giveaway" method="POST" onsubmit="return confirm('Reset all entries?');">
+                                <button class="btn btn-red" style="margin-top:10px;">Reset Giveaway List</button>
+                            </form>
+                        </div>
+
+                        <div class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <h2>💬 Feedback</h2>
+                                <a href="/dashboard?action=export_feedback" class="btn" style="width:auto; padding:5px 10px;">Export CSV</a>
+                            </div>
+                            <div class="scroll-table">
+                                <table>
+                                    <thead><tr><th>User</th><th>Rating</th><th>Improve</th></tr></thead>
+                                    <tbody>${feedbacks.slice(-10).reverse().map(f => `<tr><td>${f.userTag}</td><td>${f.rating}⭐</td><td>${f.improve || f.comment || '-'}</td></tr>`).join('')}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="card">
                         <h2>📈 Global Traffic</h2>
                         <canvas id="activityChart" height="80"></canvas>
@@ -239,47 +253,59 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
 
 // --- POST ACTIONS ---
 
+app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
+    const { userId, reason, action } = req.body;
+    try {
+        const guild = client.guilds.cache.get(process.env.DISCORD_GUILD_ID);
+        const member = await guild.members.fetch(userId);
+        if (action === 'kick') await member.kick(reason);
+        if (action === 'ban') await member.ban({ reason });
+        addLiveLog("MOD", `${action.toUpperCase()}: ${member.user.tag}`);
+        res.redirect('/dashboard');
+    } catch (e) { res.status(500).send("Error: User not found or permission denied."); }
+});
+
+app.post('/dashboard/bot-status', isAuthenticated, (req, res) => {
+    const { activity } = req.body;
+    client.user.setActivity(activity, { type: ActivityType.Watching });
+    addLiveLog("SYSTEM", `Status: ${activity}`);
+    res.redirect('/dashboard');
+});
+
+app.post('/dashboard/clear-giveaway', isAuthenticated, (req, res) => {
+    writeFileSync(GIVEAWAY_FILE, JSON.stringify([], null, 2));
+    addLiveLog("GIVEAWAY", "Entries list cleared");
+    res.redirect('/dashboard');
+});
+
 app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
     const { logs, announce, welcome } = req.body;
     setChannel('logs', logs);
     setChannel('announce', announce);
-    setChannel('welcome', welcome);
-    addLiveLog("CONFIG", "Updated channel settings");
+    if (welcome) setChannel('welcome', welcome);
+    addLiveLog("CONFIG", "Settings saved");
     res.redirect('/dashboard');
 });
 
 app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage'), async (req, res) => {
-    const { message, chanId } = req.body; 
+    const { message, chanId } = req.body;
     const file = req.file;
-
     try {
         const channel = await client.channels.fetch(chanId);
         const payload = { content: message };
-        if (file) {
-            payload.files = [{ attachment: file.path, name: file.originalname }];
-        }
-
+        if (file) payload.files = [{ attachment: file.path, name: file.originalname }];
         await channel.send(payload);
         if (file) fs.unlinkSync(file.path);
-
-        addLiveLog("ANNOUNCE", `Text sent to ${chanId}`);
+        addLiveLog("ANNOUNCE", `Broadcast sent to ${chanId}`);
         res.redirect('/dashboard');
-    } catch (e) { 
-        res.status(500).send("Discord Error: " + e.message); 
-    }
+    } catch (e) { res.status(500).send("Discord Error: " + e.message); }
 });
 
 app.listen(PORT, () => console.log(`${logPrefix} Dashboard live on port ${PORT}`));
 
 // --- DISCORD CLIENT ---
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions]
 });
 
 client.commands = new Collection();
@@ -324,13 +350,19 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
-        if (!command) return;
-        trackEvent('commandsExecuted');
-        try {
+        if (command) {
+            trackEvent('commandsExecuted');
             await command.execute(interaction);
             addLiveLog("COMMAND", `${interaction.user.tag} : /${interaction.commandName}`);
-        } catch (error) { console.error(error); }
-    } else if (interaction.isButton() && interaction.customId === 'feedback_button') {
+        }
+    } 
+    // Logic for Giveaway Button
+    else if (interaction.isButton() && interaction.customId === 'join_giveaway') {
+        const added = registerGiveawayEntry(interaction.user);
+        await interaction.reply({ content: added ? "✅ Inscription enregistrée !" : "❌ Tu es déjà inscrit !", ephemeral: true });
+        addLiveLog("GIVEAWAY", `${interaction.user.tag} joined`);
+    }
+    else if (interaction.isButton() && interaction.customId === 'feedback_button') {
         await handleFeedbackButton(interaction);
     } else if (interaction.isModalSubmit() && interaction.customId === 'feedback_modal') {
         trackEvent('feedbacksReceived');
