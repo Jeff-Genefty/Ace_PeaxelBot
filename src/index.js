@@ -1,20 +1,20 @@
-import { Client, GatewayIntentBits, Collection, Events, REST, Routes, MessageFlags, EmbedBuilder, ActivityType } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, REST, Routes, EmbedBuilder, ActivityType } from 'discord.js';
 import { config } from 'dotenv';
 import fs, { readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
-import os from 'os';
+import session from 'express-session';
+import bcrypt from 'bcrypt';
 
 // Utility Imports
 import { initScheduler } from './scheduler.js';
 import { handleFeedbackButton, handleFeedbackSubmit, updateFeedbackStatsChannel } from './handlers/feedbackHandler.js';
-import { initDiscordLogger, logCommandUsage } from './utils/discordLogger.js';
+import { initDiscordLogger } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
 import { setupWelcomeListener } from './listeners/welcomeListener.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
-import { getConfig, setChannel } from './utils/configManager.js'; // Correction: Use setChannel instead of saveConfig
-import { getParisDate } from './utils/week.js';
+import { getConfig, setChannel } from './utils/configManager.js';
 
 config();
 
@@ -28,10 +28,27 @@ const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedbacks.json');
 const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
+const USERS_FILE = join(DATA_DIR, 'users.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-// --- ANALYTICS & LOGS ENGINE ---
+// --- INITIALIZE ADMIN (Secure version) ---
+if (!fs.existsSync(USERS_FILE)) {
+    console.log(`${logPrefix} Creating initial admin user...`);
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (adminEmail && adminPassword) {
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        const initialUser = [{ email: adminEmail, password: hashedPassword }];
+        writeFileSync(USERS_FILE, JSON.stringify(initialUser, null, 2));
+        console.log(`${logPrefix} Admin user created from .env config.`);
+    } else {
+        console.error(`${logPrefix} CRITICAL: ADMIN_EMAIL or ADMIN_PASSWORD not found in .env`);
+    }
+}
+
+// --- ANALYTICS ENGINE ---
 let stats = { messagesSent: 0, membersJoined: 0, membersLeft: 0, commandsExecuted: 0, feedbacksReceived: 0, dailyHistory: {} };
 if (fs.existsSync(STATS_FILE)) {
     try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { console.error("Stats load error", e); }
@@ -55,130 +72,185 @@ const addLiveLog = (action, detail) => {
     writeFileSync(LIVE_LOGS_FILE, JSON.stringify(logs.slice(0, 15), null, 2));
 };
 
-// --- WEB DASHBOARD ---
+// --- WEB SERVER ---
 const app = express();
 app.use(express.urlencoded({ extended: true }));
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'dev-fallback-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 3600000 } // 1 hour
+}));
+
 const PORT = process.env.PORT || 3000;
 
-app.get('/dashboard', async (req, res) => {
-    if (req.query.auth !== 'PEAXEL_ADMIN_2026') return res.status(403).send('Access Denied');
+// Middleware Auth
+const isAuthenticated = (req, res, next) => {
+    if (req.session.user) return next();
+    res.redirect('/login');
+};
 
-    // Handle CSV Export
-    if (req.query.action === 'export_feedback') {
-        if (!fs.existsSync(FEEDBACK_FILE)) return res.status(404).send('No file');
-        const fbData = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
-        const csv = "Date,User,Rating,Comment\n" + fbData.map(f => `"${f.timestamp}","${f.userId}","${f.rating}","${(f.comment || '').replace(/"/g, '""')}"`).join("\n");
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename=feedbacks.csv');
-        return res.send(csv);
+// --- ROUTES ---
+
+app.get('/login', (req, res) => {
+    res.send(`
+        <html>
+            <head>
+                <title>Peaxel Login</title>
+                <style>
+                    body { font-family: 'Inter', sans-serif; background: #0b0b0b; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                    .card { background: #161616; padding: 30px; border-radius: 12px; border-top: 4px solid #FACC15; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+                    input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
+                    button { width: 100%; padding: 12px; background: #FACC15; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+                    button:hover { background: #fff; }
+                    h2 { text-align: center; color: #FACC15; margin-bottom: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <h2>PEAXEL LOGIN</h2>
+                    <form action="/login" method="POST">
+                        <input type="email" name="email" placeholder="Email" required>
+                        <input type="password" name="password" placeholder="Password" required>
+                        <button type="submit">Access Dashboard</button>
+                    </form>
+                    ${req.query.error ? '<p style="color:#ff4444; font-size:0.8em; text-align:center;">Email or password incorrect</p>' : ''}
+                </div>
+            </body>
+        </html>
+    `);
+});
+
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    const users = JSON.parse(readFileSync(USERS_FILE, 'utf-8'));
+    const user = users.find(u => u.email === email);
+
+    if (user && await bcrypt.compare(password, user.password)) {
+        req.session.user = { email: user.email };
+        res.redirect('/dashboard');
+    } else {
+        res.redirect('/login?error=1');
     }
+});
 
+app.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/login');
+});
+
+app.get('/dashboard', isAuthenticated, async (req, res) => {
     const memUsage = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2);
     const dates = Object.keys(stats.dailyHistory).sort().slice(-7);
     const counts = dates.map(d => stats.dailyHistory[d]);
     const liveLogs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
-    const giveawayCount = fs.existsSync(GIVEAWAY_FILE) ? JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8')).participants.length : 0;
     const currentConfig = getConfig();
+    
+    // Feedback Logic
+    let feedbacks = [];
+    if (fs.existsSync(FEEDBACK_FILE)) {
+        feedbacks = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
+    }
+
+    // CSV Export Logic
+    if (req.query.action === 'export_feedback') {
+        if (feedbacks.length === 0) return res.status(404).send('No data');
+        const keys = Object.keys(feedbacks[0]);
+        const csvRows = [];
+        csvRows.push(keys.join(',')); // Header
+        for (const fb of feedbacks) {
+            const values = keys.map(key => {
+                const val = fb[key] || '';
+                return `"${val.toString().replace(/"/g, '""')}"`;
+            });
+            csvRows.push(values.join(','));
+        }
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=feedbacks_full.csv');
+        return res.send(csvRows.join('\n'));
+    }
 
     res.send(`
         <html>
             <head>
-                <title>Peaxel Admin | 2026</title>
+                <title>Peaxel Admin</title>
                 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 <style>
                     body { font-family: 'Inter', sans-serif; background: #0b0b0b; color: #e0e0e0; padding: 20px; margin: 0; }
-                    .container { max-width: 1200px; margin: auto; }
-                    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
-                    .card { background: #161616; padding: 20px; border-radius: 12px; border-top: 4px solid #FACC15; }
-                    h1 { text-align: center; color: #FACC15; }
-                    h2 { color: #FACC15; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1.1em; }
-                    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
-                    .btn { background: #FACC15; color: #000; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; transition: 0.2s; }
-                    .btn:hover { background: #fff; }
+                    .container { max-width: 1300px; margin: auto; }
+                    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+                    .card { background: #161616; padding: 20px; border-radius: 12px; border-top: 4px solid #FACC15; margin-bottom: 20px; }
+                    h1 { color: #FACC15; display: flex; justify-content: space-between; align-items: center; }
+                    h2 { color: #FACC15; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1em; }
+                    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; }
+                    .btn { background: #FACC15; color: #000; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-decoration: none; display: inline-block; text-align: center; }
                     .btn-red { background: #e74c3c; color: white; }
-                    .log-box { background: #000; padding: 10px; border-radius: 6px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.85em; }
-                    .log-entry { margin-bottom: 5px; border-bottom: 1px solid #111; padding-bottom: 2px; }
+                    .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.8em; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
+                    th { text-align: left; color: #FACC15; border-bottom: 1px solid #333; padding: 10px; }
+                    td { padding: 10px; border-bottom: 1px solid #222; }
+                    .logout { font-size: 0.5em; background: #222; color: #888; padding: 5px 10px; border-radius: 4px; text-decoration: none; }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>🚀 PEAXEL <span style="color:white">COMMAND CENTER</span></h1>
-                    <div style="text-align:center; margin-bottom: 20px; color: #888;">
-                        RAM: ${memUsage}MB | Uptime: ${Math.floor(process.uptime()/60)}m | Participants: ${giveawayCount}
-                    </div>
+                    <h1>
+                        🚀 PEAXEL COMMAND CENTER 
+                        <a href="/logout" class="logout">LOGOUT</a>
+                    </h1>
 
                     <div class="grid">
                         <div class="card">
-                            <h2>🤖 Bot Presence</h2>
-                            <form action="/dashboard/update-status?auth=${req.query.auth}" method="POST">
-                                <input type="text" name="statusText" placeholder="Status message...">
-                                <select name="statusType">
-                                    <option value="Watching">Watching</option>
-                                    <option value="Playing">Playing</option>
-                                    <option value="Listening">Listening</option>
-                                    <option value="Competing">Competing</option>
-                                </select>
-                                <button class="btn">Update Status</button>
-                            </form>
-                            <h2 style="margin-top:20px">🛡️ Fast Mod</h2>
-                            <form action="/dashboard/mod-action?auth=${req.query.auth}" method="POST">
-                                <input type="text" name="targetId" placeholder="User ID">
-                                <select name="actionType">
-                                    <option value="kick">Kick User</option>
-                                    <option value="ban">Ban User</option>
-                                </select>
-                                <input type="text" name="reason" placeholder="Reason...">
-                                <button class="btn btn-red">Execute Action</button>
-                            </form>
-                        </div>
-
-                        <div class="card">
-                            <h2>📣 Send Announcement</h2>
-                            <form action="/dashboard/send-announce?auth=${req.query.auth}" method="POST">
-                                <input type="text" name="title" placeholder="Title">
-                                <textarea name="message" placeholder="Content..." rows="3"></textarea>
-                                <input type="text" name="chanId" value="${currentConfig.channels?.announce || ''}" placeholder="Channel ID">
-                                <button class="btn">Ship to Discord</button>
-                            </form>
-                            <h2 style="margin-top:20px">🎁 Giveaway</h2>
-                            <form action="/dashboard/giveaway-tool?auth=${req.query.auth}" method="POST">
-                                <button name="tool" value="draw" class="btn" style="margin-bottom:5px">🎲 Draw Random Winner</button>
-                                <button name="tool" value="reset" class="btn btn-red">🧹 Reset Participants List</button>
-                            </form>
-                        </div>
-
-                        <div class="card">
-                            <h2>⚙️ Configuration Editor</h2>
-                            <form action="/dashboard/save-config?auth=${req.query.auth}" method="POST">
-                                <label style="font-size:0.8em">Log Channel ID</label>
-                                <input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
-                                <label style="font-size:0.8em">Announces Channel ID</label>
-                                <input type="text" name="announce" value="${currentConfig.channels?.announce || ''}">
-                                <label style="font-size:0.8em">Welcome Channel ID</label>
-                                <input type="text" name="welcome" value="${currentConfig.channels?.welcome || ''}">
+                            <h2>⚙️ Configuration</h2>
+                            <form action="/dashboard/save-config" method="POST">
+                                <label>Log Channel</label><input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
+                                <label>Welcome Channel</label><input type="text" name="welcome" value="${currentConfig.channels?.welcome || ''}">
+                                <label>Announce Channel</label><input type="text" name="announce" value="${currentConfig.channels?.announce || ''}">
                                 <button class="btn">Save Configuration</button>
                             </form>
-                            <a href="/dashboard?auth=${req.query.auth}&action=export_feedback" class="btn" style="margin-top:10px; display:block; text-align:center; text-decoration:none; color:black;">📥 Export Feedbacks CSV</a>
                         </div>
 
                         <div class="card">
-                            <h2>🔍 User Lookup</h2>
-                            <form action="/dashboard/user-search?auth=${req.query.auth}" method="POST">
-                                <input type="text" name="searchId" placeholder="Discord User ID">
-                                <button class="btn">Search Database</button>
-                            </form>
-                            <h2 style="margin-top:20px">🛰️ Live Logs</h2>
+                            <h2>📡 Live Monitoring</h2>
                             <div class="log-box">
-                                ${liveLogs.map(l => `<div class="log-entry">
-                                    <span style="color:#555">[${l.time}]</span> <b>${l.action}</b>: ${l.detail}
-                                </div>`).join('')}
+                                ${liveLogs.map(l => `<div><span style="color:#555">[${l.time}]</span> <b>${l.action}</b>: ${l.detail}</div>`).join('')}
                             </div>
+                            <h2 style="margin-top:15px">📣 Quick Announce</h2>
+                            <form action="/dashboard/send-announce" method="POST">
+                                <input type="text" name="title" placeholder="Title">
+                                <textarea name="message" placeholder="Message..." rows="2"></textarea>
+                                <input type="text" name="chanId" value="${currentConfig.channels?.announce || ''}">
+                                <button class="btn">Broadcast</button>
+                            </form>
                         </div>
                     </div>
 
-                    <div class="card" style="margin-top:20px">
-                        <h2>📈 Global Message Traffic</h2>
-                        <canvas id="activityChart" height="100"></canvas>
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h2>💬 Feedback Vault (Full Data)</h2>
+                            <a href="/dashboard?action=export_feedback" class="btn" style="width:auto; padding: 5px 15px;">📥 Download CSV</a>
+                        </div>
+                        <div style="overflow-x: auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        ${feedbacks.length > 0 ? Object.keys(feedbacks[0]).map(k => `<th>${k.toUpperCase()}</th>`).join('') : '<th>No Feedbacks</th>'}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${feedbacks.map(f => `
+                                        <tr>
+                                            ${Object.values(f).map(v => `<td>${v || '-'}</td>`).join('')}
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>📈 Global Traffic</h2>
+                        <canvas id="activityChart" height="80"></canvas>
                     </div>
                 </div>
 
@@ -190,7 +262,7 @@ app.get('/dashboard', async (req, res) => {
                             labels: ${JSON.stringify(dates)},
                             datasets: [{ label: 'Messages', data: ${JSON.stringify(counts)}, borderColor: '#FACC15', tension: 0.3, fill: true, backgroundColor: 'rgba(250, 204, 21, 0.05)' }]
                         },
-                        options: { scales: { y: { beginAtZero: true, ticks: { color: '#888' } }, x: { ticks: { color: '#888' } } }, plugins: { legend: { display: false } } }
+                        options: { scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
                     });
                 </script>
             </body>
@@ -198,74 +270,29 @@ app.get('/dashboard', async (req, res) => {
     `);
 });
 
-// --- POST ROUTES ---
+// --- POST ACTIONS ---
 
-app.post('/dashboard/update-status', (req, res) => {
-    const { statusText, statusType } = req.body;
-    client.user.setActivity(statusText, { type: ActivityType[statusType] });
-    addLiveLog("STATUS", `Presence set to ${statusType} ${statusText}`);
-    res.redirect(`/dashboard?auth=${req.query.auth}`);
+app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
+    const { logs, announce, welcome } = req.body;
+    setChannel('logs', logs);
+    setChannel('announce', announce);
+    setChannel('welcome', welcome);
+    addLiveLog("CONFIG", "Updated channel settings");
+    res.redirect('/dashboard');
 });
 
-app.post('/dashboard/send-announce', async (req, res) => {
+app.post('/dashboard/send-announce', isAuthenticated, async (req, res) => {
     const { title, message, chanId } = req.body;
     try {
         const channel = await client.channels.fetch(chanId);
         const embed = new EmbedBuilder().setTitle(title).setDescription(message).setColor('#FACC15').setTimestamp();
         await channel.send({ embeds: [embed] });
-        addLiveLog("ANNOUNCE", `Message sent to ${chanId}`);
-        res.redirect(`/dashboard?auth=${req.query.auth}`);
-    } catch (e) { res.status(500).send("Error: " + e.message); }
+        addLiveLog("ANNOUNCE", `Sent to ${chanId}`);
+        res.redirect('/dashboard');
+    } catch (e) { res.status(500).send(e.message); }
 });
 
-app.post('/dashboard/mod-action', async (req, res) => {
-    const { targetId, actionType, reason } = req.body;
-    try {
-        const guild = client.guilds.cache.first();
-        const member = await guild.members.fetch(targetId);
-        if (actionType === 'kick') await member.kick(reason);
-        if (actionType === 'ban') await member.ban({ reason });
-        addLiveLog("MOD", `${actionType.toUpperCase()} applied to ${targetId}`);
-        res.redirect(`/dashboard?auth=${req.query.auth}`);
-    } catch (e) { res.status(500).send("Moderation Error: " + e.message); }
-});
-
-app.post('/dashboard/save-config', (req, res) => {
-    const { logs, announce, welcome } = req.body;
-    
-    // Using your setChannel function from configManager.js
-    setChannel('logs', logs);
-    setChannel('announce', announce);
-    setChannel('welcome', welcome);
-    
-    addLiveLog("CONFIG", "Channel IDs updated via Web Dashboard");
-    res.redirect(`/dashboard?auth=${req.query.auth}`);
-});
-
-app.post('/dashboard/giveaway-tool', (req, res) => {
-    const { tool } = req.body;
-    if (tool === 'reset') {
-        writeFileSync(GIVEAWAY_FILE, JSON.stringify({ participants: [] }, null, 2));
-        addLiveLog("GIVEAWAY", "Participants list wiped clean.");
-    } else {
-        const data = fs.existsSync(GIVEAWAY_FILE) ? JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8')) : { participants: [] };
-        if (data.participants.length > 0) {
-            const winner = data.participants[Math.floor(Math.random() * data.participants.length)];
-            addLiveLog("GIVEAWAY", `Winner drawn: ${winner}`);
-        }
-    }
-    res.redirect(`/dashboard?auth=${req.query.auth}`);
-});
-
-app.post('/dashboard/user-search', async (req, res) => {
-    const { searchId } = req.body;
-    try {
-        const user = await client.users.fetch(searchId);
-        res.send(`<h3>Result for ${user.tag}</h3><p>ID: ${user.id}</p><p>Bot: ${user.bot}</p><a href="/dashboard?auth=${req.query.auth}">Back</a>`);
-    } catch (e) { res.send("User not found. <a href='/dashboard?auth=${req.query.auth}'>Back</a>"); }
-});
-
-app.listen(PORT, () => console.log(`${logPrefix} [Web] Dashboard live on port ${PORT}`));
+app.listen(PORT, () => console.log(`${logPrefix} Dashboard live on port ${PORT}`));
 
 // --- DISCORD CLIENT ---
 const client = new Client({
@@ -303,8 +330,8 @@ async function loadAndRegisterCommands() {
 }
 
 client.once(Events.ClientReady, async (readyClient) => {
-    console.log(`${logPrefix} 🚀 System Online | ${readyClient.user.tag}`);
-    addLiveLog("SYSTEM", "Bot started and connected to Discord");
+    console.log(`${logPrefix} 🚀 Online | ${readyClient.user.tag}`);
+    addLiveLog("SYSTEM", "Bot connection established");
     recordBotStart();
     await initDiscordLogger(readyClient);
     initScheduler(readyClient);
@@ -316,20 +343,6 @@ client.on(Events.MessageCreate, async (message) => {
     await handleMessageReward(message);
 });
 
-client.on(Events.GuildMemberAdd, async (member) => {
-    trackEvent('membersJoined');
-    addLiveLog("JOIN", `${member.user.tag} joined the guild`);
-    const configData = getConfig();
-    const logChannelId = configData.channels?.logs;
-    if (logChannelId) {
-        const logChannel = await client.channels.fetch(logChannelId).catch(() => null);
-        if (logChannel) {
-            const embed = new EmbedBuilder().setTitle('📥 New Member').setDescription(`<@${member.id}> joined.`).setColor('#2ECC71').setTimestamp();
-            await logChannel.send({ embeds: [embed] });
-        }
-    }
-});
-
 client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isChatInputCommand() || interaction.isContextMenuCommand()) {
         const command = client.commands.get(interaction.commandName);
@@ -337,7 +350,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         trackEvent('commandsExecuted');
         try {
             await command.execute(interaction);
-            addLiveLog("COMMAND", `${interaction.user.tag} used /${interaction.commandName}`);
+            addLiveLog("COMMAND", `${interaction.user.tag} : /${interaction.commandName}`);
         } catch (error) { console.error(error); }
     } else if (interaction.isButton() && interaction.customId === 'feedback_button') {
         await handleFeedbackButton(interaction);
@@ -346,10 +359,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await handleFeedbackSubmit(interaction);
     }
 });
-
-const shutdown = () => { client.destroy(); process.exit(0); };
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
 
 (async () => {
     setupWelcomeListener(client);
