@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
 import bcrypt from 'bcrypt';
+import multer from 'multer'; // ADDED: Multer for image uploads
 
 // Utility Imports
 import { initScheduler } from './scheduler.js';
@@ -24,15 +25,21 @@ const logPrefix = '[Peaxel Bot]';
 
 // --- DATA PATHS ---
 const DATA_DIR = resolve('./data');
+const UPLOADS_DIR = resolve('./uploads'); // ADDED: Path for temporary uploads
 const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedbacks.json');
 const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
 const USERS_FILE = join(DATA_DIR, 'users.json');
 
+// Ensure directories exist
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-// --- INITIALIZE ADMIN (Secure version) ---
+// Configure Multer
+const upload = multer({ dest: 'uploads/' });
+
+// --- INITIALIZE ADMIN ---
 if (!fs.existsSync(USERS_FILE)) {
     console.log(`${logPrefix} Creating initial admin user...`);
     const adminEmail = process.env.ADMIN_EMAIL;
@@ -42,9 +49,6 @@ if (!fs.existsSync(USERS_FILE)) {
         const hashedPassword = await bcrypt.hash(adminPassword, 10);
         const initialUser = [{ email: adminEmail, password: hashedPassword }];
         writeFileSync(USERS_FILE, JSON.stringify(initialUser, null, 2));
-        console.log(`${logPrefix} Admin user created from .env config.`);
-    } else {
-        console.error(`${logPrefix} CRITICAL: ADMIN_EMAIL or ADMIN_PASSWORD not found in .env`);
     }
 }
 
@@ -79,12 +83,11 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'dev-fallback-secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 3600000 } // 1 hour
+    cookie: { maxAge: 3600000 }
 }));
 
 const PORT = process.env.PORT || 3000;
 
-// Middleware Auth
 const isAuthenticated = (req, res, next) => {
     if (req.session.user) return next();
     res.redirect('/login');
@@ -102,8 +105,7 @@ app.get('/login', (req, res) => {
                     .card { background: #161616; padding: 30px; border-radius: 12px; border-top: 4px solid #FACC15; width: 320px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
                     input { width: 100%; padding: 12px; margin: 10px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
                     button { width: 100%; padding: 12px; background: #FACC15; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-                    button:hover { background: #fff; }
-                    h2 { text-align: center; color: #FACC15; margin-bottom: 20px; }
+                    h2 { text-align: center; color: #FACC15; }
                 </style>
             </head>
             <body>
@@ -114,7 +116,6 @@ app.get('/login', (req, res) => {
                         <input type="password" name="password" placeholder="Password" required>
                         <button type="submit">Access Dashboard</button>
                     </form>
-                    ${req.query.error ? '<p style="color:#ff4444; font-size:0.8em; text-align:center;">Email or password incorrect</p>' : ''}
                 </div>
             </body>
         </html>
@@ -125,7 +126,6 @@ app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     const users = JSON.parse(readFileSync(USERS_FILE, 'utf-8'));
     const user = users.find(u => u.email === email);
-
     if (user && await bcrypt.compare(password, user.password)) {
         req.session.user = { email: user.email };
         res.redirect('/dashboard');
@@ -140,33 +140,23 @@ app.get('/logout', (req, res) => {
 });
 
 app.get('/dashboard', isAuthenticated, async (req, res) => {
-    const memUsage = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2);
     const dates = Object.keys(stats.dailyHistory).sort().slice(-7);
     const counts = dates.map(d => stats.dailyHistory[d]);
     const liveLogs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
     const currentConfig = getConfig();
-    
-    // Feedback Logic
-    let feedbacks = [];
-    if (fs.existsSync(FEEDBACK_FILE)) {
-        feedbacks = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
-    }
+    let feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
 
-    // CSV Export Logic
+    // CSV Export
     if (req.query.action === 'export_feedback') {
         if (feedbacks.length === 0) return res.status(404).send('No data');
         const keys = Object.keys(feedbacks[0]);
-        const csvRows = [];
-        csvRows.push(keys.join(',')); // Header
+        const csvRows = [keys.join(',')];
         for (const fb of feedbacks) {
-            const values = keys.map(key => {
-                const val = fb[key] || '';
-                return `"${val.toString().replace(/"/g, '""')}"`;
-            });
+            const values = keys.map(key => `"${(fb[key] || '').toString().replace(/"/g, '""')}"`);
             csvRows.push(values.join(','));
         }
         res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename=feedbacks_full.csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=feedbacks.csv');
         return res.send(csvRows.join('\n'));
     }
 
@@ -182,23 +172,17 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     .card { background: #161616; padding: 20px; border-radius: 12px; border-top: 4px solid #FACC15; margin-bottom: 20px; }
                     h1 { color: #FACC15; display: flex; justify-content: space-between; align-items: center; }
                     h2 { color: #FACC15; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1em; }
-                    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; }
+                    input, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
                     .btn { background: #FACC15; color: #000; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-decoration: none; display: inline-block; text-align: center; }
-                    .btn-red { background: #e74c3c; color: white; }
                     .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.8em; }
                     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
                     th { text-align: left; color: #FACC15; border-bottom: 1px solid #333; padding: 10px; }
                     td { padding: 10px; border-bottom: 1px solid #222; }
-                    .logout { font-size: 0.5em; background: #222; color: #888; padding: 5px 10px; border-radius: 4px; text-decoration: none; }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>
-                        🚀 PEAXEL COMMAND CENTER 
-                        <a href="/logout" class="logout">LOGOUT</a>
-                    </h1>
-
+                    <h1>🚀 PEAXEL COMMAND CENTER <a href="/logout" style="font-size:0.5em; color:#888; text-decoration:none;">LOGOUT</a></h1>
                     <div class="grid">
                         <div class="card">
                             <h2>⚙️ Configuration</h2>
@@ -209,51 +193,35 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                                 <button class="btn">Save Configuration</button>
                             </form>
                         </div>
-
                         <div class="card">
-                            <h2>📡 Live Monitoring</h2>
-                            <div class="log-box">
-                                ${liveLogs.map(l => `<div><span style="color:#555">[${l.time}]</span> <b>${l.action}</b>: ${l.detail}</div>`).join('')}
-                            </div>
-                            <h2 style="margin-top:15px">📣 Quick Announce</h2>
-                            <form action="/dashboard/send-announce" method="POST">
-                                <input type="text" name="title" placeholder="Title">
-                                <textarea name="message" placeholder="Message..." rows="2"></textarea>
-                                <input type="text" name="chanId" value="${currentConfig.channels?.announce || ''}">
-                                <button class="btn">Broadcast</button>
+                            <h2>📣 Quick Announce (Simple Message)</h2>
+                            <form action="/dashboard/send-announce" method="POST" enctype="multipart/form-data">
+                                <textarea name="message" placeholder="Votre message..." rows="3" required></textarea>
+                                <input type="text" name="chanId" value="${currentConfig.channels?.announce || ''}" placeholder="Channel ID">
+                                <label style="font-size:0.75em; color:#888;">Optionnel: Joindre une image</label>
+                                <input type="file" name="footerImage" accept="image/*">
+                                <button class="btn">Send Now</button>
                             </form>
                         </div>
                     </div>
-
                     <div class="card">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <h2>💬 Feedback Vault (Full Data)</h2>
-                            <a href="/dashboard?action=export_feedback" class="btn" style="width:auto; padding: 5px 15px;">📥 Download CSV</a>
-                        </div>
+                        <h2>📡 Live Monitoring</h2>
+                        <div class="log-box">${liveLogs.map(l => `<div><span style="color:#555">[${l.time}]</span> <b>${l.action}</b>: ${l.detail}</div>`).join('')}</div>
+                    </div>
+                    <div class="card">
+                        <h2>💬 Feedbacks</h2>
                         <div style="overflow-x: auto;">
                             <table>
-                                <thead>
-                                    <tr>
-                                        ${feedbacks.length > 0 ? Object.keys(feedbacks[0]).map(k => `<th>${k.toUpperCase()}</th>`).join('') : '<th>No Feedbacks</th>'}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${feedbacks.map(f => `
-                                        <tr>
-                                            ${Object.values(f).map(v => `<td>${v || '-'}</td>`).join('')}
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
+                                <thead><tr>${feedbacks.length > 0 ? Object.keys(feedbacks[0]).map(k => `<th>${k}</th>`).join('') : '<th>No Data</th>'}</tr></thead>
+                                <tbody>${feedbacks.map(f => `<tr>${Object.values(f).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
                             </table>
                         </div>
                     </div>
-
                     <div class="card">
                         <h2>📈 Global Traffic</h2>
                         <canvas id="activityChart" height="80"></canvas>
                     </div>
                 </div>
-
                 <script>
                     const ctx = document.getElementById('activityChart').getContext('2d');
                     new Chart(ctx, {
@@ -261,8 +229,7 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         data: {
                             labels: ${JSON.stringify(dates)},
                             datasets: [{ label: 'Messages', data: ${JSON.stringify(counts)}, borderColor: '#FACC15', tension: 0.3, fill: true, backgroundColor: 'rgba(250, 204, 21, 0.05)' }]
-                        },
-                        options: { scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+                        }
                     });
                 </script>
             </body>
@@ -281,15 +248,25 @@ app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
     res.redirect('/dashboard');
 });
 
-app.post('/dashboard/send-announce', isAuthenticated, async (req, res) => {
-    const { title, message, chanId } = req.body;
+app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage'), async (req, res) => {
+    const { message, chanId } = req.body; 
+    const file = req.file;
+
     try {
         const channel = await client.channels.fetch(chanId);
-        const embed = new EmbedBuilder().setTitle(title).setDescription(message).setColor('#FACC15').setTimestamp();
-        await channel.send({ embeds: [embed] });
-        addLiveLog("ANNOUNCE", `Sent to ${chanId}`);
+        const payload = { content: message };
+        if (file) {
+            payload.files = [{ attachment: file.path, name: file.originalname }];
+        }
+
+        await channel.send(payload);
+        if (file) fs.unlinkSync(file.path);
+
+        addLiveLog("ANNOUNCE", `Text sent to ${chanId}`);
         res.redirect('/dashboard');
-    } catch (e) { res.status(500).send(e.message); }
+    } catch (e) { 
+        res.status(500).send("Discord Error: " + e.message); 
+    }
 });
 
 app.listen(PORT, () => console.log(`${logPrefix} Dashboard live on port ${PORT}`));
@@ -311,6 +288,7 @@ async function loadAndRegisterCommands() {
     const commandsPath = join(__dirname, 'commands');
     const commandsToRegister = [];
     try {
+        if (!fs.existsSync(commandsPath)) return;
         const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.js'));
         for (const file of commandFiles) {
             const filePath = join(commandsPath, file);
@@ -344,7 +322,7 @@ client.on(Events.MessageCreate, async (message) => {
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
-    if (interaction.isChatInputCommand() || interaction.isContextMenuCommand()) {
+    if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (!command) return;
         trackEvent('commandsExecuted');
