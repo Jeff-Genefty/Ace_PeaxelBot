@@ -26,7 +26,7 @@ export async function execute(interaction) {
     const embed = new EmbedBuilder()
         .setTitle(`🌟 SPOTLIGHT OF THE WEEK: ${athleteName}`)
         .setURL(athlete.peaxelLink || "https://game.peaxel.me")
-        .setColor("#FACC15")
+        .setColor("#a855f7")
         .setThumbnail(athlete.talent_profile_image_url || null)
         .addFields(
             { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },

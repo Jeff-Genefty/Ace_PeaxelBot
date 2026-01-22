@@ -78,7 +78,7 @@ async function handleView(interaction) {
   
   const embed = new EmbedBuilder()
     .setTitle('🎭 Auto-Reactions Configuration')
-    .setColor(config.enabled ? "#FACC15" : "#EF4444")
+    .setColor(config.enabled ? "#a855f7" : "#EF4444")
     .addFields(
       {
         name: '📊 Status',

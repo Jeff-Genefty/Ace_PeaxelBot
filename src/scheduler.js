@@ -75,7 +75,7 @@ export function initScheduler(client) {
                     { name: '🗂️ Category', value: athlete.main_category || "N/A", inline: true },
                     { name: '💡 Scouting Hint', value: `The name starts with the letter: **${athlete.name.charAt(0).toUpperCase()}**` }
                 )
-                .setColor('#FACC15')
+                .setColor('#a855f7')
                 .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png') 
                 .setFooter({ text: 'Tournament Points and Cards are at stake!' });
 
@@ -119,7 +119,7 @@ export function initScheduler(client) {
             const embed = new EmbedBuilder()
                 .setTitle(`🌟 SPOTLIGHT OF THE WEEK: ${athleteName}`)
                 .setURL(athlete.peaxelLink || "https://game.peaxel.me")
-                .setColor("#FACC15")
+                .setColor("#a855f7")
                 .setThumbnail(athlete.talent_profile_image_url || null)
                 .addFields(
                     { name: "🌍 Nationality", value: athlete.main_nationality || "N/A", inline: true },
@@ -187,7 +187,7 @@ export function initScheduler(client) {
             const giveawayEmbed = new EmbedBuilder()
                 .setTitle('🎟️ WEEKEND GIVEAWAY IS LIVE!')
                 .setDescription('Participate now to win a **Rare Athlete Card**!\n\nClick the button below to join.')
-                .setColor('#FACC15');
+                .setColor('#a855f7');
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('join_giveaway').setLabel('Join Giveaway').setEmoji('🎟️').setStyle(ButtonStyle.Primary)

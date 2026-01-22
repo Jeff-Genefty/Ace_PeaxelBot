@@ -108,7 +108,7 @@ export function resetMessageConfig(type) {
  * Helper: Parse Hex color to Integer for Discord Embeds
  */
 export function parseColor(hexColor) {
-  if (!hexColor) return 0xFACC15;
+  if (!hexColor) return 0xa855f7;
   const hex = hexColor.replace('#', '');
   return parseInt(hex, 16);
 }

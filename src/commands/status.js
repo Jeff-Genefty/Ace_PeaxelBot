@@ -31,7 +31,7 @@ export async function execute(interaction) {
 
   const embed = new EmbedBuilder()
     .setTitle('📊 Peaxel Bot Operational Status')
-    .setColor(parseColor(primaryConfig.color || '#FACC15'))
+    .setColor(parseColor(primaryConfig.color || '#a855f7'))
     .setThumbnail(interaction.client.user.displayAvatarURL())
     .addFields(
       {

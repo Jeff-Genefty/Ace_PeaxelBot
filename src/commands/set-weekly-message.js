@@ -35,7 +35,7 @@ export const data = new SlashCommandBuilder()
       )
       .addStringOption(option => option.setName('title').setDescription('Embed title').setRequired(false).setMaxLength(256))
       .addStringOption(option => option.setName('description').setDescription('Embed description').setRequired(false).setMaxLength(1000))
-      .addStringOption(option => option.setName('color').setDescription('Hex color code (e.g., #FACC15)').setRequired(false).setMaxLength(7))
+      .addStringOption(option => option.setName('color').setDescription('Hex color code (e.g., #a855f7)').setRequired(false).setMaxLength(7))
       .addStringOption(option => option.setName('footer').setDescription('Footer text content').setRequired(false).setMaxLength(200))
   )
   // Subcommand: BUTTONS

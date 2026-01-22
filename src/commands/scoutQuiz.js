@@ -59,7 +59,7 @@ export default {
                     { name: '🗂️ Category', value: athlete.main_category || 'N/A', inline: true },
                     { name: '💡 Scouting Hint', value: `Our sources tell us the name starts with: **${athlete.name.charAt(0).toUpperCase()}**` }
                 )
-                .setColor('#FACC15')
+                .setColor('#a855f7')
                 .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png') 
                 .setFooter({ text: 'Tournament Points and Cards are at stake! Good luck, Managers.' });
 

@@ -18,7 +18,7 @@ export async function execute(interaction) {
         .setTitle('🎟️ PEAXEL WEEKLY GIVEAWAY')
         .setDescription('Participate to win a **Random Athlete Card** for your roster!\n\n' +
                         'Click the button below to enter the draw. The winner will be announced automatically during the **Closing** on Thursday!')
-        .setColor('#FACC15')
+        .setColor('#a855f7')
         .setFooter({ text: 'Good luck to all managers!' });
 
     const row = new ActionRowBuilder().addComponents(

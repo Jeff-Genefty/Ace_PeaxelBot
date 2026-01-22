@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, Events, REST, Routes, ActivityType } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, REST, Routes, ActivityType, EmbedBuilder } from 'discord.js';
 import { config } from 'dotenv';
 import fs, { readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
@@ -23,6 +23,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const logPrefix = '[Peaxel Bot]';
 
+// --- CONFIGURATION ---
+const PORT = process.env.PORT || 8080; // Correctly defined global port
+
 // --- DATA PATHS ---
 const DATA_DIR = resolve('./data');
 const UPLOADS_DIR = resolve('./uploads');
@@ -30,12 +33,16 @@ const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedbacks.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
 const USERS_FILE = join(DATA_DIR, 'users.json');
-const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json'); // File to track active giveaway entries
+const GIVEAWAY_FILE = join(DATA_DIR, 'giveaways.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const upload = multer({ dest: 'uploads/' });
+
+// --- COLORS (Cyberpunk Neon Theme) ---
+const PRIMARY_PURPLE = '#a855f7'; // Neon Purple
+const NEON_BLUE = '#2dd4bf';     // Cyan/Neon Blue
 
 // --- INITIALIZE ADMIN ---
 if (!fs.existsSync(USERS_FILE)) {
@@ -75,10 +82,10 @@ const addLiveLog = (action, detail) => {
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'dev-fallback-secret',
-    resave: true, // Fixed for Railway memory warning
+    secret: process.env.SESSION_SECRET || 'cyber-secret-key',
+    resave: true, 
     saveUninitialized: true,
-    cookie: { maxAge: 3600000, secure: false } // Set secure: true if using HTTPS
+    cookie: { maxAge: 3600000, secure: false }
 }));
 
 const isAuthenticated = (req, res, next) => {
@@ -89,7 +96,7 @@ const isAuthenticated = (req, res, next) => {
 // --- ROUTES ---
 
 app.get('/login', (req, res) => {
-    res.send(`<html><head><title>Peaxel Login</title><style>body{font-family:'Inter',sans-serif;background:#0b0b0b;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}.card{background:#161616;padding:30px;border-radius:12px;border-top:4px solid #FACC15;width:320px}input{width:100%;padding:12px;margin:10px 0;background:#222;border:1px solid #333;color:white;border-radius:6px;box-sizing:border-box}button{width:100%;padding:12px;background:#FACC15;border:none;border-radius:6px;font-weight:bold;cursor:pointer}h2{text-align:center;color:#FACC15}</style></head><body><div class="card"><h2>PEAXEL LOGIN</h2><form action="/login" method="POST"><input type="email" name="email" placeholder="Email" required><input type="password" name="password" placeholder="Password" required><button type="submit">Access Dashboard</button></form></div></body></html>`);
+    res.send(`<html><head><title>Peaxel Auth</title><style>body{font-family:'Inter',sans-serif;background:#050505;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}.card{background:#0f0f15;padding:30px;border-radius:12px;border-top:4px solid ${PRIMARY_PURPLE};width:320px;box-shadow: 0 0 20px rgba(168, 85, 247, 0.2)}input{width:100%;padding:12px;margin:10px 0;background:#1a1a24;border:1px solid #333;color:white;border-radius:6px;box-sizing:border-box}button{width:100%;padding:12px;background:linear-gradient(90deg, ${PRIMARY_PURPLE}, ${NEON_BLUE});border:none;border-radius:6px;font-weight:bold;color:white;cursor:pointer}h2{text-align:center;color:${PRIMARY_PURPLE};letter-spacing:2px}</style></head><body><div class="card"><h2>PEAXEL LOGIN</h2><form action="/login" method="POST"><input type="email" name="email" placeholder="Admin ID" required><input type="password" name="password" placeholder="Passkey" required><button type="submit">INITIALIZE</button></form></div></body></html>`);
 });
 
 app.post('/login', async (req, res) => {
@@ -104,18 +111,6 @@ app.post('/login', async (req, res) => {
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
-// NEW: Giveaway Registration Logic (Called by InteractionCreate)
-const registerGiveawayEntry = (user) => {
-    let entries = [];
-    if (fs.existsSync(GIVEAWAY_FILE)) entries = JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8'));
-    if (!entries.find(e => e.id === user.id)) {
-        entries.push({ id: user.id, tag: user.tag, time: new Date().toLocaleString() });
-        writeFileSync(GIVEAWAY_FILE, JSON.stringify(entries, null, 2));
-        return true;
-    }
-    return false;
-};
-
 app.get('/dashboard', isAuthenticated, async (req, res) => {
     const dates = Object.keys(stats.dailyHistory).sort().slice(-7);
     const counts = dates.map(d => stats.dailyHistory[d]);
@@ -124,110 +119,64 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     let feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
     let giveawayEntries = fs.existsSync(GIVEAWAY_FILE) ? JSON.parse(readFileSync(GIVEAWAY_FILE, 'utf-8')) : [];
 
-    // Action: Export Feedback
-    if (req.query.action === 'export_feedback') {
-        if (feedbacks.length === 0) return res.status(404).send('No data');
-        const keys = Object.keys(feedbacks[0]);
-        const csvRows = [keys.join(','), ...feedbacks.map(fb => keys.map(k => `"${(fb[k] || '').toString().replace(/"/g, '""')}"`).join(','))];
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename=feedbacks_export.csv');
-        return res.send(csvRows.join('\n'));
-    }
-
     res.send(`
         <html>
             <head>
-                <title>Peaxel Admin</title>
+                <title>Peaxel OS</title>
                 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 <style>
-                    body { font-family: 'Inter', sans-serif; background: #0b0b0b; color: #e0e0e0; padding: 20px; margin: 0; }
+                    body { font-family: 'Inter', sans-serif; background: #050505; color: #e0e0e0; padding: 20px; margin: 0; }
                     .container { max-width: 1300px; margin: auto; }
                     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
-                    .card { background: #161616; padding: 20px; border-radius: 12px; border-top: 4px solid #FACC15; margin-bottom: 20px; }
-                    h1 { color: #FACC15; display: flex; justify-content: space-between; align-items: center; }
-                    h2 { color: #FACC15; border-bottom: 1px solid #333; padding-bottom: 10px; font-size: 1em; margin-top:0; }
-                    input, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #222; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
-                    .btn { background: #FACC15; color: #000; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-decoration: none; display: inline-block; text-align: center; }
-                    .btn-red { background: #ff4444; color: white; }
-                    .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.8em; }
+                    .card { background: #0f0f15; padding: 20px; border-radius: 12px; border: 1px solid #1a1a24; border-top: 3px solid ${PRIMARY_PURPLE}; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+                    h1 { color: ${PRIMARY_PURPLE}; display: flex; justify-content: space-between; align-items: center; text-shadow: 0 0 10px rgba(168,85,247,0.3); }
+                    h2 { color: ${NEON_BLUE}; border-bottom: 1px solid #1a1a24; padding-bottom: 10px; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; margin-top:0; }
+                    input, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
+                    .btn { background: linear-gradient(90deg, ${PRIMARY_PURPLE}, #7c3aed); color: white; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-decoration: none; display: inline-block; text-align: center; }
+                    .btn-blue { background: linear-gradient(90deg, ${NEON_BLUE}, #0891b2); }
+                    .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.8em; border: 1px solid #111; }
                     table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
-                    th { text-align: left; color: #FACC15; border-bottom: 1px solid #333; padding: 10px; }
-                    td { padding: 10px; border-bottom: 1px solid #222; }
-                    .scroll-table { max-height: 250px; overflow-y: auto; }
+                    th { text-align: left; color: ${PRIMARY_PURPLE}; padding: 10px; border-bottom: 1px solid #1a1a24; }
+                    td { padding: 10px; border-bottom: 1px solid #1a1a24; }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>🚀 PEAXEL COMMAND CENTER <a href="/logout" style="font-size:0.5em; color:#888; text-decoration:none;">LOGOUT</a></h1>
+                    <h1>⚡ PEAXEL OS v2.0 <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none;">DISCONNECT</a></h1>
+                    
                     <div class="grid">
                         <div class="card">
                             <h2>⚙️ Configuration</h2>
                             <form action="/dashboard/save-config" method="POST">
                                 <label>Log Channel</label><input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
                                 <label>Announce Channel</label><input type="text" name="announce" value="${currentConfig.channels?.announce || ''}">
-                                <button class="btn">Save Config</button>
-                            </form>
-                            <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
-                            <form action="/dashboard/bot-status" method="POST">
-                                <label>Bot Status (Watching...)</label>
-                                <input type="text" name="activity" placeholder="Ex: Peaxel Community">
-                                <button class="btn">Update Status</button>
+                                <button class="btn">Update Core</button>
                             </form>
                         </div>
 
                         <div class="card">
-                            <h2>🛡️ Moderation</h2>
+                            <h2>🛡️ Quick Moderation</h2>
                             <form action="/dashboard/mod-action" method="POST">
-                                <input type="text" name="userId" placeholder="User ID" required>
-                                <input type="text" name="reason" placeholder="Reason (Optional)">
+                                <input type="text" name="userId" placeholder="Target User ID" required>
                                 <div style="display:flex; gap:10px;">
                                     <button name="action" value="kick" class="btn">Kick</button>
-                                    <button name="action" value="ban" class="btn btn-red">Ban</button>
+                                    <button name="action" value="ban" class="btn" style="background:#ef4444;">Ban</button>
                                 </div>
                             </form>
                         </div>
 
                         <div class="card">
-                            <h2>📣 Quick Announce</h2>
+                            <h2>📣 Cyber Broadcast</h2>
                             <form action="/dashboard/send-announce" method="POST" enctype="multipart/form-data">
-                                <textarea name="message" placeholder="Votre message..." rows="3" required></textarea>
-                                <input type="text" name="chanId" value="${currentConfig.channels?.announce || ''}">
+                                <textarea name="message" placeholder="Input broadcast data..." rows="3" required></textarea>
                                 <input type="file" name="footerImage">
-                                <button class="btn">Send Broadcast</button>
+                                <button class="btn btn-blue">Transmit Signal</button>
                             </form>
                         </div>
 
                         <div class="card">
-                            <h2>📡 Live Logs</h2>
-                            <div class="log-box">${liveLogs.map(l => `<div><span style="color:#555">[${l.time}]</span> <b>${l.action}</b>: ${l.detail}</div>`).join('')}</div>
-                        </div>
-                    </div>
-
-                    <div class="grid">
-                        <div class="card">
-                            <h2>🎁 Giveaway Entries (${giveawayEntries.length})</h2>
-                            <div class="scroll-table">
-                                <table>
-                                    <thead><tr><th>User ID</th><th>Pseudo</th><th>Joined At</th></tr></thead>
-                                    <tbody>${giveawayEntries.map(e => `<tr><td>${e.id}</td><td>${e.tag}</td><td>${e.time}</td></tr>`).join('')}</tbody>
-                                </table>
-                            </div>
-                            <form action="/dashboard/clear-giveaway" method="POST" onsubmit="return confirm('Reset all entries?');">
-                                <button class="btn btn-red" style="margin-top:10px;">Reset Giveaway List</button>
-                            </form>
-                        </div>
-
-                        <div class="card">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <h2>💬 Feedback</h2>
-                                <a href="/dashboard?action=export_feedback" class="btn" style="width:auto; padding:5px 10px;">Export CSV</a>
-                            </div>
-                            <div class="scroll-table">
-                                <table>
-                                    <thead><tr><th>User</th><th>Rating</th><th>Improve</th></tr></thead>
-                                    <tbody>${feedbacks.slice(-10).reverse().map(f => `<tr><td>${f.userTag}</td><td>${f.rating}⭐</td><td>${f.improve || f.comment || '-'}</td></tr>`).join('')}</tbody>
-                                </table>
-                            </div>
+                            <h2>📡 Live Feed</h2>
+                            <div class="log-box">${liveLogs.map(l => `<div><span style="color:${NEON_BLUE}">[${l.time}]</span> <b style="color:${PRIMARY_PURPLE}">${l.action}</b>: ${l.detail}</div>`).join('')}</div>
                         </div>
                     </div>
 
@@ -242,8 +191,16 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         type: 'line',
                         data: {
                             labels: ${JSON.stringify(dates)},
-                            datasets: [{ label: 'Messages', data: ${JSON.stringify(counts)}, borderColor: '#FACC15', tension: 0.3, fill: true, backgroundColor: 'rgba(250, 204, 21, 0.05)' }]
-                        }
+                            datasets: [{ 
+                                label: 'Signals', 
+                                data: ${JSON.stringify(counts)}, 
+                                borderColor: '${PRIMARY_PURPLE}', 
+                                backgroundColor: 'rgba(168, 85, 247, 0.1)', 
+                                tension: 0.4, 
+                                fill: true 
+                            }]
+                        },
+                        options: { scales: { y: { beginAtZero: true, grid: { color: '#1a1a24' } }, x: { grid: { display: false } } } }
                     });
                 </script>
             </body>
@@ -253,55 +210,36 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
 
 // --- POST ACTIONS ---
 
-app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
-    const { userId, reason, action } = req.body;
-    try {
-        const guild = client.guilds.cache.get(process.env.DISCORD_GUILD_ID);
-        const member = await guild.members.fetch(userId);
-        if (action === 'kick') await member.kick(reason);
-        if (action === 'ban') await member.ban({ reason });
-        addLiveLog("MOD", `${action.toUpperCase()}: ${member.user.tag}`);
-        res.redirect('/dashboard');
-    } catch (e) { res.status(500).send("Error: User not found or permission denied."); }
-});
-
-app.post('/dashboard/bot-status', isAuthenticated, (req, res) => {
-    const { activity } = req.body;
-    client.user.setActivity(activity, { type: ActivityType.Watching });
-    addLiveLog("SYSTEM", `Status: ${activity}`);
-    res.redirect('/dashboard');
-});
-
-app.post('/dashboard/clear-giveaway', isAuthenticated, (req, res) => {
-    writeFileSync(GIVEAWAY_FILE, JSON.stringify([], null, 2));
-    addLiveLog("GIVEAWAY", "Entries list cleared");
-    res.redirect('/dashboard');
-});
-
 app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
-    const { logs, announce, welcome } = req.body;
+    const { logs, announce } = req.body;
     setChannel('logs', logs);
     setChannel('announce', announce);
-    if (welcome) setChannel('welcome', welcome);
-    addLiveLog("CONFIG", "Settings saved");
+    addLiveLog("CONFIG", "Neural links updated");
     res.redirect('/dashboard');
 });
 
 app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage'), async (req, res) => {
-    const { message, chanId } = req.body;
+    const { message } = req.body;
     const file = req.file;
     try {
-        const channel = await client.channels.fetch(chanId);
-        const payload = { content: message };
-        if (file) payload.files = [{ attachment: file.path, name: file.originalname }];
+        const config = getConfig();
+        const channel = await client.channels.fetch(config.channels.announce);
+        const embed = new EmbedBuilder()
+            .setDescription(message)
+            .setColor(PRIMARY_PURPLE)
+            .setTimestamp();
+        
+        const payload = { embeds: [embed] };
+        if (file) payload.files = [{ attachment: file.path, name: 'broadcast.png' }];
+        
         await channel.send(payload);
         if (file) fs.unlinkSync(file.path);
-        addLiveLog("ANNOUNCE", `Broadcast sent to ${chanId}`);
+        addLiveLog("ANNOUNCE", "Broadcast sent");
         res.redirect('/dashboard');
-    } catch (e) { res.status(500).send("Discord Error: " + e.message); }
+    } catch (e) { res.status(500).send("Error: " + e.message); }
 });
 
-app.listen(PORT, () => console.log(`${logPrefix} Dashboard live on port ${PORT}`));
+app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
 
 // --- DISCORD CLIENT ---
 const client = new Client({
@@ -330,12 +268,12 @@ async function loadAndRegisterCommands() {
             ? Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.DISCORD_GUILD_ID)
             : Routes.applicationCommands(process.env.DISCORD_CLIENT_ID);
         await rest.put(route, { body: commandsToRegister });
-    } catch (err) { console.error(`${logPrefix} Command sync error:`, err.message); }
+    } catch (err) { console.error(`${logPrefix} Sync error:`, err.message); }
 }
 
 client.once(Events.ClientReady, async (readyClient) => {
     console.log(`${logPrefix} 🚀 Online | ${readyClient.user.tag}`);
-    addLiveLog("SYSTEM", "Bot connection established");
+    addLiveLog("SYSTEM", "Bot online");
     recordBotStart();
     await initDiscordLogger(readyClient);
     initScheduler(readyClient);
@@ -355,14 +293,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             await command.execute(interaction);
             addLiveLog("COMMAND", `${interaction.user.tag} : /${interaction.commandName}`);
         }
-    } 
-    // Logic for Giveaway Button
-    else if (interaction.isButton() && interaction.customId === 'join_giveaway') {
-        const added = registerGiveawayEntry(interaction.user);
-        await interaction.reply({ content: added ? "✅ Inscription enregistrée !" : "❌ Tu es déjà inscrit !", ephemeral: true });
-        addLiveLog("GIVEAWAY", `${interaction.user.tag} joined`);
-    }
-    else if (interaction.isButton() && interaction.customId === 'feedback_button') {
+    } else if (interaction.isButton() && interaction.customId === 'feedback_button') {
         await handleFeedbackButton(interaction);
     } else if (interaction.isModalSubmit() && interaction.customId === 'feedback_modal') {
         trackEvent('feedbacksReceived');

@@ -11,7 +11,7 @@ export async function execute(interaction) {
     const embed = new EmbedBuilder()
         .setTitle("🎮 HOW TO PLAY PEAXEL | Official Guide")
         .setDescription("Master the scouting game! Here is everything you need to know to dominate the leaderboard.\n\u200b")
-        .setColor("#FACC15") // Official Peaxel Gold
+        .setColor("#a855f7") // Official Peaxel Gold
         .setThumbnail("https://peaxel.me/wp-content/uploads/2025/06/peaxel_logo_beta-1.png")
         .addFields(
             { 

@@ -90,7 +90,7 @@ async function triggerAceRecognition(message) {
 
     const embed = new EmbedBuilder()
         .setTitle(`👨‍🏫 COACH ACE IS WATCHING...`)
-        .setColor('#FACC15')
+        .setColor('#a855f7')
         .setThumbnail('attachment://unnamed.png')
         .setTimestamp()
         .setFooter({ text: 'Peaxel Loyalty Reward • Play Fair, Win Big!' });
@@ -163,7 +163,7 @@ export async function sendAceMotivation(client) {
     const embed = new EmbedBuilder()
         .setTitle("👨‍🏫 COACH ACE'S BRIEFING")
         .setDescription(motivations[Math.floor(Math.random() * motivations.length)])
-        .setColor("#FACC15")
+        .setColor("#a855f7")
         .setThumbnail('attachment://unnamed.png')
         .setFooter({ text: "Peaxel • Fair Play & Activity" });
 

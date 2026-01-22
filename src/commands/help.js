@@ -11,7 +11,7 @@ export async function execute(interaction) {
                         '🤖 **Need more help?**\n' +
                         'Talk to our specialized AI at [ace.peaxel.me](https://ace.peaxel.me). ' +
                         'It can answer complex questions and help you open a support ticket if needed.')
-        .setColor('#FACC15');
+        .setColor('#a855f7');
     const menu = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId('help_select')
