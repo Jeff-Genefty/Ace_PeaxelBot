@@ -3,9 +3,9 @@ import { config } from 'dotenv';
 import fs, { readdirSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import express from 'express'; // Integration Web
+import express from 'express'; // Web Framework
 
-// Imports utilitaires existants
+// Utility Imports
 import { initScheduler } from './scheduler.js';
 import { handleFeedbackButton, handleFeedbackSubmit, updateFeedbackStatsChannel } from './handlers/feedbackHandler.js';
 import { initDiscordLogger, logCommandUsage } from './utils/discordLogger.js';
@@ -21,17 +21,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const logPrefix = '[Peaxel Bot]';
 
-// --- ANALYTICS ENGINE (v2 avec Historique) ---
+// --- ANALYTICS ENGINE ---
 const STATS_FILE = resolve('./data/analytics.json');
+const FEEDBACK_FILE = resolve('./data/feedbacks.json'); // To display recent feedbacks
+
 let stats = { 
     messagesSent: 0, 
     membersJoined: 0, 
     membersLeft: 0, 
     commandsExecuted: 0, 
     feedbacksReceived: 0,
-    dailyHistory: {} // Format: { "2026-01-22": 150, "2026-01-21": 120 }
+    dailyHistory: {} 
 };
 
+// Load existing stats from Volume
 if (fs.existsSync(STATS_FILE)) {
     try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) {}
 }
@@ -40,7 +43,7 @@ const trackEvent = (type) => {
     if (stats[type] !== undefined) {
         stats[type]++;
         
-        // Track history for messages specifically
+        // Specifically track daily message volume
         if (type === 'messagesSent') {
             const today = new Date().toISOString().split('T')[0];
             stats.dailyHistory[today] = (stats.dailyHistory[today] || 0) + 1;
@@ -51,13 +54,25 @@ const trackEvent = (type) => {
     }
 };
 
-// --- WEB DASHBOARD (v2 avec Chart.js) ---
+// --- WEB DASHBOARD ---
+const app = express(); // Define express app
+const PORT = process.env.PORT || 3000;
+
 app.get('/dashboard', (req, res) => {
     if (req.query.auth !== 'PEAXEL_ADMIN_2026') return res.status(403).send('Access Denied');
 
-    // Préparation des données du graphique (7 derniers jours)
+    // Prepare chart data (Last 7 days)
     const dates = Object.keys(stats.dailyHistory).sort().slice(-7);
     const counts = dates.map(d => stats.dailyHistory[d]);
+
+    // Retrieve recent feedbacks
+    let recentFeedbacks = [];
+    if (fs.existsSync(FEEDBACK_FILE)) {
+        try {
+            const fbData = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
+            recentFeedbacks = fbData.slice(-5).reverse(); // Get last 5
+        } catch (e) {}
+    }
 
     res.send(`
         <html>
@@ -65,27 +80,44 @@ app.get('/dashboard', (req, res) => {
                 <title>Peaxel Staff Analytics</title>
                 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 <style>
-                    body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: white; padding: 20px; }
-                    .container { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; }
-                    .card { background: #1a1a1a; padding: 15px; border-radius: 10px; border-bottom: 3px solid #FACC15; min-width: 140px; text-align: center; }
+                    body { font-family: 'Segoe UI', sans-serif; background: #0b0b0b; color: white; padding: 20px; }
+                    .stats-container { display: flex; justify-content: center; gap: 15px; margin-bottom: 30px; flex-wrap: wrap; }
+                    .card { background: #161616; padding: 15px; border-radius: 10px; border-bottom: 3px solid #FACC15; min-width: 140px; text-align: center; }
                     .value { font-size: 2em; font-weight: bold; display: block; }
                     .label { color: #888; font-size: 0.8em; text-transform: uppercase; }
-                    .chart-container { background: #1a1a1a; padding: 20px; border-radius: 15px; max-width: 800px; margin: 0 auto; }
+                    .main-content { max-width: 900px; margin: 0 auto; }
+                    .section { background: #161616; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
                     h1 { text-align: center; color: #FACC15; }
+                    h2 { color: #FACC15; border-bottom: 1px solid #333; padding-bottom: 10px; }
+                    .fb-item { background: #222; padding: 10px; border-radius: 5px; margin-bottom: 10px; border-left: 3px solid #FACC15; }
+                    .fb-meta { font-size: 0.8em; color: #888; }
                 </style>
             </head>
             <body>
-                <h1>🚀 Peaxel Project Analytics</h1>
+                <h1>🚀 PEAXEL PROJECT ANALYTICS</h1>
                 
-                <div class="container">
-                    <div class="card"><span class="value">${stats.messagesSent}</span><span class="label">Total Messages</span></div>
-                    <div class="card"><span class="value">${stats.membersJoined}</span><span class="label">Total Joins</span></div>
+                <div class="stats-container">
+                    <div class="card"><span class="value">${stats.messagesSent}</span><span class="label">Messages</span></div>
+                    <div class="card"><span class="value">${stats.membersJoined}</span><span class="label">Joins</span></div>
                     <div class="card"><span class="value">${stats.commandsExecuted}</span><span class="label">Commands</span></div>
                     <div class="card"><span class="value">${stats.feedbacksReceived}</span><span class="label">Feedbacks</span></div>
                 </div>
 
-                <div class="chart-container">
-                    <canvas id="activityChart"></canvas>
+                <div class="main-content">
+                    <div class="section">
+                        <h2>Activity Chart (Last 7 Days)</h2>
+                        <canvas id="activityChart"></canvas>
+                    </div>
+
+                    <div class="section">
+                        <h2>Recent Feedbacks</h2>
+                        ${recentFeedbacks.length > 0 ? recentFeedbacks.map(f => `
+                            <div class="fb-item">
+                                <div>${f.comment || 'No comment'}</div>
+                                <div class="fb-meta">Rating: ${f.rating}/5 • User ID: ${f.userId}</div>
+                            </div>
+                        `).join('') : '<p>No feedbacks recorded yet.</p>'}
+                    </div>
                 </div>
 
                 <script>
@@ -106,8 +138,8 @@ app.get('/dashboard', (req, res) => {
                         options: {
                             responsive: true,
                             scales: {
-                                y: { beginAtZero: true, grid: { color: '#333' } },
-                                x: { grid: { color: '#333' } }
+                                y: { beginAtZero: true, grid: { color: '#333' }, ticks: { color: '#fff'} },
+                                x: { grid: { color: '#333' }, ticks: { color: '#fff'} }
                             },
                             plugins: { legend: { labels: { color: 'white' } } }
                         }
@@ -164,7 +196,7 @@ client.once(Events.ClientReady, async (readyClient) => {
   await updateFeedbackStatsChannel(readyClient);
 });
 
-// --- TRACKING LISTENERS ---
+// --- LISTENERS ---
 client.on(Events.MessageCreate, async (message) => {
   if (!message.author.bot) trackEvent('messagesSent');
   await handleMessageReward(message);
@@ -263,12 +295,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
             const genChan = await interaction.client.channels.fetch(configData.channels?.welcome || '1369976259613954059').catch(() => null);
             if (genChan) {
                 await genChan.send({ content: `🎟️ **New Entry!** <@${interaction.user.id}> joined!\n👥 **Total:** ${data.participants.length} | ⏳ **Remaining:** ${diffHours}h` });
-            }
-
-            const logChan = await interaction.client.channels.fetch(configData.channels?.logs).catch(() => null);
-            if (logChan) {
-                const logEmbed = new EmbedBuilder().setTitle('🎟️ Giveaway Entry').setDescription(`User: <@${interaction.user.id}>\nTotal: ${data.participants.length}`).setColor('#3498DB').setTimestamp();
-                await logChan.send({ embeds: [logEmbed] });
             }
             await interaction.reply({ content: '✅ Joined!', flags: [MessageFlags.Ephemeral] });
         } catch (error) { await interaction.reply({ content: '❌ Error.', flags: [MessageFlags.Ephemeral] }); }
