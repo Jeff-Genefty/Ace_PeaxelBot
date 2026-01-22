@@ -33,6 +33,7 @@ const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedbacks.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
 const USERS_FILE = join(DATA_DIR, 'users.json');
+const GIVEAWAYS_FILE = join(DATA_DIR, 'giveaways.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -54,7 +55,7 @@ if (!fs.existsSync(USERS_FILE)) {
 }
 
 // --- ANALYTICS ENGINE ---
-let stats = { messagesSent: 0, membersJoined: 0, membersLeft: 0, commandsExecuted: 0, feedbacksReceived: 0, dailyHistory: {} };
+let stats = { messagesSent: 0, commandsExecuted: 0, feedbacksReceived: 0, dailyHistory: {} };
 if (fs.existsSync(STATS_FILE)) {
     try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { console.error("Stats load error", e); }
 }
@@ -62,17 +63,18 @@ if (fs.existsSync(STATS_FILE)) {
 const trackEvent = (type) => {
     if (stats[type] !== undefined) {
         stats[type]++;
-        if (type === 'messagesSent') {
-            const today = new Date().toISOString().split('T')[0];
-            stats.dailyHistory[today] = (stats.dailyHistory[today] || 0) + 1;
-        }
+        const today = new Date().toISOString().split('T')[0];
+        if (!stats.dailyHistory) stats.dailyHistory = {};
+        stats.dailyHistory[today] = (stats.dailyHistory[today] || 0) + 1;
         writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
     }
 };
 
 const addLiveLog = (action, detail) => {
     let logs = [];
-    if (fs.existsSync(LIVE_LOGS_FILE)) logs = JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8'));
+    if (fs.existsSync(LIVE_LOGS_FILE)) {
+        try { logs = JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')); } catch(e) {}
+    }
     logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
     writeFileSync(LIVE_LOGS_FILE, JSON.stringify(logs.slice(0, 15), null, 2));
 };
@@ -111,11 +113,26 @@ app.post('/login', async (req, res) => {
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
 app.get('/dashboard', isAuthenticated, async (req, res) => {
-    const dates = Object.keys(stats.dailyHistory).sort().slice(-7);
-    const counts = dates.map(d => stats.dailyHistory[d]);
+    // Analytics: Last 7 days
+    const dates = [];
+    const counts = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        dates.push(dateStr);
+        counts.push(stats.dailyHistory?.[dateStr] || 0);
+    }
+
     const liveLogs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
     const currentConfig = getConfig();
     let feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
+    
+    // Giveaways Data
+    let giveaways = [];
+    if (fs.existsSync(GIVEAWAYS_FILE)) {
+        try { giveaways = JSON.parse(readFileSync(GIVEAWAYS_FILE, 'utf-8')); } catch(e) {}
+    }
 
     res.send(`
         <html>
@@ -136,7 +153,10 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.8em; }
                     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                     th { text-align: left; color: ${PRIMARY_PURPLE}; padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.8em; }
-                    td { padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.85em; }
+                    td { padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.85em; vertical-align: top; }
+                    .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.75em; font-weight: bold; }
+                    .badge-active { background: #166534; color: #fff; }
+                    .badge-ended { background: #333; color: #aaa; }
                 </style>
             </head>
             <body>
@@ -187,25 +207,59 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     </div>
 
                     <div class="card">
+                        <h2>🎁 Giveaway Tracking (Live)</h2>
+                        <div style="overflow-x:auto;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Prize</th>
+                                        <th>Status</th>
+                                        <th>Count</th>
+                                        <th>Registered Managers</th>
+                                        <th>Ends At</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${giveaways.length > 0 ? giveaways.slice(-5).reverse().map(g => `
+                                        <tr>
+                                            <td style="font-weight:bold; color:${PRIMARY_PURPLE}">${g.prize}</td>
+                                            <td><span class="badge ${g.ended ? 'badge-ended' : 'badge-active'}">${g.ended ? 'ENDED' : 'ACTIVE'}</span></td>
+                                            <td>👥 ${g.participants ? g.participants.length : 0}</td>
+                                            <td style="font-size:0.75em; max-width: 300px; color:#aaa;">
+                                                ${g.participants && g.participants.length > 0 ? g.participants.join(', ') : 'No entries yet'}
+                                            </td>
+                                            <td style="color:#666; font-size:0.8em;">${new Date(g.endTime).toLocaleString()}</td>
+                                        </tr>
+                                    `).join('') : '<tr><td colspan="5" style="text-align:center; padding:20px;">No giveaways found.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
                             <h2 style="border:none; margin:0;">💬 Feedback Vault</h2>
                             <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">DOWNLOAD CSV</a>
                         </div>
-                        <table>
-                            <thead><tr><th>Date</th><th>User</th><th>Rating</th><th>Content</th></tr></thead>
-                            <tbody>${feedbacks.slice(-10).reverse().map(f => `
-                                <tr>
-                                    <td style="color:#666">${f.timestamp ? new Date(f.timestamp).toLocaleDateString() : 'N/A'}</td>
-                                    <td>${f.userTag}</td>
-                                    <td style="color:${NEON_BLUE}">${f.rating}⭐</td>
-                                    <td>${f.comment || f.improve || '-'}</td>
-                                </tr>`).join('')}
-                            </tbody>
-                        </table>
+                        <div style="overflow-x:auto;">
+                            <table>
+                                <thead><tr><th>Date</th><th>Manager</th><th>Rating</th><th>Liked</th><th>Improve</th><th>Comment</th></tr></thead>
+                                <tbody>${feedbacks.slice(-10).reverse().map(f => `
+                                    <tr>
+                                        <td style="color:#666; white-space:nowrap;">${f.timestamp ? new Date(f.timestamp).toLocaleDateString() : 'N/A'}</td>
+                                        <td>${f.userTag}</td>
+                                        <td style="color:${NEON_BLUE}">${f.rating}⭐</td>
+                                        <td style="font-size:0.8em;">${f.liked || '-'}</td>
+                                        <td style="font-size:0.8em;">${f.improve || '-'}</td>
+                                        <td style="font-size:0.8em; color:#aaa;">${f.comment || '-'}</td>
+                                    </tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <div class="card">
-                        <h2>📈 Global Traffic</h2>
+                        <h2>📈 Global Traffic (Last 7 Days)</h2>
                         <canvas id="activityChart" height="80"></canvas>
                     </div>
                 </div>
@@ -217,7 +271,13 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                             labels: ${JSON.stringify(dates)},
                             datasets: [{ label: 'Signals', data: ${JSON.stringify(counts)}, borderColor: '${PRIMARY_PURPLE}', backgroundColor: 'rgba(168, 85, 247, 0.1)', tension: 0.4, fill: true }]
                         },
-                        options: { scales: { y: { beginAtZero: true, grid: { color: '#1a1a24' } }, x: { grid: { display: false } } } }
+                        options: { 
+                            scales: { 
+                                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#1a1a24' } }, 
+                                x: { grid: { display: false } } 
+                            },
+                            plugins: { legend: { display: false } }
+                        }
                     });
                 </script>
             </body>
@@ -230,42 +290,44 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
 app.get('/dashboard/export-feedbacks', isAuthenticated, (req, res) => {
     if (!fs.existsSync(FEEDBACK_FILE)) return res.status(404).send("No feedbacks found.");
     const feedbacks = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
-    // Build CSV content
-    const header = "Date,User,Rating,Comment\n";
-    const rows = feedbacks.map(f => `"${f.timestamp || ''}","${f.userTag}","${f.rating}","${(f.comment || f.improve || '').replace(/"/g, '""')}"`).join("\n");
+    
+    const header = "Date,User,Rating,Liked,Improve,Comment\n";
+    const rows = feedbacks.map(f => {
+        const date = f.timestamp ? new Date(f.timestamp).toISOString() : '';
+        const user = f.userTag || 'Unknown';
+        const rating = f.rating || '0';
+        const liked = (f.liked || '').replace(/"/g, '""');
+        const improve = (f.improve || '').replace(/"/g, '""');
+        const comment = (f.comment || '').replace(/"/g, '""');
+        return `"${date}","${user}","${rating}","${liked}","${improve}","${comment}"`;
+    }).join("\n");
     
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=feedbacks_export.csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=peaxel_feedbacks.csv');
     res.status(200).send(header + rows);
 });
 
 app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
     const { userId, reason, action } = req.body;
     try {
+        if (!client.isReady()) throw new Error("Bot is not online.");
         const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
         const member = await guild.members.fetch(userId).catch(() => null);
         
-        if (!member) return res.status(404).send("Error: User not found in this server.");
+        if (!member) return res.status(404).send("Error: User not found.");
 
-        // Hierarchy & Permission check
         const botMember = guild.members.me;
         if (member.roles.highest.position >= botMember.roles.highest.position) {
-            return res.status(403).send("Error: This user has a higher or equal role than the bot.");
+            return res.status(403).send("Error: Higher hierarchy detected.");
         }
 
-        if (action === 'kick') {
-            if (!botMember.permissions.has(PermissionFlagsBits.KickMembers)) return res.status(403).send("Bot lacks Kick permission.");
-            await member.kick(reason || 'Cyber-kick via Dashboard');
-        } else if (action === 'ban') {
-            if (!botMember.permissions.has(PermissionFlagsBits.BanMembers)) return res.status(403).send("Bot lacks Ban permission.");
-            await member.ban({ reason: reason || 'Cyber-ban via Dashboard' });
-        }
+        if (action === 'kick') await member.kick(reason || 'Cyber-kick via Dashboard');
+        else if (action === 'ban') await member.ban({ reason: reason || 'Cyber-ban via Dashboard' });
 
         addLiveLog("MOD", `${action.toUpperCase()}: ${member.user.tag}`);
         res.redirect('/dashboard');
     } catch (e) { 
-        console.error(e);
-        res.status(500).send("Critial Mod Error: " + e.message); 
+        res.status(500).send("Critical Mod Error: " + e.message); 
     }
 });
 
@@ -280,23 +342,21 @@ app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
     res.redirect('/dashboard');
 });
 
+// BROADCAST: Text + File (No Embed)
 app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage'), async (req, res) => {
     const { message, chanId } = req.body;
     const file = req.file;
     try {
+        if (!client.isReady()) throw new Error("Bot not connected.");
         const channel = await client.channels.fetch(chanId);
-        if (!channel) throw new Error("Target frequency not found.");
+        if (!channel) throw new Error("Channel not found.");
 
-        const embed = new EmbedBuilder()
-            .setDescription(message)
-            .setColor(PRIMARY_PURPLE)
-            .setTimestamp();
-        
-        const payload = { embeds: [embed] };
+        const payload = { content: message };
         if (file) payload.files = [{ attachment: file.path, name: 'broadcast.png' }];
         
         await channel.send(payload);
         if (file) fs.unlinkSync(file.path);
+        
         addLiveLog("BROADCAST", `Signal sent to #${channel.name}`);
         res.redirect('/dashboard');
     } catch (e) { res.status(500).send("Transmission failed: " + e.message); }
