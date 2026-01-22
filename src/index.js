@@ -25,7 +25,6 @@ const logPrefix = '[Peaxel Bot]';
 
 // --- CONFIGURATION ---
 const PORT = process.env.PORT || 8080;
-const GUILD_ID = process.env.DISCORD_GUILD_ID;
 
 // --- DATA PATHS ---
 const DATA_DIR = resolve('./data');
@@ -34,8 +33,8 @@ const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedbacks.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
 const USERS_FILE = join(DATA_DIR, 'users.json');
+const GIVEAWAYS_FILE = join(DATA_DIR, 'giveaways.json');
 
-// Ensure directories exist
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
@@ -77,9 +76,15 @@ const addLiveLog = (action, detail) => {
         try { logs = JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')); } catch(e) {}
     }
     logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
-    // Keep only last 15 logs for performance
     writeFileSync(LIVE_LOGS_FILE, JSON.stringify(logs.slice(0, 15), null, 2));
 };
+
+// --- DISCORD CLIENT INITIALIZATION ---
+// Initialized before the web server to ensure it exists for fetch calls
+const client = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions]
+});
+client.commands = new Collection();
 
 // --- WEB SERVER ---
 const app = express();
@@ -127,15 +132,8 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
 
     const liveLogs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
     const currentConfig = getConfig();
-    
-    // Safety check for Feedbacks array
-    let feedbacks = [];
-    if (fs.existsSync(FEEDBACK_FILE)) {
-        try {
-            const data = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
-            if (Array.isArray(data)) feedbacks = data;
-        } catch(e) { console.error("Feedback parse error", e); }
-    }
+    const feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
+    const giveaways = fs.existsSync(GIVEAWAYS_FILE) ? JSON.parse(readFileSync(GIVEAWAYS_FILE, 'utf-8')) : [];
 
     res.send(`
         <html>
@@ -153,7 +151,13 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     input, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
                     .btn { background: linear-gradient(90deg, ${PRIMARY_PURPLE}, #7c3aed); color: white; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-align: center; text-decoration: none; display: block; }
                     .btn-blue { background: linear-gradient(90deg, ${NEON_BLUE}, #0891b2); }
-                    .log-box { background: #000; padding: 10px; border-radius: 6px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 0.8em; }
+                    
+                    /* Feed Stylisé */
+                    .log-box { background: #08080c; padding: 15px; border-radius: 8px; height: 220px; overflow-y: auto; border: 1px solid #111; }
+                    .log-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #151515; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+                    .log-time { color: #555; margin-right: 8px; }
+                    .log-action { color: ${PRIMARY_PURPLE}; font-weight: bold; text-transform: uppercase; margin-right: 10px; }
+                    
                     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                     th { text-align: left; color: ${PRIMARY_PURPLE}; padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.8em; }
                     td { padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.85em; vertical-align: top; }
@@ -201,30 +205,55 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         </div>
 
                         <div class="card">
-                            <h2>📡 Live Feed</h2>
-                            <div class="log-box">${liveLogs.map(l => `<div><span style="color:${NEON_BLUE}">[${l.time}]</span> <b style="color:${PRIMARY_PURPLE}">${l.action}</b>: ${l.detail}</div>`).join('')}</div>
+                            <h2>📡 System Feed</h2>
+                            <div class="log-box">
+                                ${liveLogs.map(l => `
+                                    <div class="log-entry">
+                                        <span class="log-time">[${l.time}]</span>
+                                        <span class="log-action">${l.action}</span>
+                                        <span class="log-detail">${l.detail}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     </div>
 
-                    <div class="card">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                            <h2 style="border:none; margin:0;">💬 Feedback Vault</h2>
-                            <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">DOWNLOAD CSV</a>
+                    <div class="grid">
+                         <div class="card">
+                            <h2>🎁 Active Giveaways</h2>
+                            <div style="overflow-y:auto; max-height:300px;">
+                                <table>
+                                    <thead><tr><th>Prize</th><th>End</th><th>Action</th></tr></thead>
+                                    <tbody>
+                                        ${giveaways.length > 0 ? giveaways.map(g => `
+                                            <tr>
+                                                <td>${g.prize}</td>
+                                                <td style="color:#888;">${new Date(g.endTime).toLocaleDateString()}</td>
+                                                <td><a href="/dashboard/end-giveaway?id=${g.messageId}" style="color:#ef4444; font-size:0.8em;">TERMINATE</a></td>
+                                            </tr>
+                                        `).join('') : '<tr><td colspan="3" style="text-align:center; color:#444; padding:20px;">No active data streams</td></tr>'}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div style="overflow-x:auto;">
-                            <table>
-                                <thead><tr><th>Date</th><th>Manager</th><th>Rating</th><th>Liked</th><th>Improve</th><th>Comment</th></tr></thead>
-                                <tbody>${feedbacks.slice(-10).reverse().map(f => `
-                                    <tr>
-                                        <td style="color:#666; white-space:nowrap;">${f.timestamp ? new Date(f.timestamp).toLocaleDateString() : 'N/A'}</td>
-                                        <td>${f.userTag}</td>
-                                        <td style="color:${NEON_BLUE}">${f.rating}⭐</td>
-                                        <td style="font-size:0.8em;">${f.liked || '-'}</td>
-                                        <td style="font-size:0.8em;">${f.improve || '-'}</td>
-                                        <td style="font-size:0.8em; color:#aaa;">${f.comment || '-'}</td>
-                                    </tr>`).join('')}
-                                </tbody>
-                            </table>
+
+                        <div class="card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                                <h2 style="border:none; margin:0;">💬 Feedback Vault</h2>
+                                <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">CSV</a>
+                            </div>
+                            <div style="overflow-x:auto;">
+                                <table>
+                                    <thead><tr><th>User</th><th>Rating</th><th>Comment</th></tr></thead>
+                                    <tbody>${feedbacks.slice(-5).reverse().map(f => `
+                                        <tr>
+                                            <td>${f.userTag}</td>
+                                            <td style="color:${NEON_BLUE}">${f.rating}⭐</td>
+                                            <td style="font-size:0.8em; color:#aaa;">${f.comment ? f.comment.substring(0, 30) + '...' : '-'}</td>
+                                        </tr>`).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
 
@@ -255,27 +284,30 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     `);
 });
 
-// --- ACTIONS ---
+// --- POST & EXPORT ACTIONS ---
+
+app.get('/dashboard/end-giveaway', isAuthenticated, async (req, res) => {
+    const { id } = req.query;
+    addLiveLog("GIVEAWAY", `Manual termination requested for ${id}`);
+    res.redirect('/dashboard');
+});
 
 app.get('/dashboard/export-feedbacks', isAuthenticated, (req, res) => {
     if (!fs.existsSync(FEEDBACK_FILE)) return res.status(404).send("No feedbacks found.");
-    try {
-        const feedbacks = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
-        const header = "Date,User,Rating,Liked,Improve,Comment\n";
-        const rows = feedbacks.map(f => {
-            const date = f.timestamp ? new Date(f.timestamp).toISOString() : '';
-            const user = (f.userTag || 'Unknown').replace(/"/g, '""');
-            const rating = f.rating || '0';
-            const liked = (f.liked || '').replace(/"/g, '""');
-            const improve = (f.improve || '').replace(/"/g, '""');
-            const comment = (f.comment || '').replace(/"/g, '""');
-            return `"${date}","${user}","${rating}","${liked}","${improve}","${comment}"`;
-        }).join("\n");
-        
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename=peaxel_feedbacks.csv');
-        res.status(200).send(header + rows);
-    } catch (e) { res.status(500).send("Export failed: " + e.message); }
+    const feedbacks = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
+    const header = "Date,User,Rating,Liked,Improve,Comment\n";
+    const rows = feedbacks.map(f => {
+        const date = f.timestamp ? new Date(f.timestamp).toISOString() : '';
+        const user = f.userTag || 'Unknown';
+        const rating = f.rating || '0';
+        const liked = (f.liked || '').replace(/"/g, '""');
+        const improve = (f.improve || '').replace(/"/g, '""');
+        const comment = (f.comment || '').replace(/"/g, '""');
+        return `"${date}","${user}","${rating}","${liked}","${improve}","${comment}"`;
+    }).join("\n");
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=peaxel_feedbacks.csv');
+    res.status(200).send(header + rows);
 });
 
 app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
@@ -284,25 +316,14 @@ app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
         if (!client.isReady()) throw new Error("Bot is not connected yet.");
         const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
         const member = await guild.members.fetch(userId).catch(() => null);
-        
-        if (!member) return res.status(404).send("Error: User not found in this server.");
+        if (!member) return res.status(404).send("Error: User not found.");
 
-        const botMember = guild.members.me;
-        if (member.roles.highest.position >= botMember.roles.highest.position) {
-            return res.status(403).send("Error: This user has a higher or equal role than the bot.");
-        }
-
-        if (action === 'kick') {
-            await member.kick(reason || 'Cyber-kick via Dashboard');
-        } else if (action === 'ban') {
-            await member.ban({ reason: reason || 'Cyber-ban via Dashboard' });
-        }
+        if (action === 'kick') await member.kick(reason || 'Cyber-kick');
+        else if (action === 'ban') await member.ban({ reason: reason || 'Cyber-ban' });
 
         addLiveLog("MOD", `${action.toUpperCase()}: ${member.user.tag}`);
         res.redirect('/dashboard');
-    } catch (e) { 
-        res.status(500).send("Critical Mod Error: " + e.message); 
-    }
+    } catch (e) { res.status(500).send("Mod Error: " + e.message); }
 });
 
 app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
@@ -320,28 +341,17 @@ app.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage
     const { message, chanId } = req.body;
     const file = req.file;
     try {
-        if (!client.isReady()) throw new Error("Bot is not connected.");
         const channel = await client.channels.fetch(chanId);
-        if (!channel) throw new Error("Target frequency not found.");
-
         const payload = { content: message };
         if (file) payload.files = [{ attachment: file.path, name: 'broadcast.png' }];
-        
         await channel.send(payload);
         if (file) fs.unlinkSync(file.path);
-        
         addLiveLog("BROADCAST", `Signal sent to #${channel.name}`);
         res.redirect('/dashboard');
     } catch (e) { res.status(500).send("Transmission failed: " + e.message); }
 });
 
-// --- DISCORD CLIENT ---
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions]
-});
-
-client.commands = new Collection();
-
+// --- COMMAND LOADER ---
 async function loadAndRegisterCommands() {
     const commandsPath = join(__dirname, 'commands');
     const commandsToRegister = [];
@@ -365,6 +375,7 @@ async function loadAndRegisterCommands() {
     } catch (err) { console.error(`${logPrefix} Sync error:`, err.message); }
 }
 
+// --- EVENTS ---
 client.once(Events.ClientReady, async (readyClient) => {
     console.log(`${logPrefix} 🚀 Online | ${readyClient.user.tag}`);
     addLiveLog("SYSTEM", "Bot online");
@@ -395,9 +406,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 });
 
+// --- STARTUP ---
 (async () => {
     app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
     setupWelcomeListener(client);
     await loadAndRegisterCommands();
     client.login(process.env.DISCORD_TOKEN);
-})();
+})();1
