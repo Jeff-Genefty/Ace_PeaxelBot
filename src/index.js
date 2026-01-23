@@ -135,25 +135,36 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     const feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
     const giveaways = fs.existsSync(GIVEAWAYS_FILE) ? JSON.parse(readFileSync(GIVEAWAYS_FILE, 'utf-8')) : [];
 
-    // --- FETCH DISCORD CHANNELS ---
+    // --- FETCH DISCORD CHANNELS (WITH SAFETY) ---
     let guildChannels = [];
-    try {
-        const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
-        const channels = await guild.channels.fetch();
-        // Filter for text channels only (type 0)
-        guildChannels = channels
-            .filter(c => c.type === 0)
-            .map(c => ({ id: c.id, name: c.name }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-    } catch (e) {
-        console.error("Dashboard channel fetch error:", e.message);
+    // We check if the client is ready and the guild ID exists
+    if (client.isReady() && process.env.DISCORD_GUILD_ID) {
+        try {
+            const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID).catch(() => null);
+            if (guild) {
+                const channels = await guild.channels.fetch();
+                // Filter for text channels only (type 0)
+                guildChannels = channels
+                    .filter(c => c && c.type === 0)
+                    .map(c => ({ id: c.id, name: c.name }))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+            }
+        } catch (e) {
+            console.error("Dashboard channel fetch error:", e.message);
+        }
     }
 
     // Helper to render dropdown menu
     const renderChannelSelect = (name, currentId) => {
+        // If no channels found, fallback to a simple text input or empty select
+        if (guildChannels.length === 0) {
+            return `<input type="text" name="${name}" value="${currentId || ''}" placeholder="Guild not synced - Enter ID">`;
+        }
+
         const options = guildChannels.map(c => 
             `<option value="${c.id}" ${c.id === currentId ? 'selected' : ''}># ${c.name}</option>`
         ).join('');
+        
         return `
             <select name="${name}">
                 <option value="">-- Select Channel --</option>
@@ -174,9 +185,8 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     h1 { color: ${PRIMARY_PURPLE}; display: flex; justify-content: space-between; align-items: center; }
                     h2 { color: ${NEON_BLUE}; border-bottom: 1px solid #1a1a24; padding-bottom: 10px; font-size: 0.9em; text-transform: uppercase; margin-top:0; }
                     label { font-size: 0.75em; color: #888; display: block; margin-top: 10px; }
-                    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
+                    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
                     
-                    /* Custom Select Styling */
                     select { 
                         cursor: pointer; 
                         appearance: none; 
