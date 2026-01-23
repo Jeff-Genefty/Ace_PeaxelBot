@@ -157,23 +157,36 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
         }
     }
 
-    // Helper to render dropdown menu
+    // Helper to render dropdown menu with search capability
     const renderChannelSelect = (name, currentId) => {
         if (guildChannels.length === 0) {
             return `<input type="text" name="${name}" value="${currentId || ''}" placeholder="Guild not synced - Enter ID">`;
         }
 
+        // We find the name of the currently selected channel for the input value
+        const currentChannel = guildChannels.find(c => c.id === currentId);
+        const currentValue = currentChannel ? `${currentChannel.isNews ? '📢' : '#'} ${currentChannel.name}` : '';
+
+        // We generate unique ID for the datalist to avoid conflicts between multiple selects
+        const listId = `list-${name}`;
+
         const options = guildChannels.map(c => 
-            `<option value="${c.id}" ${c.id === currentId ? 'selected' : ''}>
-                ${c.isNews ? '📢' : '#'} ${c.name}
-            </option>`
+            `<option value="${c.id}">${c.isNews ? '📢' : '#'} ${c.name}</option>`
         ).join('');
         
         return `
-            <select name="${name}">
-                <option value="">-- Select Channel --</option>
-                ${options}
-            </select>`;
+            <div class="searchable-select">
+                <input 
+                    list="${listId}" 
+                    name="${name}" 
+                    placeholder="Search channel..." 
+                    value="${currentId || ''}"
+                    autocomplete="off"
+                >
+                <datalist id="${listId}">
+                    ${options}
+                </datalist>
+            </div>`;
     };
 
     res.send(`
