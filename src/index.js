@@ -137,16 +137,19 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
 
     // --- FETCH DISCORD CHANNELS (WITH SAFETY) ---
     let guildChannels = [];
-    // We check if the client is ready and the guild ID exists
     if (client.isReady() && process.env.DISCORD_GUILD_ID) {
         try {
             const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID).catch(() => null);
             if (guild) {
                 const channels = await guild.channels.fetch();
-                // Filter for text channels only (type 0)
+                // We allow type 0 (Text) AND type 5 (GuildAnnouncement/News)
                 guildChannels = channels
-                    .filter(c => c && c.type === 0)
-                    .map(c => ({ id: c.id, name: c.name }))
+                    .filter(c => c && (c.type === 0 || c.type === 5))
+                    .map(c => ({ 
+                        id: c.id, 
+                        name: c.name,
+                        isNews: c.type === 5 
+                    }))
                     .sort((a, b) => a.name.localeCompare(b.name));
             }
         } catch (e) {
@@ -156,13 +159,14 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
 
     // Helper to render dropdown menu
     const renderChannelSelect = (name, currentId) => {
-        // If no channels found, fallback to a simple text input or empty select
         if (guildChannels.length === 0) {
             return `<input type="text" name="${name}" value="${currentId || ''}" placeholder="Guild not synced - Enter ID">`;
         }
 
         const options = guildChannels.map(c => 
-            `<option value="${c.id}" ${c.id === currentId ? 'selected' : ''}># ${c.name}</option>`
+            `<option value="${c.id}" ${c.id === currentId ? 'selected' : ''}>
+                ${c.isNews ? '📢' : '#'} ${c.name}
+            </option>`
         ).join('');
         
         return `
