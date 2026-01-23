@@ -337,7 +337,6 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
         <table>
             <thead>
                 <tr>
-                    <th>Date</th>
                     <th>Manager</th>
                     <th>Rating</th>
                     <th>💚 Worked</th>
@@ -351,7 +350,6 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     const dateDisplay = f.timestamp ? new Date(f.timestamp).toLocaleDateString('fr-FR') : '---';
                     return `
                     <tr>
-                        <td style="color:#555; font-size:0.8em;">${dateDisplay}</td>
                         <td style="font-weight:bold;">${f.userTag || 'Unknown'}</td>
                         <td style="color:${NEON_BLUE}">${f.rating || 0}⭐</td>
                         <td style="font-size:0.85em;">${f.liked || '-'}</td>

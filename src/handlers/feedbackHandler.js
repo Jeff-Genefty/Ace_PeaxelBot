@@ -27,7 +27,7 @@ export async function handleFeedbackButton(interaction) {
   // Input: Star Rating
   const ratingInput = new TextInputBuilder()
     .setCustomId('feedback_rating')
-    .setLabel('Rate this week\'s game (1-5)')
+    .setLabel('Rate our project (1-5)')
     .setPlaceholder('Enter a number from 1 to 5')
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
@@ -117,7 +117,7 @@ export async function handleFeedbackSubmit(interaction) {
   }
 
   // 4. Forward feedback to the specific admin channel (Logs)
-  const feedbackChannelId = process.env.FEEDBACK_CHANNEL_ID || '1369976255998591000';
+  const feedbackChannelId = process.env.FEEDBACK_CHANNEL_ID || '1369976255860051973';
   
   try {
     const feedbackChannel = await interaction.client.channels.fetch(feedbackChannelId);
