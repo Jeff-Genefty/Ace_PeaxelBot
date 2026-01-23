@@ -354,7 +354,7 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         <td style="color:${NEON_BLUE}">${f.rating || 0}⭐</td>
                         <td style="font-size:0.85em;">${f.liked || '-'}</td>
                         <td style="font-size:0.85em;">${f.improve || '-'}</td>
-                        <td style="font-size:0.85em; color:#aaa;">${f.comment || '-'}</td>
+                        <td style="font-size:0.85em; color:#aaa;">${f.comments || '-'}</td>
                     </tr>`;
                 }).join('')}
             </tbody>
@@ -544,8 +544,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } else if (interaction.isButton() && interaction.customId === 'feedback_button') {
         await handleFeedbackButton(interaction);
     } else if (interaction.isModalSubmit() && interaction.customId === 'feedback_modal') {
-        trackEvent('feedbacksReceived');
+    trackEvent('feedbacksReceived');
         await handleFeedbackSubmit(interaction);
+        addLiveLog("FEEDBACK", `New review from ${interaction.user.tag} (${interaction.fields.getTextInputValue('rating_input')}⭐)`);
     }
 });
 
