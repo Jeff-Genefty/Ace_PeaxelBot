@@ -135,6 +135,32 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     const feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
     const giveaways = fs.existsSync(GIVEAWAYS_FILE) ? JSON.parse(readFileSync(GIVEAWAYS_FILE, 'utf-8')) : [];
 
+    // --- FETCH DISCORD CHANNELS ---
+    let guildChannels = [];
+    try {
+        const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
+        const channels = await guild.channels.fetch();
+        // Filter for text channels only (type 0)
+        guildChannels = channels
+            .filter(c => c.type === 0)
+            .map(c => ({ id: c.id, name: c.name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    } catch (e) {
+        console.error("Dashboard channel fetch error:", e.message);
+    }
+
+    // Helper to render dropdown menu
+    const renderChannelSelect = (name, currentId) => {
+        const options = guildChannels.map(c => 
+            `<option value="${c.id}" ${c.id === currentId ? 'selected' : ''}># ${c.name}</option>`
+        ).join('');
+        return `
+            <select name="${name}">
+                <option value="">-- Select Channel --</option>
+                ${options}
+            </select>`;
+    };
+
     res.send(`
         <html>
             <head>
@@ -148,11 +174,21 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     h1 { color: ${PRIMARY_PURPLE}; display: flex; justify-content: space-between; align-items: center; }
                     h2 { color: ${NEON_BLUE}; border-bottom: 1px solid #1a1a24; padding-bottom: 10px; font-size: 0.9em; text-transform: uppercase; margin-top:0; }
                     label { font-size: 0.75em; color: #888; display: block; margin-top: 10px; }
-                    input, textarea { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
+                    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
+                    
+                    /* Custom Select Styling */
+                    select { 
+                        cursor: pointer; 
+                        appearance: none; 
+                        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a855f7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+                        background-repeat: no-repeat;
+                        background-position: right 10px center;
+                        background-size: 16px;
+                    }
+
                     .btn { background: linear-gradient(90deg, ${PRIMARY_PURPLE}, #7c3aed); color: white; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-align: center; text-decoration: none; display: block; }
                     .btn-blue { background: linear-gradient(90deg, ${NEON_BLUE}, #0891b2); }
                     
-                    /* Feed Stylisé */
                     .log-box { background: #08080c; padding: 15px; border-radius: 8px; height: 220px; overflow-y: auto; border: 1px solid #111; }
                     .log-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #151515; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
                     .log-time { color: #555; margin-right: 8px; }
@@ -171,12 +207,22 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         <div class="card">
                             <h2>⚙️ Configuration</h2>
                             <form action="/dashboard/save-config" method="POST">
-                                <label>Log Channel</label><input type="text" name="logs" value="${currentConfig.channels?.logs || ''}">
-                                <label>Announce Channel</label><input type="text" name="announce" value="${currentConfig.channels?.announce || ''}">
-                                <label>Welcome Channel</label><input type="text" name="welcome" value="${currentConfig.channels?.welcome || ''}">
-                                <label>Spotlight Channel</label><input type="text" name="spotlight" value="${currentConfig.channels?.spotlight || ''}">
-                                <label>Feedback Channel</label><input type="text" name="feedback" value="${currentConfig.channels?.feedback || ''}">
-                                <button class="btn">Update Matrix</button>
+                                <label>Log Channel</label>
+                                ${renderChannelSelect('logs', currentConfig.channels?.logs)}
+                                
+                                <label>Announce Channel</label>
+                                ${renderChannelSelect('announce', currentConfig.channels?.announce)}
+                                
+                                <label>Welcome Channel</label>
+                                ${renderChannelSelect('welcome', currentConfig.channels?.welcome)}
+                                
+                                <label>Spotlight Channel</label>
+                                ${renderChannelSelect('spotlight', currentConfig.channels?.spotlight)}
+                                
+                                <label>Feedback Channel</label>
+                                ${renderChannelSelect('feedback', currentConfig.channels?.feedback)}
+                                
+                                <button class="btn" style="margin-top:10px;">Update Matrix</button>
                             </form>
                         </div>
 
@@ -195,8 +241,9 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         <div class="card">
                             <h2>📣 Cyber Broadcast</h2>
                             <form action="/dashboard/send-announce" method="POST" enctype="multipart/form-data">
-                                <label>Channel ID (Frequency)</label>
-                                <input type="text" name="chanId" placeholder="Paste Channel ID here" value="${currentConfig.channels?.announce || ''}" required>
+                                <label>Target Frequency (Channel)</label>
+                                ${renderChannelSelect('chanId', currentConfig.channels?.announce)}
+                                
                                 <textarea name="message" placeholder="Input message data..." rows="3" required></textarea>
                                 <label>Broadcast Image</label>
                                 <input type="file" name="footerImage">
@@ -219,7 +266,7 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     </div>
 
                     <div class="grid">
-                         <div class="card">
+                        <div class="card">
                             <h2>🎁 Active Giveaways</h2>
                             <div style="overflow-y:auto; max-height:300px;">
                                 <table>
