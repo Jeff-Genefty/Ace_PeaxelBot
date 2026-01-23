@@ -212,6 +212,13 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                     th { text-align: left; color: ${PRIMARY_PURPLE}; padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.8em; }
                     td { padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.85em; vertical-align: top; }
+                    td { 
+    max-width: 200px; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    white-space: normal; 
+    word-break: break-word;
+}
                 </style>
             </head>
             <body>
@@ -322,23 +329,40 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                             </table>
                         </div>
 
-                        <div class="card">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                                <h2 style="border:none; margin:0;">💬 Feedback Vault</h2>
-                                <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">CSV</a>
-                            </div>
-                            <table>
-                                <thead><tr><th>User</th><th>Rating</th><th>Comment</th></tr></thead>
-                                <tbody>${feedbacks.slice(-5).reverse().map(f => `
-                                    <tr>
-                                        <td>${f.userTag}</td>
-                                        <td style="color:${NEON_BLUE}">${f.rating}⭐</td>
-                                        <td style="font-size:0.8em; color:#aaa;">${f.comment ? f.comment.substring(0, 30) + '...' : '-'}</td>
-                                    </tr>`).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                        <div class="card" style="grid-column: 1 / -1;"> <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 style="border:none; margin:0;">💬 Feedback Vault (Full Data)</h2>
+        <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">DOWNLOAD CSV</a>
+    </div>
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Manager</th>
+                    <th>Rating</th>
+                    <th>💚 Worked</th>
+                    <th>💡 Improve</th>
+                    <th>💬 Extra</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${feedbacks.slice(-10).reverse().map(f => {
+                    // Formatting the date from timestamp
+                    const dateDisplay = f.timestamp ? new Date(f.timestamp).toLocaleDateString('fr-FR') : '---';
+                    return `
+                    <tr>
+                        <td style="color:#555; font-size:0.8em;">${dateDisplay}</td>
+                        <td style="font-weight:bold;">${f.userTag || 'Unknown'}</td>
+                        <td style="color:${NEON_BLUE}">${f.rating || 0}⭐</td>
+                        <td style="font-size:0.85em;">${f.liked || '-'}</td>
+                        <td style="font-size:0.85em;">${f.improve || '-'}</td>
+                        <td style="font-size:0.85em; color:#aaa;">${f.comment || '-'}</td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>
+</div>
 
                     <div class="card">
                         <h2>📈 Global Traffic (Last 7 Days)</h2>
