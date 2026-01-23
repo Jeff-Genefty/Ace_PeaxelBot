@@ -75,12 +75,12 @@ const addLiveLog = (action, detail) => {
     if (fs.existsSync(LIVE_LOGS_FILE)) {
         try { logs = JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')); } catch(e) {}
     }
+    // Keeping a bit more history for the scrolling console
     logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
-    writeFileSync(LIVE_LOGS_FILE, JSON.stringify(logs.slice(0, 15), null, 2));
+    writeFileSync(LIVE_LOGS_FILE, JSON.stringify(logs.slice(0, 50), null, 2));
 };
 
 // --- DISCORD CLIENT INITIALIZATION ---
-// Initialized before the web server to ensure it exists for fetch calls
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions]
 });
@@ -100,6 +100,12 @@ const isAuthenticated = (req, res, next) => {
     if (req.session.user) return next();
     res.redirect('/login');
 };
+
+// API route for live polling
+app.get('/api/logs', isAuthenticated, (req, res) => {
+    const logs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
+    res.json(logs);
+});
 
 // --- ROUTES ---
 
@@ -135,58 +141,32 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     const feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
     const giveaways = fs.existsSync(GIVEAWAYS_FILE) ? JSON.parse(readFileSync(GIVEAWAYS_FILE, 'utf-8')) : [];
 
-    // --- FETCH DISCORD CHANNELS (WITH SAFETY) ---
     let guildChannels = [];
     if (client.isReady() && process.env.DISCORD_GUILD_ID) {
         try {
             const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID).catch(() => null);
             if (guild) {
                 const channels = await guild.channels.fetch();
-                // We allow type 0 (Text) AND type 5 (GuildAnnouncement/News)
                 guildChannels = channels
                     .filter(c => c && (c.type === 0 || c.type === 5))
-                    .map(c => ({ 
-                        id: c.id, 
-                        name: c.name,
-                        isNews: c.type === 5 
-                    }))
+                    .map(c => ({ id: c.id, name: c.name, isNews: c.type === 5 }))
                     .sort((a, b) => a.name.localeCompare(b.name));
             }
-        } catch (e) {
-            console.error("Dashboard channel fetch error:", e.message);
-        }
+        } catch (e) { console.error("Dashboard channel fetch error:", e.message); }
     }
 
-    // Helper to render dropdown menu with search and display name
     const renderChannelSelect = (name, currentId) => {
-        if (guildChannels.length === 0) {
-            return `<input type="text" name="${name}" value="${currentId || ''}" placeholder="Guild not synced - Enter ID">`;
-        }
-
+        if (guildChannels.length === 0) return `<input type="text" name="${name}" value="${currentId || ''}" placeholder="Guild not synced - Enter ID">`;
         const currentChannel = guildChannels.find(c => c.id === currentId);
         const displayName = currentChannel ? `${currentChannel.isNews ? '📢' : '#'} ${currentChannel.name}` : '';
         const listId = `list-${name}`;
-
-        // Each option now has the Name as value and the ID as a data attribute
-        const options = guildChannels.map(c => 
-            `<option value="${c.isNews ? '📢' : '#'} ${c.name}" data-id="${c.id}"></option>`
-        ).join('');
+        const options = guildChannels.map(c => `<option value="${c.isNews ? '📢' : '#'} ${c.name}" data-id="${c.id}"></option>`).join('');
         
         return `
             <div class="searchable-select-container">
-                <input 
-                    type="text" 
-                    class="channel-search-input"
-                    list="${listId}" 
-                    placeholder="Search channel..." 
-                    value="${displayName}"
-                    oninput="updateHiddenId(this, '${name}')"
-                    autocomplete="off"
-                >
+                <input type="text" class="channel-search-input" list="${listId}" placeholder="Search channel..." value="${displayName}" oninput="updateHiddenId(this, '${name}')" autocomplete="off">
                 <input type="hidden" name="${name}" id="hidden-${name}" value="${currentId || ''}">
-                <datalist id="${listId}">
-                    ${options}
-                </datalist>
+                <datalist id="${listId}">${options}</datalist>
             </div>`;
     };
 
@@ -204,23 +184,18 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     h2 { color: ${NEON_BLUE}; border-bottom: 1px solid #1a1a24; padding-bottom: 10px; font-size: 0.9em; text-transform: uppercase; margin-top:0; }
                     label { font-size: 0.75em; color: #888; display: block; margin-top: 10px; }
                     input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
-                    
-                    select { 
-                        cursor: pointer; 
-                        appearance: none; 
-                        background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23a855f7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-                        background-repeat: no-repeat;
-                        background-position: right 10px center;
-                        background-size: 16px;
-                    }
-
                     .btn { background: linear-gradient(90deg, ${PRIMARY_PURPLE}, #7c3aed); color: white; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-align: center; text-decoration: none; display: block; }
                     .btn-blue { background: linear-gradient(90deg, ${NEON_BLUE}, #0891b2); }
                     
-                    .log-box { background: #08080c; padding: 15px; border-radius: 8px; height: 220px; overflow-y: auto; border: 1px solid #111; }
-                    .log-entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #151515; font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
-                    .log-time { color: #555; margin-right: 8px; }
-                    .log-action { color: ${PRIMARY_PURPLE}; font-weight: bold; text-transform: uppercase; margin-right: 10px; }
+                    /* Railway Terminal Console Style */
+                    .terminal-console { grid-column: 1 / -1; background: #08080c; border: 1px solid #1a1a24; border-left: 4px solid ${PRIMARY_PURPLE}; border-radius: 8px; margin-bottom: 25px; box-shadow: inset 0 0 15px rgba(0,0,0,0.8); overflow: hidden; }
+                    .console-header { background: #11111b; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a1a24; font-size: 0.8em; }
+                    .console-body { height: 200px; overflow-y: auto; padding: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82em; display: flex; flex-direction: column; }
+                    .status-dot { height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; margin-right: 5px; box-shadow: 0 0 8px #10b981; }
+                    .log-entry { margin-bottom: 4px; display: flex; gap: 10px; }
+                    .log-time { color: #555; }
+                    .log-action { font-weight: bold; text-transform: uppercase; min-width: 100px; }
+                    .type-SYSTEM { color: #3b82f6; } .type-COMMAND { color: #a855f7; } .type-BROADCAST { color: #2dd4bf; } .type-CONFIG { color: #f59e0b; } .type-MOD { color: #ef4444; }
                     
                     table { width: 100%; border-collapse: collapse; margin-top: 10px; }
                     th { text-align: left; color: ${PRIMARY_PURPLE}; padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.8em; }
@@ -230,26 +205,32 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
             <body>
                 <div class="container">
                     <h1>⚡ PEAXEL OS v2.2 <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none;">DISCONNECT</a></h1>
-                    
+
+                    <div class="terminal-console">
+                        <div class="console-header">
+                            <span><span class="status-dot"></span> LIVE_SYSTEM_LOGS.EXE</span>
+                            <span id="log-counter" style="color: #444;">-- synchronizing</span>
+                        </div>
+                        <div class="console-body" id="console-output">
+                            ${liveLogs.map(l => `
+                                <div class="log-entry">
+                                    <span class="log-time">[${l.time}]</span>
+                                    <span class="log-action type-${l.action}">${l.action}</span>
+                                    <span class="log-detail">${l.detail}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
                     <div class="grid">
                         <div class="card">
                             <h2>⚙️ Configuration</h2>
                             <form action="/dashboard/save-config" method="POST">
-                                <label>Log Channel</label>
-                                ${renderChannelSelect('logs', currentConfig.channels?.logs)}
-                                
-                                <label>Announce Channel</label>
-                                ${renderChannelSelect('announce', currentConfig.channels?.announce)}
-                                
-                                <label>Welcome Channel</label>
-                                ${renderChannelSelect('welcome', currentConfig.channels?.welcome)}
-                                
-                                <label>Spotlight Channel</label>
-                                ${renderChannelSelect('spotlight', currentConfig.channels?.spotlight)}
-                                
-                                <label>Feedback Channel</label>
-                                ${renderChannelSelect('feedback', currentConfig.channels?.feedback)}
-                                
+                                <label>Log Channel</label> ${renderChannelSelect('logs', currentConfig.channels?.logs)}
+                                <label>Announce Channel</label> ${renderChannelSelect('announce', currentConfig.channels?.announce)}
+                                <label>Welcome Channel</label> ${renderChannelSelect('welcome', currentConfig.channels?.welcome)}
+                                <label>Spotlight Channel</label> ${renderChannelSelect('spotlight', currentConfig.channels?.spotlight)}
+                                <label>Feedback Channel</label> ${renderChannelSelect('feedback', currentConfig.channels?.feedback)}
                                 <button class="btn" style="margin-top:10px;">Update Matrix</button>
                             </form>
                         </div>
@@ -269,47 +250,29 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         <div class="card">
                             <h2>📣 Cyber Broadcast</h2>
                             <form action="/dashboard/send-announce" method="POST" enctype="multipart/form-data">
-                                <label>Target Frequency (Channel)</label>
-                                ${renderChannelSelect('chanId', currentConfig.channels?.announce)}
-                                
+                                <label>Target Frequency (Channel)</label> ${renderChannelSelect('chanId', currentConfig.channels?.announce)}
                                 <textarea name="message" placeholder="Input message data..." rows="3" required></textarea>
-                                <label>Broadcast Image</label>
-                                <input type="file" name="footerImage">
+                                <label>Broadcast Image</label> <input type="file" name="footerImage">
                                 <button class="btn btn-blue">Transmit Signal</button>
                             </form>
-                        </div>
-
-                        <div class="card">
-                            <h2>📡 System Feed</h2>
-                            <div class="log-box">
-                                ${liveLogs.map(l => `
-                                    <div class="log-entry">
-                                        <span class="log-time">[${l.time}]</span>
-                                        <span class="log-action">${l.action}</span>
-                                        <span class="log-detail">${l.detail}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
                         </div>
                     </div>
 
                     <div class="grid">
                         <div class="card">
                             <h2>🎁 Active Giveaways</h2>
-                            <div style="overflow-y:auto; max-height:300px;">
-                                <table>
-                                    <thead><tr><th>Prize</th><th>End</th><th>Action</th></tr></thead>
-                                    <tbody>
-                                        ${giveaways.length > 0 ? giveaways.map(g => `
-                                            <tr>
-                                                <td>${g.prize}</td>
-                                                <td style="color:#888;">${new Date(g.endTime).toLocaleDateString()}</td>
-                                                <td><a href="/dashboard/end-giveaway?id=${g.messageId}" style="color:#ef4444; font-size:0.8em;">TERMINATE</a></td>
-                                            </tr>
-                                        `).join('') : '<tr><td colspan="3" style="text-align:center; color:#444; padding:20px;">No active data streams</td></tr>'}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <table>
+                                <thead><tr><th>Prize</th><th>End</th><th>Action</th></tr></thead>
+                                <tbody>
+                                    ${giveaways.length > 0 ? giveaways.map(g => `
+                                        <tr>
+                                            <td>${g.prize}</td>
+                                            <td style="color:#888;">${new Date(g.endTime).toLocaleDateString()}</td>
+                                            <td><a href="/dashboard/end-giveaway?id=${g.messageId}" style="color:#ef4444; font-size:0.8em;">TERMINATE</a></td>
+                                        </tr>
+                                    `).join('') : '<tr><td colspan="3" style="text-align:center; color:#444;">No active data streams</td></tr>'}
+                                </tbody>
+                            </table>
                         </div>
 
                         <div class="card">
@@ -317,18 +280,16 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                                 <h2 style="border:none; margin:0;">💬 Feedback Vault</h2>
                                 <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">CSV</a>
                             </div>
-                            <div style="overflow-x:auto;">
-                                <table>
-                                    <thead><tr><th>User</th><th>Rating</th><th>Comment</th></tr></thead>
-                                    <tbody>${feedbacks.slice(-5).reverse().map(f => `
-                                        <tr>
-                                            <td>${f.userTag}</td>
-                                            <td style="color:${NEON_BLUE}">${f.rating}⭐</td>
-                                            <td style="font-size:0.8em; color:#aaa;">${f.comment ? f.comment.substring(0, 30) + '...' : '-'}</td>
-                                        </tr>`).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <table>
+                                <thead><tr><th>User</th><th>Rating</th><th>Comment</th></tr></thead>
+                                <tbody>${feedbacks.slice(-5).reverse().map(f => `
+                                    <tr>
+                                        <td>${f.userTag}</td>
+                                        <td style="color:${NEON_BLUE}">${f.rating}⭐</td>
+                                        <td style="font-size:0.8em; color:#aaa;">${f.comment ? f.comment.substring(0, 30) + '...' : '-'}</td>
+                                    </tr>`).join('')}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
@@ -337,7 +298,33 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         <canvas id="activityChart" height="80"></canvas>
                     </div>
                 </div>
+
                 <script>
+                    function updateHiddenId(input, name) {
+                        const list = document.getElementById('list-' + name);
+                        const hidden = document.getElementById('hidden-' + name);
+                        const option = Array.from(list.options).find(o => o.value === input.value);
+                        hidden.value = option ? option.dataset.id : input.value;
+                    }
+
+                    // Railway Auto-Refresh Logic
+                    const consoleOutput = document.getElementById('console-output');
+                    async function refreshLogs() {
+                        try {
+                            const res = await fetch('/api/logs');
+                            const logs = await res.json();
+                            consoleOutput.innerHTML = logs.map(l => \`
+                                <div class="log-entry">
+                                    <span class="log-time">[\${l.time}]</span>
+                                    <span class="log-action type-\${l.action}">\${l.action}</span>
+                                    <span class="log-detail">\${l.detail}</span>
+                                </div>
+                            \`).join('');
+                            document.getElementById('log-counter').innerText = logs.length + ' operations cached';
+                        } catch (e) { console.error("Log sync failed"); }
+                    }
+                    setInterval(refreshLogs, 2000);
+
                     const ctx = document.getElementById('activityChart').getContext('2d');
                     new Chart(ctx, {
                         type: 'line',
@@ -345,13 +332,7 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                             labels: ${JSON.stringify(dates)},
                             datasets: [{ label: 'Network Activity', data: ${JSON.stringify(counts)}, borderColor: '${PRIMARY_PURPLE}', backgroundColor: 'rgba(168, 85, 247, 0.1)', tension: 0.4, fill: true }]
                         },
-                        options: { 
-                            scales: { 
-                                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#1a1a24' } }, 
-                                x: { grid: { display: false } } 
-                            },
-                            plugins: { legend: { display: false } }
-                        }
+                        options: { scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
                     });
                 </script>
             </body>
@@ -359,7 +340,7 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     `);
 });
 
-// --- POST & EXPORT ACTIONS ---
+// --- ACTIONS ---
 
 app.get('/dashboard/end-giveaway', isAuthenticated, async (req, res) => {
     const { id } = req.query;
@@ -388,14 +369,11 @@ app.get('/dashboard/export-feedbacks', isAuthenticated, (req, res) => {
 app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
     const { userId, reason, action } = req.body;
     try {
-        if (!client.isReady()) throw new Error("Bot is not connected yet.");
         const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
         const member = await guild.members.fetch(userId).catch(() => null);
-        if (!member) return res.status(404).send("Error: User not found.");
-
+        if (!member) return res.status(404).send("User not found.");
         if (action === 'kick') await member.kick(reason || 'Cyber-kick');
         else if (action === 'ban') await member.ban({ reason: reason || 'Cyber-ban' });
-
         addLiveLog("MOD", `${action.toUpperCase()}: ${member.user.tag}`);
         res.redirect('/dashboard');
     } catch (e) { res.status(500).send("Mod Error: " + e.message); }
@@ -487,4 +465,4 @@ client.on(Events.InteractionCreate, async (interaction) => {
     setupWelcomeListener(client);
     await loadAndRegisterCommands();
     client.login(process.env.DISCORD_TOKEN);
-})();1
+})();
