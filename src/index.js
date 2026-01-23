@@ -123,6 +123,18 @@ app.post('/login', async (req, res) => {
     } else res.redirect('/login?error=1');
 });
 
+// Get user info for Moderation Preview
+app.get('/api/user/:id', isAuthenticated, async (req, res) => {
+    try {
+        const user = await client.users.fetch(req.params.id);
+        res.json({
+            id: user.id,
+            tag: user.tag,
+            avatar: user.displayAvatarURL({ extension: 'png' })
+        });
+    } catch (e) { res.status(404).json({ error: "Not found" }); }
+});
+
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
 
 app.get('/dashboard', isAuthenticated, async (req, res) => {
@@ -236,16 +248,51 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         </div>
 
                         <div class="card">
-                            <h2>🛡️ Moderation Core</h2>
-                            <form action="/dashboard/mod-action" method="POST">
-                                <input type="text" name="userId" placeholder="Target User ID" required>
-                                <input type="text" name="reason" placeholder="Reason for action">
-                                <div style="display:flex; gap:10px;">
-                                    <button name="action" value="kick" class="btn">Kick</button>
-                                    <button name="action" value="ban" class="btn" style="background:#ef4444;">Ban</button>
-                                </div>
-                            </form>
-                        </div>
+    <h2>🛡️ Moderation Core</h2>
+    <div style="margin-bottom: 15px; padding: 10px; background: #08080c; border-radius: 6px; border: 1px dashed #333;">
+        <label>Target Identity</label>
+        <input type="text" id="mod-target-id" placeholder="Discord User ID..." onchange="fetchUserInfo(this.value)">
+        <div id="user-preview" style="display:none; align-items:center; gap:10px; margin-top:10px; font-size:0.8em; color:${NEON_BLUE}">
+            <img id="user-avatar" src="" style="width:30px; border-radius:50%">
+            <span id="user-name"></span>
+        </div>
+    </div>
+
+    <form action="/dashboard/mod-action" method="POST" id="mod-form">
+        <input type="hidden" name="userId" id="hidden-mod-id">
+        <input type="text" name="reason" placeholder="Reason for action (required)" required>
+        
+        <label>Duration (for Timeout)</label>
+        <select name="duration">
+            <option value="60">1 Hour</option>
+            <option value="1440">24 Hours</option>
+            <option value="10080">7 Days</option>
+        </select>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+            <button name="action" value="timeout" class="btn" style="background:#f59e0b;">Timeout</button>
+            <button name="action" value="kick" class="btn">Kick</button>
+            <button name="action" value="ban" class="btn" style="background:#ef4444; grid-column: span 2;" onclick="return confirm('EXTERMINATE USER? This action is permanent.')">Ban Database</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Logic for User Preview
+    async function fetchUserInfo(id) {
+        if(id.length < 17) return;
+        document.getElementById('hidden-mod-id').value = id;
+        try {
+            const res = await fetch(\`/api/user/\${id}\`);
+            const data = await res.json();
+            if(data.id) {
+                document.getElementById('user-preview').style.display = 'flex';
+                document.getElementById('user-avatar').src = data.avatar;
+                document.getElementById('user-name').innerText = data.tag;
+            }
+        } catch(e) {}
+    }
+</script>
 
                         <div class="card">
                             <h2>📣 Cyber Broadcast</h2>
@@ -367,16 +414,37 @@ app.get('/dashboard/export-feedbacks', isAuthenticated, (req, res) => {
 });
 
 app.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
-    const { userId, reason, action } = req.body;
+    const { userId, reason, action, duration } = req.body;
     try {
+        if (!client.isReady()) throw new Error("Bot offline");
         const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
         const member = await guild.members.fetch(userId).catch(() => null);
-        if (!member) return res.status(404).send("User not found.");
-        if (action === 'kick') await member.kick(reason || 'Cyber-kick');
-        else if (action === 'ban') await member.ban({ reason: reason || 'Cyber-ban' });
-        addLiveLog("MOD", `${action.toUpperCase()}: ${member.user.tag}`);
+
+        if (!member) return res.status(404).send("Error: User not in guild.");
+
+        let logMsg = "";
+        switch (action) {
+            case 'timeout':
+                const ms = parseInt(duration) * 60 * 1000;
+                await member.timeout(ms, reason || 'Cyber-timeout');
+                logMsg = `TIMEOUT: ${member.user.tag} (${duration}m)`;
+                break;
+            case 'kick':
+                await member.kick(reason || 'Cyber-kick');
+                logMsg = `KICK: ${member.user.tag}`;
+                break;
+            case 'ban':
+                await member.ban({ reason: reason || 'Cyber-ban' });
+                logMsg = `BAN: ${member.user.tag}`;
+                break;
+        }
+
+        addLiveLog("MOD", logMsg);
         res.redirect('/dashboard');
-    } catch (e) { res.status(500).send("Mod Error: " + e.message); }
+    } catch (e) { 
+        console.error(e);
+        res.status(500).send("Mod Error: " + e.message); 
+    }
 });
 
 app.post('/dashboard/save-config', isAuthenticated, (req, res) => {
