@@ -151,7 +151,21 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     const liveLogs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
     const currentConfig = getConfig();
     const feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
-    const giveaways = fs.existsSync(GIVEAWAYS_FILE) ? JSON.parse(readFileSync(GIVEAWAYS_FILE, 'utf-8')) : [];
+
+    // --- GIVEAWAY DATA LOGIC ---
+    let giveawayData = { participants: [], participantTags: [] };
+    if (fs.existsSync(GIVEAWAYS_FILE)) {
+        try {
+            const rawData = readFileSync(GIVEAWAYS_FILE, 'utf-8');
+            giveawayData = JSON.parse(rawData);
+        } catch (e) { console.error("Error reading giveaway file", e); }
+    }
+
+    // Logic to handle both cases (just IDs or IDs + Tags)
+    const participantCount = giveawayData.participants?.length || 0;
+    const participantList = giveawayData.participantTags?.length > 0 
+        ? giveawayData.participantTags.join(', ') 
+        : (giveawayData.participants?.join(', ') || 'No entries yet');
 
     let guildChannels = [];
     if (client.isReady() && process.env.DISCORD_GUILD_ID) {
@@ -313,36 +327,26 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                     </div>
 
                     <div class="card">
-    <h2>🎁 Active Giveaways</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Prize</th>
-                <th>Participants</th>
-                <th>End</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${giveaways.length > 0 ? giveaways.map(g => `
-                <tr>
-                    <td style="font-weight:bold; color:${NEON_BLUE}">${g.prize}</td>
-                    <td>
-                        <div style="font-size:0.9em;">
-                            <strong>${g.participants ? g.participants.length : 0}</strong> users
-                        </div>
-                        <div style="font-size:0.7em; color:#888; max-height:40px; overflow-y:auto;">
-                            ${g.participantTags ? g.participantTags.join(', ') : 'In progress...'}
-                        </div>
-                    </td>
-                    <td style="color:#888; font-size:0.8em;">${new Date(g.endTime).toLocaleString('fr-FR')}</td>
-                    <td><a href="/dashboard/end-giveaway?id=${g.messageId}" style="color:#ef4444; font-size:0.8em; text-decoration:none; border:1px solid #ef4444; padding:2px 5px; border-radius:4px;">TERMINATE</a></td>
+        <h2>🎁 Active Giveaway Status</h2>
+        <table style="width:100%; border-collapse: collapse;">
+            <thead>
+                <tr style="text-align:left; border-bottom: 1px solid #333;">
+                    <th style="padding:10px;">Event</th>
+                    <th style="padding:10px;">Count</th>
+                    <th style="padding:10px;">Participants</th>
                 </tr>
-            `).join('') : '<tr><td colspan="4" style="text-align:center; color:#444;">No active data streams</td></tr>'}
-        </tbody>
-    </table>
-</div>
-
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding:10px; color:${NEON_BLUE}; font-weight:bold;">Weekend Draw</td>
+                    <td style="padding:10px; text-align:center; font-size:1.2em;">${participantCount}</td>
+                    <td style="padding:10px; font-size:0.8em; color:#aaa; max-width:300px; line-height:1.4;">
+                        ${participantList}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
                         <div class="card" style="grid-column: 1 / -1;"> <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
         <h2 style="border:none; margin:0;">💬 Feedback Vault (Full Data)</h2>
         <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">DOWNLOAD CSV</a>
@@ -567,59 +571,46 @@ client.on(Events.InteractionCreate, async (interaction) => {
         } 
         
         // Handle Giveaway Join Button
-        else if (interaction.customId === 'join_giveaway') {
-            try {
-                let giveaways = [];
-                // Read current giveaways data
-                if (fs.existsSync(GIVEAWAYS_FILE)) {
-                    const content = fs.readFileSync(GIVEAWAYS_FILE, 'utf-8');
-                    try {
-                        giveaways = JSON.parse(content);
-                        // Force conversion to array if it was an old object format
-                        if (!Array.isArray(giveaways)) giveaways = [];
-                    } catch (e) { giveaways = []; }
-                }
+else if (interaction.customId === 'join_giveaway') {
+    try {
+        let data = { participants: [], participantTags: [] }; // Structure avec pseudos
 
-                // Identify the active giveaway (the last one in the list)
-                const activeGiveaway = giveaways[giveaways.length - 1];
-
-                if (!activeGiveaway) {
-                    return await interaction.reply({ content: "❌ No active giveaway found.", ephemeral: true });
-                }
-
-                // Initialize fields if they don't exist
-                if (!activeGiveaway.participants) activeGiveaway.participants = [];
-                if (!activeGiveaway.participantTags) activeGiveaway.participantTags = [];
-
-                // Check if user is already in
-                if (activeGiveaway.participants.includes(interaction.user.id)) {
-                    return await interaction.reply({ 
-                        content: "❌ You are already registered for this giveaway!", 
-                        ephemeral: true 
-                    });
-                }
-
-                // Add user data
-                activeGiveaway.participants.push(interaction.user.id);
-                activeGiveaway.participantTags.push(interaction.user.tag); // This is for your WebApp display
-
-                // Save updated list
-                fs.writeFileSync(GIVEAWAYS_FILE, JSON.stringify(giveaways, null, 2));
-
-                // Notify Dashboard and User
-                addLiveLog("GIVEAWAY", `${interaction.user.tag} joined the draw 🎟️`);
-                await interaction.reply({ 
-                    content: `✅ Your entry for **${activeGiveaway.prize}** has been recorded!`, 
-                    ephemeral: true 
-                });
-
-            } catch (err) {
-                console.error(`${logPrefix} Giveaway Join Error:`, err);
-                if (!interaction.replied) {
-                    await interaction.reply({ content: "❌ Error processing your entry.", ephemeral: true });
-                }
-            }
+        // Read current participants
+        if (fs.existsSync(GIVEAWAYS_FILE)) {
+            const fileContent = fs.readFileSync(GIVEAWAYS_FILE, 'utf-8');
+            if (fileContent) data = JSON.parse(fileContent);
         }
+
+        // Initialize arrays if they don't exist
+        if (!data.participants) data.participants = [];
+        if (!data.participantTags) data.participantTags = [];
+
+        // Check if user is already in
+        if (data.participants.includes(interaction.user.id)) {
+            return await interaction.reply({ 
+                content: "❌ You are already registered for this giveaway!", 
+                ephemeral: true 
+            });
+        }
+
+        // Add user ID and Tag (Pseudo)
+        data.participants.push(interaction.user.id);
+        data.participantTags.push(interaction.user.tag); 
+        
+        // Save to file
+        fs.writeFileSync(GIVEAWAYS_FILE, JSON.stringify(data, null, 2));
+
+        // Notify Dashboard and User
+        addLiveLog("GIVEAWAY", `${interaction.user.tag} joined the draw 🎟️`);
+        await interaction.reply({ 
+            content: "✅ Your entry has been recorded! Good luck! 🎟️", 
+            ephemeral: true 
+        });
+
+    } catch (err) {
+        console.error(`Giveaway Join Error:`, err);
+    }
+}
     }
 
     // 3. Modal Submissions
