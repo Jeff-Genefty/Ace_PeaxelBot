@@ -153,19 +153,21 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
     const feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
 
     // --- GIVEAWAY DATA LOGIC ---
-    let giveawayData = { participants: [], participantTags: [] };
-    if (fs.existsSync(GIVEAWAYS_FILE)) {
-        try {
-            const rawData = readFileSync(GIVEAWAYS_FILE, 'utf-8');
-            giveawayData = JSON.parse(rawData);
-        } catch (e) { console.error("Error reading giveaway file", e); }
+let giveawayData = { participants: [], participantTags: [] };
+if (fs.existsSync(GIVEAWAYS_FILE)) {
+    try {
+        const rawData = readFileSync(GIVEAWAYS_FILE, 'utf-8');
+        giveawayData = JSON.parse(rawData);
+    } catch (e) { 
+        console.error("Error reading giveaway file", e); 
     }
+}
 
-    // Logic to handle both cases (just IDs or IDs + Tags)
-    const participantCount = giveawayData.participants?.length || 0;
-    const participantList = giveawayData.participantTags?.length > 0 
-        ? giveawayData.participantTags.join(', ') 
-        : (giveawayData.participants?.join(', ') || 'No entries yet');
+// Ensure we show tags if they exist, otherwise show a placeholder
+const participantCount = giveawayData.participants?.length || 0;
+const participantList = (giveawayData.participantTags && giveawayData.participantTags.length > 0) 
+    ? giveawayData.participantTags.join(', ') 
+    : (participantCount > 0 ? "IDs locked (Tags missing)" : "No entries yet");
 
     let guildChannels = [];
     if (client.isReady() && process.env.DISCORD_GUILD_ID) {
