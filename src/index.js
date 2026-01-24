@@ -533,7 +533,9 @@ client.on(Events.MessageCreate, async (message) => {
     await handleMessageReward(message);
 });
 
+// --- EVENTS ---
 client.on(Events.InteractionCreate, async (interaction) => {
+    // 1. Slash Commands
     if (interaction.isChatInputCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (command) {
@@ -541,19 +543,70 @@ client.on(Events.InteractionCreate, async (interaction) => {
             await command.execute(interaction);
             addLiveLog("COMMAND", `${interaction.user.tag} : /${interaction.commandName}`);
         }
-    } else if (interaction.isButton() && interaction.customId === 'feedback_button') {
-        await handleFeedbackButton(interaction);
-    } else if (interaction.isModalSubmit() && interaction.customId === 'feedback_modal') {
-    trackEvent('feedbacksReceived');
+    } 
+    
+    // 2. Button Interactions
+    else if (interaction.isButton()) {
+        // Handle Feedback Button
+        if (interaction.customId === 'feedback_button') {
+            await handleFeedbackButton(interaction);
+        } 
+        
+        // Handle Giveaway Join Button (Fixing the "Interaction Failed" error)
+        else if (interaction.customId === 'join_giveaway') {
+            try {
+                let data = { participants: [] };
+                
+                // Read current participants
+                if (fs.existsSync(GIVEAWAYS_FILE)) {
+                    data = JSON.parse(fs.readFileSync(GIVEAWAYS_FILE, 'utf-8'));
+                }
+
+                // Check if user is already in
+                if (data.participants.includes(interaction.user.id)) {
+                    return await interaction.reply({ 
+                        content: "❌ You are already registered for this giveaway!", 
+                        ephemeral: true 
+                    });
+                }
+
+                // Add user and save
+                data.participants.push(interaction.user.id);
+                fs.writeFileSync(GIVEAWAYS_FILE, JSON.stringify(data, null, 2));
+
+                // Notify Dashboard and User
+                addLiveLog("GIVEAWAY", `${interaction.user.tag} joined the draw 🎟️`);
+                await interaction.reply({ 
+                    content: "✅ Your entry has been recorded! Good luck! 🎟️", 
+                    ephemeral: true 
+                });
+
+            } catch (err) {
+                console.error(`${logPrefix} Giveaway Join Error:`, err);
+                if (!interaction.replied) {
+                    await interaction.reply({ content: "❌ Error processing your entry.", ephemeral: true });
+                }
+            }
+        }
+    } 
+
+    // 3. Modal Submissions
+    else if (interaction.isModalSubmit() && interaction.customId === 'feedback_modal') {
+        trackEvent('feedbacksReceived');
         await handleFeedbackSubmit(interaction);
-        addLiveLog("FEEDBACK", `New review from ${interaction.user.tag} (${interaction.fields.getTextInputValue('rating_input')}⭐)`);
+        const rating = interaction.fields.getTextInputValue('rating_input');
+        addLiveLog("FEEDBACK", `New review from ${interaction.user.tag} (${rating}⭐)`);
     }
 });
 
 // --- STARTUP ---
 (async () => {
-    app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
-    setupWelcomeListener(client);
-    await loadAndRegisterCommands();
-    client.login(process.env.DISCORD_TOKEN);
+    try {
+        app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
+        setupWelcomeListener(client);
+        await loadAndRegisterCommands();
+        await client.login(process.env.DISCORD_TOKEN);
+    } catch (error) {
+        console.error(`${logPrefix} Critical Startup Error:`, error.message);
+    }
 })();
