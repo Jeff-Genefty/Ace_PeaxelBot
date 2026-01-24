@@ -312,22 +312,36 @@ app.get('/dashboard', isAuthenticated, async (req, res) => {
                         </div>
                     </div>
 
-                    <div class="grid">
-                        <div class="card">
-                            <h2>🎁 Active Giveaways</h2>
-                            <table>
-                                <thead><tr><th>Prize</th><th>End</th><th>Action</th></tr></thead>
-                                <tbody>
-                                    ${giveaways.length > 0 ? giveaways.map(g => `
-                                        <tr>
-                                            <td>${g.prize}</td>
-                                            <td style="color:#888;">${new Date(g.endTime).toLocaleDateString()}</td>
-                                            <td><a href="/dashboard/end-giveaway?id=${g.messageId}" style="color:#ef4444; font-size:0.8em;">TERMINATE</a></td>
-                                        </tr>
-                                    `).join('') : '<tr><td colspan="3" style="text-align:center; color:#444;">No active data streams</td></tr>'}
-                                </tbody>
-                            </table>
+                    <div class="card">
+    <h2>🎁 Active Giveaways</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Prize</th>
+                <th>Participants</th>
+                <th>End</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${giveaways.length > 0 ? giveaways.map(g => `
+                <tr>
+                    <td style="font-weight:bold; color:${NEON_BLUE}">${g.prize}</td>
+                    <td>
+                        <div style="font-size:0.9em;">
+                            <strong>${g.participants ? g.participants.length : 0}</strong> users
                         </div>
+                        <div style="font-size:0.7em; color:#888; max-height:40px; overflow-y:auto;">
+                            ${g.participantTags ? g.participantTags.join(', ') : 'In progress...'}
+                        </div>
+                    </td>
+                    <td style="color:#888; font-size:0.8em;">${new Date(g.endTime).toLocaleString('fr-FR')}</td>
+                    <td><a href="/dashboard/end-giveaway?id=${g.messageId}" style="color:#ef4444; font-size:0.8em; text-decoration:none; border:1px solid #ef4444; padding:2px 5px; border-radius:4px;">TERMINATE</a></td>
+                </tr>
+            `).join('') : '<tr><td colspan="4" style="text-align:center; color:#444;">No active data streams</td></tr>'}
+        </tbody>
+    </table>
+</div>
 
                         <div class="card" style="grid-column: 1 / -1;"> <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
         <h2 style="border:none; margin:0;">💬 Feedback Vault (Full Data)</h2>
@@ -552,32 +566,50 @@ client.on(Events.InteractionCreate, async (interaction) => {
             await handleFeedbackButton(interaction);
         } 
         
-        // Handle Giveaway Join Button (Fixing the "Interaction Failed" error)
+        // Handle Giveaway Join Button
         else if (interaction.customId === 'join_giveaway') {
             try {
-                let data = { participants: [] };
-                
-                // Read current participants
+                let giveaways = [];
+                // Read current giveaways data
                 if (fs.existsSync(GIVEAWAYS_FILE)) {
-                    data = JSON.parse(fs.readFileSync(GIVEAWAYS_FILE, 'utf-8'));
+                    const content = fs.readFileSync(GIVEAWAYS_FILE, 'utf-8');
+                    try {
+                        giveaways = JSON.parse(content);
+                        // Force conversion to array if it was an old object format
+                        if (!Array.isArray(giveaways)) giveaways = [];
+                    } catch (e) { giveaways = []; }
                 }
 
+                // Identify the active giveaway (the last one in the list)
+                const activeGiveaway = giveaways[giveaways.length - 1];
+
+                if (!activeGiveaway) {
+                    return await interaction.reply({ content: "❌ No active giveaway found.", ephemeral: true });
+                }
+
+                // Initialize fields if they don't exist
+                if (!activeGiveaway.participants) activeGiveaway.participants = [];
+                if (!activeGiveaway.participantTags) activeGiveaway.participantTags = [];
+
                 // Check if user is already in
-                if (data.participants.includes(interaction.user.id)) {
+                if (activeGiveaway.participants.includes(interaction.user.id)) {
                     return await interaction.reply({ 
                         content: "❌ You are already registered for this giveaway!", 
                         ephemeral: true 
                     });
                 }
 
-                // Add user and save
-                data.participants.push(interaction.user.id);
-                fs.writeFileSync(GIVEAWAYS_FILE, JSON.stringify(data, null, 2));
+                // Add user data
+                activeGiveaway.participants.push(interaction.user.id);
+                activeGiveaway.participantTags.push(interaction.user.tag); // This is for your WebApp display
+
+                // Save updated list
+                fs.writeFileSync(GIVEAWAYS_FILE, JSON.stringify(giveaways, null, 2));
 
                 // Notify Dashboard and User
                 addLiveLog("GIVEAWAY", `${interaction.user.tag} joined the draw 🎟️`);
                 await interaction.reply({ 
-                    content: "✅ Your entry has been recorded! Good luck! 🎟️", 
+                    content: `✅ Your entry for **${activeGiveaway.prize}** has been recorded!`, 
                     ephemeral: true 
                 });
 
@@ -588,7 +620,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 }
             }
         }
-    } 
+    }
 
     // 3. Modal Submissions
     else if (interaction.isModalSubmit() && interaction.customId === 'feedback_modal') {
