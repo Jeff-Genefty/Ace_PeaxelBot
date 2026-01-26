@@ -309,7 +309,7 @@ stats.feedbacksReceived = feedbacks.length;
                 </div>
 
                 <div class="container">
-                    <h1>⚡ PEAXEL OS v2.2 
+                    <h1>⚡ PEAXEL OS v1.1
                         <div>
                             <a href="/analytics" class="btn-analytics">OPEN ANALYTICS</a>
                             <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none; margin-left:10px;">DISCONNECT</a>
@@ -327,7 +327,7 @@ stats.feedbacksReceived = feedbacks.length;
 
                     <div class="kpi-row">
                         <div class="kpi-card">
-                            <span class="kpi-label">Activité @i <span class="info-icon" data-tip="Membres avec le rôle @i actifs aujourd'hui.">i</span></span>
+                            <span class="kpi-label">Activité @Verified <span class="info-icon" data-tip="Membres avec le rôle @verified actifs aujourd'hui.">i</span></span>
                             <span class="kpi-value">${activePopRate}%</span>
                         </div>
                         <div class="kpi-card">
