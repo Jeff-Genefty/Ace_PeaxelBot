@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
 import bcrypt from 'bcrypt';
+import cron from 'node-cron'; 
+import analyticsRoutes from './routes/analytics.js';
+import feedbackRoutes from './routes/feedbacks.js';
 
 // Router Import
 import dashboardRouter from './routes/dashboard.js';
@@ -46,7 +49,8 @@ if (!fs.existsSync(USERS_FILE)) {
 }
 
 // --- ANALYTICS ENGINE ---
-let stats = { messagesSent: 0, commandsExecuted: 0, feedbacksReceived: 0, dailyHistory: {} };
+// Added arrivalsToday, dailyActiveRoleUsers and history to the initial object
+let stats = { messagesSent: 0, commandsExecuted: 0, feedbacksReceived: 0, arrivalsToday: 0, dailyActiveRoleUsers: [], dailyHistory: {}, history: {} };
 if (fs.existsSync(STATS_FILE)) {
     try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { }
 }
@@ -78,7 +82,7 @@ client.commands = new Collection();
 
 // --- WEB SERVER CONFIG ---
 const app = express();
-app.set('discordClient', client); // Share client with routes
+app.set('discordClient', client); 
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'cyber-secret-key',
@@ -88,7 +92,10 @@ app.use(session({
 }));
 
 // USE THE EXTERNAL ROUTER
+app.use('/analytics', analyticsRoutes);
 app.use('/', dashboardRouter);
+app.use('/feedbacks', feedbackRoutes);
+
 
 // --- COMMAND LOADER ---
 async function loadAndRegisterCommands() {
@@ -124,9 +131,50 @@ client.once(Events.ClientReady, async (readyClient) => {
     await updateFeedbackStatsChannel(readyClient);
 });
 
+// Track arrivals
+client.on(Events.GuildMemberAdd, (member) => {
+    stats.arrivalsToday = (stats.arrivalsToday || 0) + 1;
+    writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
+});
+
 client.on(Events.MessageCreate, async (message) => {
-    if (!message.author.bot) trackEvent('messagesSent');
+    if (!message.author.bot) {
+        trackEvent('messagesSent');
+        
+        // Role penetration tracking
+        const targetRoleId = "1371904297498841148";
+        if (message.member?.roles.cache.has(targetRoleId)) {
+            if (!stats.dailyActiveRoleUsers) stats.dailyActiveRoleUsers = [];
+            if (!stats.dailyActiveRoleUsers.includes(message.author.id)) {
+                stats.dailyActiveRoleUsers.push(message.author.id);
+                writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
+            }
+        }
+    }
     await handleMessageReward(message);
+});
+
+// Midnight Analytics Snapshot
+cron.schedule('0 0 * * *', async () => {
+    const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID).catch(() => null);
+    if (!guild) return;
+
+    const targetRoleId = "1371904297498841148";
+    const roleMembers = guild.roles.cache.get(targetRoleId)?.members.size || 1;
+    const activeToday = stats.dailyActiveRoleUsers?.length || 0;
+    const today = new Date().toISOString().split('T')[0];
+
+    if (!stats.history) stats.history = {};
+    stats.history[today] = {
+        roleActivity: ((activeToday / roleMembers) * 100).toFixed(1),
+        arrivals: stats.arrivalsToday || 0,
+        totalMembers: guild.memberCount
+    };
+
+    stats.arrivalsToday = 0;
+    stats.dailyActiveRoleUsers = [];
+    writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
+    console.log(`${logPrefix} Daily analytics snapshot saved.`);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
@@ -176,9 +224,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
 // --- STARTUP ---
 (async () => {
     try {
+        // Dashboard listening first
         app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
+        
         setupWelcomeListener(client);
-        await loadAndRegisterCommands();
+        
+        // Fixed the function call (no arguments needed based on your definition)
+        await loadAndRegisterCommands(); 
+        
         await client.login(process.env.DISCORD_TOKEN);
-    } catch (error) { console.error(`${logPrefix} Critical Startup Error:`, error.message); }
+    } catch (error) { 
+        console.error(`${logPrefix} Critical Startup Error:`, error.message); 
+    }
 })();

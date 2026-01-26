@@ -20,17 +20,19 @@ const GIVEAWAYS_FILE = join(DATA_DIR, 'giveaways.json');
 const PRIMARY_PURPLE = '#a855f7';
 const NEON_BLUE = '#2dd4bf';
 
-// Helper for logging from web actions
+// --- HELPERS ---
+// Helper for logging web actions to the live console
 const addLiveLog = (action, detail) => {
     let logs = [];
     if (fs.existsSync(LIVE_LOGS_FILE)) {
         try { logs = JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')); } catch (e) { }
     }
     logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
+    // Keep only the latest 50 logs
     writeFileSync(LIVE_LOGS_FILE, JSON.stringify(logs.slice(0, 50), null, 2));
 };
 
-// Middleware to check authentication
+// Middleware to ensure user is logged in
 const isAuthenticated = (req, res, next) => {
     if (req.session.user) return next();
     res.redirect('/login');
@@ -43,12 +45,14 @@ router.get('/login', (req, res) => {
 
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
-    const users = JSON.parse(readFileSync(USERS_FILE, 'utf-8'));
-    const user = users.find(u => u.email === email);
-    if (user && await bcrypt.compare(password, user.password)) {
-        req.session.user = { email: user.email };
-        res.redirect('/dashboard');
-    } else res.redirect('/login?error=1');
+    try {
+        const users = JSON.parse(readFileSync(USERS_FILE, 'utf-8'));
+        const user = users.find(u => u.email === email);
+        if (user && await bcrypt.compare(password, user.password)) {
+            req.session.user = { email: user.email };
+            res.redirect('/dashboard');
+        } else res.redirect('/login?error=1');
+    } catch (e) { res.redirect('/login?error=fs'); }
 });
 
 router.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
@@ -56,7 +60,13 @@ router.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/logi
 // --- API & DASHBOARD ---
 router.get('/api/logs', isAuthenticated, (req, res) => {
     const logs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
-    res.json(logs);
+    const client = req.app.get('discordClient');
+    // Inject bot status into the log response for live UI updates
+    res.json({
+        logs,
+        emergency: !client.isReady() || client.ws.ping > 250,
+        ping: client.ws.ping
+    });
 });
 
 router.get('/api/user/:id', isAuthenticated, async (req, res) => {
@@ -71,26 +81,106 @@ router.get('/api/user/:id', isAuthenticated, async (req, res) => {
     } catch (e) { res.status(404).json({ error: "Not found" }); }
 });
 
+// --- NEW ROUTE: DEEP ANALYTICS ---
+router.get('/dashboard/analytics', isAuthenticated, (req, res) => {
+    let stats = { history: {} };
+    if (fs.existsSync(STATS_FILE)) {
+        try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { }
+    }
+
+    const history = stats.history || {};
+    const labels = Object.keys(history).sort(); 
+    const roleData = labels.map(d => history[d].roleActivity);
+    const arrivalData = labels.map(d => history[d].arrivals);
+    const memberData = labels.map(d => history[d].totalMembers);
+
+    res.send(`
+        <html>
+            <head>
+                <title>Peaxel Deep Analytics</title>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                <style>
+                    :root { --primary: ${PRIMARY_PURPLE}; --neon: ${NEON_BLUE}; }
+                    body { font-family: 'Inter', sans-serif; background: #050505; color: white; padding: 30px; }
+                    .card { background: #0f0f15; padding: 20px; border-radius: 12px; border: 1px solid #1a1a24; margin-bottom: 20px; }
+                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                    .full { grid-column: span 2; }
+                    .btn { color: var(--neon); text-decoration: none; border: 1px solid var(--neon); padding: 8px 15px; border-radius: 4px; font-size: 0.8em; display: inline-block; margin-bottom: 20px; }
+                </style>
+            </head>
+            <body>
+                <a href="/dashboard" class="btn">← BACK TO TERMINAL</a>
+                <h1 style="color:var(--primary)">📊 DEEP-DIVE ANALYTICS</h1>
+                <div class="grid">
+                    <div class="card full">
+                        <h2>Evolution Totale Membres</h2>
+                        <canvas id="growthChart" height="100"></canvas>
+                    </div>
+                    <div class="card">
+                        <h2>Taux d'Activité Rôle @i (%)</h2>
+                        <canvas id="roleChart"></canvas>
+                    </div>
+                    <div class="card">
+                        <h2>Nouveaux Arrivants (Quotidien)</h2>
+                        <canvas id="arrivalChart"></canvas>
+                    </div>
+                </div>
+                <script>
+                    const opt = { responsive: true, plugins: { legend: { display: false } } };
+                    new Chart(document.getElementById('growthChart'), { type: 'line', data: { labels: ${JSON.stringify(labels)}, datasets: [{ data: ${JSON.stringify(memberData)}, borderColor: '${PRIMARY_PURPLE}', fill: true, backgroundColor: 'rgba(168, 85, 247, 0.1)', tension: 0.3 }] }, options: opt });
+                    new Chart(document.getElementById('roleChart'), { type: 'bar', data: { labels: ${JSON.stringify(labels)}, datasets: [{ data: ${JSON.stringify(roleData)}, backgroundColor: '${NEON_BLUE}' }] }, options: opt });
+                    new Chart(document.getElementById('arrivalChart'), { type: 'line', data: { labels: ${JSON.stringify(labels)}, datasets: [{ data: ${JSON.stringify(arrivalData)}, borderColor: '#ef4444', tension: 0.3 }] }, options: opt });
+                </script>
+            </body>
+        </html>
+    `);
+});
+
 router.get('/dashboard', isAuthenticated, async (req, res) => {
     const client = req.app.get('discordClient');
-    let stats = { messagesSent: 0, commandsExecuted: 0, feedbacksReceived: 0, dailyHistory: {} };
+    
+    // Perform initial health check for UI styling
+    const isEmergency = !client.isReady() || client.ws.ping > 250;
+
+    let stats = { messagesSent: 0, commandsExecuted: 0, feedbacksReceived: 0, dailyHistory: {}, arrivalsToday: 0, dailyActiveRoleUsers: [], history: {} };
     if (fs.existsSync(STATS_FILE)) {
         try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { }
     }
 
     const feedbacks = fs.existsSync(FEEDBACK_FILE) ? JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8')) : [];
 
-    // --- KPI LOGIC ---
-    // English comment: Calculate average star rating from all feedbacks
-    const avgRating = feedbacks.length > 0 
-        ? (feedbacks.reduce((acc, curr) => acc + (curr.rating || 0), 0) / feedbacks.length).toFixed(1) 
-        : "0.0";
-    
-    // English comment: Calculate conversion (how many feedbacks relative to messages sent)
-    const conversionRate = stats.messagesSent > 0 
-        ? ((feedbacks.length / stats.messagesSent) * 100).toFixed(2) 
-        : "0.00";
+    // Fetch guild data
+    const guildId = process.env.DISCORD_GUILD_ID;
+    const guild = guildId ? await client.guilds.fetch(guildId).catch(() => null) : null;
 
+    // KPI 1 - Active Pop (Specific Role Activity)
+    const targetRoleId = "1371904297498841148"; 
+    const roleMembers = guild?.roles.cache.get(targetRoleId)?.members.size || 1;
+    const activeToday = stats.dailyActiveRoleUsers?.length || 0;
+    const activePopRate = ((activeToday / roleMembers) * 100).toFixed(1);
+
+    // Daily Arrivals
+    const arrivalsToday = stats.arrivalsToday || 0;
+
+    // KPI 3 - Weekly Growth (Today vs D-7)
+    let weeklyGrowth = "0.0";
+    const historyDates = Object.keys(stats.history || {}).sort();
+    if (historyDates.length >= 7) {
+        const last = stats.history[historyDates[historyDates.length - 1]].totalMembers;
+        const first = stats.history[historyDates[historyDates.length - 7]].totalMembers;
+        weeklyGrowth = (((last - first) / first) * 100).toFixed(1);
+    }
+
+    // Calculate average rating and feedback count
+const avgRating = feedbacks.length > 0 
+    ? (feedbacks.reduce((acc, curr) => acc + (curr.rating || 0), 0) / feedbacks.length).toFixed(1) 
+    : "0.0";
+
+// Push calculated data into the stats object for the HTML template
+stats.averageRating = avgRating;
+stats.feedbacksReceived = feedbacks.length;
+
+    // Prepare data for the Activity Chart (Last 7 days)
     const dates = [];
     const counts = [];
     for (let i = 6; i >= 0; i--) {
@@ -104,6 +194,7 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
     const liveLogs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
     const currentConfig = getConfig();
 
+    // Process Giveaway entries
     let giveawayData = { participants: [], participantTags: [] };
     if (fs.existsSync(GIVEAWAYS_FILE)) {
         try { giveawayData = JSON.parse(readFileSync(GIVEAWAYS_FILE, 'utf-8')); } catch (e) { }
@@ -125,9 +216,8 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
     const participantCount = participants.length;
     const participantList = fullDisplayList.length > 0 ? fullDisplayList.join(', ') : "No entries yet";
 
+    // Fetch guild channels for the searchable dropdowns
     let guildChannels = [];
-    const guildId = process.env.DISCORD_GUILD_ID;
-    const guild = guildId ? await client.guilds.fetch(guildId).catch(() => null) : null;
     if (guild) {
         const channels = await guild.channels.fetch();
         guildChannels = channels
@@ -136,6 +226,7 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
             .sort((a, b) => a.name.localeCompare(b.name));
     }
 
+    // Render HTML for the custom searchable channel select
     const renderChannelSelect = (name, currentId) => {
         if (guildChannels.length === 0) return `<input type="text" name="${name}" value="${currentId || ''}" placeholder="Guild not synced">`;
         const currentChannel = guildChannels.find(c => c.id === currentId);
@@ -156,39 +247,47 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
                 <title>Peaxel OS</title>
                 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 <style>
-                    :root { --primary: ${PRIMARY_PURPLE}; --neon: ${NEON_BLUE}; }
-                    body { font-family: 'Inter', sans-serif; background: #050505; color: #e0e0e0; padding: 20px; margin: 0; transition: background 0.3s; }
+                    :root { --primary: ${PRIMARY_PURPLE}; --neon: ${NEON_BLUE}; --alert: #ef4444; }
+                    body { font-family: 'Inter', sans-serif; background: #050505; color: #e0e0e0; padding: 20px; margin: 0; transition: background 0.5s ease; }
                     .emergency-mode { background: #1a0505 !important; }
-                    .emergency-mode .card { border-top-color: #ef4444 !important; }
-                    .container { max-width: 1300px; margin: auto; }
+                    .emergency-mode .card { border-top-color: var(--alert) !important; box-shadow: 0 0 15px rgba(239, 68, 68, 0.1); }
+                    .emergency-mode h1, .emergency-mode .kpi-value { color: var(--alert) !important; }
                     
-                    /* Status Pills */
+                    .container { max-width: 1300px; margin: auto; }
                     .status-bar { display: flex; gap: 10px; margin-bottom: 20px; }
                     .pill { background: #0f0f15; padding: 6px 12px; border-radius: 50px; border: 1px solid #1a1a24; font-size: 0.7em; font-weight: bold; color: #888; display: flex; align-items: center; gap: 6px; }
                     .pill-online { color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
+                    .pill-error { color: var(--alert) !important; border-color: var(--alert) !important; animation: pulse 1.5s infinite; }
 
-                    /* KPI Cards */
+                    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
                     .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
-                    .kpi-card { background: #0f0f15; padding: 15px; border-radius: 10px; border: 1px solid #1a1a24; text-align: center; }
+                    .kpi-card { background: #0f0f15; padding: 15px; border-radius: 10px; border: 1px solid #1a1a24; text-align: center; transition: all 0.3s; position: relative; }
                     .kpi-value { display: block; font-size: 1.5em; font-weight: 900; color: white; }
-                    .kpi-label { font-size: 0.65em; text-transform: uppercase; color: #555; letter-spacing: 1px; }
+                    .kpi-label { font-size: 0.65em; text-transform: uppercase; color: #555; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+
+                    .info-icon { width: 12px; height: 12px; background: #333; color: #888; border-radius: 50%; font-size: 9px; line-height: 12px; cursor: help; }
+                    .info-icon:hover::after {
+                        content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+                        background: #1a1a24; color: white; padding: 8px; border-radius: 4px; font-size: 11px; width: 160px; z-index: 100;
+                        border: 1px solid var(--primary); box-shadow: 0 5px 15px rgba(0,0,0,0.5); text-transform: none;
+                    }
 
                     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
-                    .card { background: #0f0f15; padding: 20px; border-radius: 12px; border: 1px solid #1a1a24; border-top: 3px solid var(--primary); margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+                    .card { background: #0f0f15; padding: 20px; border-radius: 12px; border: 1px solid #1a1a24; border-top: 3px solid var(--primary); margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); transition: border 0.5s; }
                     h1 { color: var(--primary); display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;}
                     h2 { color: var(--neon); border-bottom: 1px solid #1a1a24; padding-bottom: 10px; font-size: 0.9em; text-transform: uppercase; margin-top:0; }
                     label { font-size: 0.75em; color: #888; display: block; margin-top: 10px; }
                     input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; background: #1a1a24; border: 1px solid #333; color: white; border-radius: 6px; box-sizing: border-box; }
                     .btn { background: linear-gradient(90deg, var(--primary), #7c3aed); color: white; padding: 10px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; width: 100%; text-align: center; display: block; text-decoration: none; }
                     .btn-blue { background: linear-gradient(90deg, var(--neon), #0891b2); }
+                    .btn-analytics { background: var(--neon); color: black !important; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 0.6em; }
                     
-                    /* Terminal */
                     .terminal-console { grid-column: 1 / -1; background: #08080c; border: 1px solid #1a1a24; border-left: 4px solid var(--primary); border-radius: 8px; margin-bottom: 25px; overflow: hidden; }
                     .console-header { background: #11111b; padding: 8px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8em; }
                     .console-body { height: 180px; overflow-y: auto; padding: 12px; font-family: monospace; font-size: 0.82em; }
                     .status-dot { height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #10b981; }
                     
-                    /* Table & Focus Mode */
                     table { width: 100%; border-collapse: collapse; }
                     td { padding: 10px; border-bottom: 1px solid #1a1a24; font-size: 0.85em; }
                     .truncate { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -200,7 +299,7 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
                     .type-SYSTEM { color: #3b82f6; } .type-COMMAND { color: #a855f7; } .type-BROADCAST { color: #2dd4bf; } .type-CONFIG { color: #f59e0b; } .type-MOD { color: #ef4444; }
                 </style>
             </head>
-            <body>
+            <body class="${isEmergency ? 'emergency-mode' : ''}">
                 <div id="modalOverlay" onclick="closeFocus()">
                     <div class="modal" onclick="event.stopPropagation()">
                         <h2 id="modalTitle">Feedback Details</h2>
@@ -210,23 +309,40 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
                 </div>
 
                 <div class="container">
-                    <h1>⚡ PEAXEL OS v2.2 <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none;">DISCONNECT</a></h1>
+                    <h1>⚡ PEAXEL OS v2.2 
+                        <div>
+                            <a href="/analytics" class="btn-analytics">OPEN ANALYTICS</a>
+                            <a href="/logout" style="font-size:0.4em; color:#444; text-decoration:none; margin-left:10px;">DISCONNECT</a>
+                        </div>
+                    </h1>
                     
                     <div class="status-bar">
-                        <div class="pill pill-online"><span class="status-dot"></span> BOT ONLINE</div>
+                        <div id="status-pill" class="pill ${isEmergency ? 'pill-error' : 'pill-online'}">
+                            <span id="status-dot" class="status-dot" style="${isEmergency ? 'background:var(--alert); box-shadow:0 0 8px var(--alert);' : ''}"></span> 
+                            <span id="status-text">${isEmergency ? 'SYSTEM_CRITICAL' : 'BOT ONLINE'}</span>
+                        </div>
                         <div class="pill">👥 ${guild?.memberCount || 0} MEMBERS</div>
-                        <div class="pill">📡 ${client.ws.ping}ms PING</div>
+                        <div class="pill">📡 <span id="ping-val">${client.ws.ping}</span>ms PING</div>
                     </div>
 
                     <div class="kpi-row">
-                        <div class="kpi-card"><span class="kpi-label">Avg Rating</span><span class="kpi-value">${avgRating}⭐</span></div>
-                        <div class="kpi-card"><span class="kpi-label">Conversion</span><span class="kpi-value">${conversionRate}%</span></div>
-                        <div class="kpi-card"><span class="kpi-label">Growth</span><span class="kpi-value" style="color:var(--neon)">+5%</span></div>
+                        <div class="kpi-card">
+                            <span class="kpi-label">Activité @i <span class="info-icon" data-tip="Membres avec le rôle @i actifs aujourd'hui.">i</span></span>
+                            <span class="kpi-value">${activePopRate}%</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-label">Arrivées <span class="info-icon" data-tip="Nouveaux membres ayant rejoint aujourd'hui.">i</span></span>
+                            <span class="kpi-value">${arrivalsToday}</span>
+                        </div>
+                        <div class="kpi-card">
+                            <span class="kpi-label">Growth (7d) <span class="info-icon" data-tip="Croissance du nombre de membres sur 7 jours.">i</span></span>
+                            <span class="kpi-value" style="color:var(--neon)">${weeklyGrowth >= 0 ? '+' : ''}${weeklyGrowth}%</span>
+                        </div>
                     </div>
 
                     <div class="terminal-console">
                         <div class="console-header">
-                            <span><span class="status-dot"></span> LIVE_SYSTEM_LOGS.EXE</span>
+                            <span><span class="status-dot" id="console-dot"></span> LIVE_SYSTEM_LOGS.EXE</span>
                             <span id="log-counter" style="color: #444;">-- sync</span>
                         </div>
                         <div class="console-body" id="console-output">
@@ -289,36 +405,60 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
                         </table>
                     </div>
 
-                    <div class="card" style="grid-column: 1 / -1;"> 
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                            <h2 style="border:none; margin:0;">💬 Feedback Vault</h2>
-                            <a href="/dashboard/export-feedbacks" class="btn btn-blue" style="width:auto; padding:5px 15px; font-size:0.7em;">EXPORT CSV</a>
-                        </div>
-                        <div style="overflow-x: auto;">
-                            <table>
-                                <thead><tr><th>Manager</th><th>Rating</th><th>💚 Worked</th><th>💡 Improve</th><th>Action</th></tr></thead>
-                                <tbody>
-                                    ${feedbacks.slice(-10).reverse().map(f => `
-                                        <tr>
-                                            <td style="font-weight:bold;">${f.userTag || 'Unknown'}</td>
-                                            <td style="color:var(--neon)">${f.rating || 0}⭐</td>
-                                            <td class="truncate">${f.liked || '-'}</td>
-                                            <td class="truncate">${f.improve || '-'}</td>
-                                            <td><button class="btn btn-blue" style="font-size:0.6em; padding:4px;" onclick="openFocus('${f.userTag}', \`${f.comments || 'No extra comments.'}\`)">FOCUS</button></td>
-                                        </tr>`).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
                     <div class="card">
+    <h2>⭐ Feedbacks</h2>
+    <table>
+        <thead>
+            <tr style="text-align:left;">
+                <th style="padding:10px;">Indicateur</th>
+                <th>Valeur</th>
+                <th style="text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="color:var(--neon); font-weight:bold;">Moyenne Managers</td>
+                <td>
+                    <span style="color: #fbbf24; font-weight: 800;">${stats.averageRating || '0.0'}</span> 
+                    <span style="font-size: 0.8em; color: #555;">/ 5</span>
+                </td>
+                <td style="text-align: right;">
+                    <a href="/feedbacks" class="btn-analytics" style="display: inline-block;">VOIR LE DÉTAIL →</a>
+                </td>
+            </tr>
+            <tr>
+                <td style="color:var(--neon); font-weight:bold;">Total Feedbacks</td>
+                <td>${stats.feedbacksReceived || 0} reçus</td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+                       <div class="card">
                         <h2>📈 Global Traffic</h2>
                         <canvas id="activityChart" height="80"></canvas>
                     </div>
                 </div>
 
                 <script>
-                    // English comment: Update hidden input when searchable select changes
+                    let isEmergencyActive = ${isEmergency};
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+                    function playEmergencyBeep() {
+                        if(!isEmergencyActive) return;
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.5);
+                    }
+
                     function updateHiddenId(input, name) {
                         const list = document.getElementById('list-' + name);
                         const hidden = document.getElementById('hidden-' + name);
@@ -326,7 +466,6 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
                         hidden.value = option ? option.dataset.id : input.value;
                     }
 
-                    // English comment: Modal logic for long feedback reading
                     function openFocus(user, text) {
                         document.getElementById('modalTitle').innerText = "Feedback: " + user;
                         document.getElementById('modalText').innerText = text;
@@ -348,21 +487,40 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
                         } catch(e) {}
                     }
 
-                    const consoleOutput = document.getElementById('console-output');
-                    async function refreshLogs() {
+                    async function refreshData() {
                         try {
                             const res = await fetch('/api/logs');
-                            const logs = await res.json();
-                            consoleOutput.innerHTML = logs.map(l => \`
+                            const data = await res.json();
+                            
+                            document.getElementById('console-output').innerHTML = data.logs.map(l => \`
                                 <div class="log-entry">
                                     <span class="log-time">[\${l.time}]</span>
                                     <span class="log-action type-\${l.action}">\${l.action}</span>
                                     <span class="log-detail">\${l.detail}</span>
                                 </div>\`).join('');
-                            document.getElementById('log-counter').innerText = logs.length + ' cached';
-                        } catch (e) { }
+                            document.getElementById('log-counter').innerText = data.logs.length + ' cached';
+                            document.getElementById('ping-val').innerText = data.ping;
+
+                            isEmergencyActive = data.emergency;
+                            if(isEmergencyActive) {
+                                document.body.classList.add('emergency-mode');
+                                document.getElementById('status-pill').className = 'pill pill-error';
+                                document.getElementById('status-text').innerText = 'SYSTEM_CRITICAL';
+                                document.getElementById('status-dot').style.background = 'var(--alert)';
+                                document.getElementById('status-dot').style.boxShadow = '0 0 8px var(--alert)';
+                                playEmergencyBeep();
+                            } else {
+                                document.body.classList.remove('emergency-mode');
+                                document.getElementById('status-pill').className = 'pill pill-online';
+                                document.getElementById('status-text').innerText = 'BOT ONLINE';
+                                document.getElementById('status-dot').style.background = '#10b981';
+                                document.getElementById('status-dot').style.boxShadow = '0 0 8px #10b981';
+                            }
+                        } catch (e) {
+                            document.body.classList.add('emergency-mode');
+                        }
                     }
-                    setInterval(refreshLogs, 2000);
+                    setInterval(refreshData, 3000);
 
                     const ctx = document.getElementById('activityChart').getContext('2d');
                     new Chart(ctx, {
@@ -425,22 +583,7 @@ router.post('/dashboard/send-announce', isAuthenticated, upload.single('footerIm
         if (req.file) fs.unlinkSync(req.file.path);
         addLiveLog("BROADCAST", `Signal sent to #${channel.name}`);
         res.redirect('/dashboard');
-    } catch (e) { res.status(500).send("Transmission failed: " + e.message); }
-});
-
-router.get('/dashboard/export-feedbacks', isAuthenticated, (req, res) => {
-    if (!fs.existsSync(FEEDBACK_FILE)) return res.status(404).send("No feedbacks found.");
-    const feedbacks = JSON.parse(readFileSync(FEEDBACK_FILE, 'utf-8'));
-    const header = "Date,User,Rating,Liked,Improve,Comment\n";
-    const rows = feedbacks.map(f => {
-        const date = f.timestamp ? new Date(f.timestamp).toISOString() : '';
-        const user = f.userTag || 'Unknown';
-        const rating = f.rating || '0';
-        return `"${date}","${user}","${rating}","${(f.liked || '').replace(/"/g, '""')}","${(f.improve || '').replace(/"/g, '""')}","${(f.comment || '').replace(/"/g, '""')}"`;
-    }).join("\n");
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=peaxel_feedbacks.csv');
-    res.status(200).send(header + rows);
+    } catch (e) { res.status(500).send("Broadcast Error: " + e.message); }
 });
 
 export default router;
