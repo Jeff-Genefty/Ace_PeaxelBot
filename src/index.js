@@ -213,11 +213,25 @@ client.on(Events.InteractionCreate, async (interaction) => {
             } catch (err) { console.error(`Giveaway Join Error:`, err); }
         }
     }
+    // Handle Modal Submissions
     else if (interaction.isModalSubmit() && interaction.customId === 'feedback_modal') {
-        trackEvent('feedbacksReceived');
-        await handleFeedbackSubmit(interaction);
-        const rating = interaction.fields.getTextInputValue('rating_input');
-        addLiveLog("FEEDBACK", `New review from ${interaction.user.tag} (${rating}⭐)`);
+        try {
+            // 1. Process the logic inside the handler
+            await handleFeedbackSubmit(interaction);
+            
+            // 2. Track event for analytics
+            trackEvent('feedbacksReceived');
+            
+            // 3. Extract rating using the CORRECT ID: 'feedback_rating'
+            const rating = interaction.fields.getTextInputValue('feedback_rating');
+            
+            // 4. Update the live logs for the dashboard
+            addLiveLog("FEEDBACK", `New review from ${interaction.user.tag} (${rating}⭐)`);
+        } catch (error) {
+            console.error(`${logPrefix} Error during feedback submission:`, error);
+            // Non-blocking log to avoid crashing the whole process
+            addLiveLog("ERROR", "Feedback submission failed");
+        }
     }
 });
 
