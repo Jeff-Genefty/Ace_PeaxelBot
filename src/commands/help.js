@@ -10,8 +10,11 @@ export async function execute(interaction) {
         .setDescription('Select a topic below to open the official documentation.\n\n' + 
                         '🤖 **Need more help?**\n' +
                         'Talk to our specialized AI at [ace.peaxel.me](https://ace.peaxel.me). ' +
-                        'It can answer complex questions and help you open a support ticket if needed.')
+                        'It can answer complex questions and help you open a support ticket if needed.\n\n' +
+                        '⭐ **Support us!**\n' +
+                        'Love the bot? Leave us a review on [Trustpilot](https://www.trustpilot.com/review/peaxel.me) and claim your **200 XP** on Zealy!')
         .setColor('#a855f7');
+
     const menu = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId('help_select')
@@ -21,6 +24,7 @@ export async function execute(interaction) {
                 { label: 'Game Week & Rewards', description: 'Schedule and prizes.', value: 'link_gw', emoji: '🏆' },
                 { label: 'Cards & Rarity', description: 'Learn about athlete cards.', value: 'link_cards', emoji: '🃏' },
                 { label: 'Technical Support', description: 'Troubleshooting and Ace AI.', value: 'link_support', emoji: '🛠️' },
+                { label: 'Review Peaxel', description: 'Support the project & earn Zealy XP!', value: 'link_trustpilot', emoji: '⭐' },
             ])
     );
 
@@ -35,21 +39,28 @@ export async function execute(interaction) {
     collector.on('collect', async i => {
         let targetUrl = 'https://docs.peaxel.me/guide';
         let label = 'Open Documentation';
+        let isReview = false;
 
         switch (i.values[0]) {
             case 'link_play': targetUrl = 'https://docs.peaxel.me/guide/getting-started'; label = 'Guide: Getting Started'; break;
             case 'link_gw': targetUrl = 'https://docs.peaxel.me/guide/game-week'; label = 'Guide: Game Week'; break;
             case 'link_cards': targetUrl = 'https://docs.peaxel.me/guide/cards-and-rarity'; label = 'Guide: Cards & Rarity'; break;
             case 'link_support': targetUrl = 'https://ace.peaxel.me'; label = 'Chat with Ace AI'; break;
+            case 'link_trustpilot': 
+                targetUrl = 'https://www.trustpilot.com/review/peaxel.me'; 
+                label = 'Leave a Review ⭐'; 
+                isReview = true;
+                break;
         }
 
         const linkRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(targetUrl),
-            new ButtonBuilder().setLabel('Main Docs').setStyle(ButtonStyle.Link).setURL('https://docs.peaxel.me/')
+            new ButtonBuilder().setLabel('Main Docs').setStyle(ButtonStyle.Link).setURL('https://docs.peaxel.me/'),
+            new ButtonBuilder().setLabel('Zealy Quest').setStyle(ButtonStyle.Link).setURL('https://zealy.io/c/peaxel') // Replace with your real Zealy link
         );
 
         await i.update({ 
-            content: `🔗 Access the **${label}** here:`, 
+            content: isReview ? `🙏 **Your support means a lot!** Click below to leave your review and don't forget to claim your rewards on Zealy:` : `🔗 Access the **${label}** here:`, 
             embeds: [], 
             components: [linkRow] 
         });

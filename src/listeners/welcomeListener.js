@@ -1,14 +1,13 @@
 import { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { resolve } from 'path';
 import { existsSync } from 'fs';
-import { getChannel } from '../utils/configManager.js'; // Pour l'ID du salon
-import { loadMessageConfig } from '../config/messageConfig.js'; // Pour l'URL et les textes
+import { getChannel } from '../utils/configManager.js'; 
+import { loadMessageConfig } from '../config/messageConfig.js'; 
 
 export function setupWelcomeListener(client) {
     const logPrefix = '[Peaxel Welcome]';
 
     client.on('guildMemberAdd', async (member) => {
-        // 1. Récupérer le salon configuré via /setup
         const welcomeChannelId = getChannel('welcome');
 
         if (!welcomeChannelId) {
@@ -18,14 +17,13 @@ export function setupWelcomeListener(client) {
         const channel = await client.channels.fetch(welcomeChannelId).catch(() => null);
         if (!channel) return;
 
-        // 2. Récupérer les infos (URL, etc.) depuis messageConfig
         const msgConfig = loadMessageConfig();
         const playUrl = msgConfig.opening.playUrl || "https://game.peaxel.me/";
+        const zealyUrl = "https://zealy.io/cw/peaxel-quest/questboard";
+        const trustpilotUrl = "https://www.trustpilot.com/review/peaxel.me";
 
-        // 3. Préparation de l'image
         const imagePath = resolve(process.cwd(), 'assets', 'welcome-image.png');
         
-        // 4. Construction de l'Embed
         const embed = new EmbedBuilder()
             .setTitle(`🎙️ ACE NOTIFICATION | NEW MANAGER ON DECK`)
             .setDescription(
@@ -33,9 +31,10 @@ export function setupWelcomeListener(client) {
                 `**Who are we?**\n` +
                 `Peaxel is the ultimate Fantasy Sport ecosystem where you manage real-life athletes and earn rewards. 🏆\n\n` +
                 `**🚀 YOUR NEXT STEPS:**\n\n` +
-                `1️⃣ **Claim your Free Cards:** Register at [game.peaxel.me](${playUrl}) to get your first athlete.\n\n` +
-                `2️⃣ **Get up to 5 FREE Cards:** Check our guide in #faq to see how to expand your roster! 🎁\n\n` +
-                `3️⃣ **Join the Zealy Quests:** Complete missions for XP. [Join here](https://zealy.io/cw/peaxel-quest/questboard).\n\n` +
+                `1️⃣ **Claim your Free Cards:** [Register here](${playUrl}) to get your first athlete.\n` +
+                `2️⃣ **Get 5 FREE Cards:** Check our guide to expand your roster! 🎁\n` +
+                `3️⃣ **Join Zealy Quests:** Complete missions for XP. [Join here](${zealyUrl}).\n` +
+                `4️⃣ **Boost the Project:** Leave a review on [Trustpilot](${trustpilotUrl}) and claim **200 XP** on Zealy! ⭐\n\n` +
                 `*Ready to own the game? Let us know if you need help!* 🚀`
             )
             .setColor('#00ff00')
@@ -48,13 +47,13 @@ export function setupWelcomeListener(client) {
                 .setStyle(ButtonStyle.Link)
                 .setURL(playUrl),
             new ButtonBuilder()
-                .setLabel('How to get 5 Free Cards')
-                .setStyle(ButtonStyle.Link)
-                .setURL('https://peaxel.me/win-freecards-on-peaxel/'),
-            new ButtonBuilder()
                 .setLabel('Zealy Quests')
                 .setStyle(ButtonStyle.Link)
-                .setURL('https://zealy.io/cw/peaxel-quest/questboard')
+                .setURL(zealyUrl),
+            new ButtonBuilder()
+                .setLabel('Review Us ⭐')
+                .setStyle(ButtonStyle.Link)
+                .setURL(trustpilotUrl)
         );
 
         const options = { 
