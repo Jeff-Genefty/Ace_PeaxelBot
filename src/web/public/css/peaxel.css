@@ -392,6 +392,42 @@ a:hover { opacity: 0.9; }
 .footer-links a { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; }
 .footer-copy { margin: 0; font-size: 0.75rem; color: var(--text-dim); }
 
+.lang-switch {
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+.lang-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.25rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--text-dim) !important;
+    text-decoration: none;
+}
+.lang-btn:hover { color: var(--text) !important; opacity: 1; }
+.lang-btn.is-active {
+    background: var(--peaxel-gradient);
+    color: #fff !important;
+}
+.admin-lang-wrap {
+    padding: 0 1rem 0.75rem;
+    display: flex;
+    justify-content: center;
+}
+.login-card .lang-switch {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1rem;
+}
+
 /* ─── Admin layout ─── */
 .admin-body { display: flex; min-height: 100vh; min-height: 100dvh; }
 

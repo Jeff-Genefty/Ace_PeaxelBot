@@ -1,19 +1,21 @@
 import { Client, GatewayIntentBits, Collection, Events } from 'discord.js';
 import { config } from 'dotenv';
-import fs, { readdirSync, writeFileSync } from 'fs';
+import fs, { readdirSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
 import cookieParser from 'cookie-parser';
-import bcrypt from 'bcrypt';
 import cron from 'node-cron';
 import analyticsRoutes from './routes/analytics.js';
 import feedbackRoutes from './routes/feedbacks.js';
 import publicRouter from './web/routes/public.js';
 import adminRouter from './web/routes/admin.js';
 import legacyRouter from './routes/legacy.js';
+import langRouter from './web/routes/lang.js';
+import { ensureAdminUsers } from './web/services/adminUsers.js';
 import { getAdminPath } from './web/services/adminPath.js';
+import { attachI18n } from './web/i18n/index.js';
 import { updateJsonSync } from './utils/jsonStore.js';
 import { getRole } from './utils/configManager.js';
 
@@ -44,7 +46,6 @@ const ACTIVITY_TRACK_ROLE_ID = getRole('activityTrack');
 const DATA_DIR = resolve('./data');
 const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
-const USERS_FILE = join(DATA_DIR, 'users.json');
 const GIVEAWAYS_FILE = join(DATA_DIR, 'giveaways.json');
 
 const DEFAULT_STATS = {
@@ -60,15 +61,8 @@ const DEFAULT_STATS = {
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-// Initialize Admin User
-if (!fs.existsSync(USERS_FILE)) {
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (adminEmail && adminPassword) {
-        const hashedPassword = await bcrypt.hash(adminPassword, 10);
-        writeFileSync(USERS_FILE, JSON.stringify([{ email: adminEmail, password: hashedPassword }], null, 2));
-    }
-}
+// Initialize / sync super admin from .env
+await ensureAdminUsers();
 
 // --- ANALYTICS ENGINE ---
 function updateStats(updater) {
@@ -119,6 +113,8 @@ app.use(session({
 
 // Web v2 — static assets + routes
 app.use(express.static(join(__dirname, 'web/public')));
+app.use(attachI18n);
+app.use('/lang', langRouter);
 app.use('/', publicRouter);
 app.use(`/${getAdminPath()}`, adminRouter);
 app.use('/analytics', analyticsRoutes);

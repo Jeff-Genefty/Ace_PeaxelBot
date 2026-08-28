@@ -1,14 +1,27 @@
 /** Live console refresh for admin panel */
 (function () {
+    const root = document.querySelector('[data-logs-api]');
+    if (!root) return;
+
     const output = document.getElementById('console-output');
     const pingEl = document.getElementById('ping-val');
     const counterEl = document.getElementById('log-counter');
     const statusPill = document.getElementById('status-pill');
     const statusText = document.getElementById('status-text');
-    const apiUrl = document.body.dataset.logsApi;
-    if (!output || !apiUrl) return;
+    const apiUrl = root.dataset.logsApi;
+
+    const labels = {
+        online: root.dataset.i18nOnline || 'ONLINE',
+        critical: root.dataset.i18nCritical || 'CRITICAL',
+        entries: root.dataset.i18nEntries || '{n} entries',
+        sync: root.dataset.i18nSync || 'sync',
+    };
 
     let emergency = document.body.classList.contains('emergency-mode');
+
+    function formatEntries(n) {
+        return labels.entries.replace('{n}', n);
+    }
 
     async function refresh() {
         try {
@@ -20,12 +33,12 @@
                     <span class="type-${l.action}">${l.action}</span>
                     <span>${l.detail}</span>
                 </div>`).join('');
-            if (counterEl) counterEl.textContent = data.logs.length + ' entrées';
+            if (counterEl) counterEl.textContent = formatEntries(data.logs.length);
             if (pingEl) pingEl.textContent = data.ping;
             emergency = data.emergency;
             document.body.classList.toggle('emergency-mode', emergency);
             if (statusPill) statusPill.className = 'pill ' + (emergency ? 'pill-error' : 'pill-online');
-            if (statusText) statusText.textContent = emergency ? 'CRITIQUE' : 'EN LIGNE';
+            if (statusText) statusText.textContent = emergency ? labels.critical : labels.online;
         } catch {
             document.body.classList.add('emergency-mode');
         }
@@ -45,7 +58,7 @@
         if (id.length < 17) return;
         document.getElementById('hidden-mod-id').value = id;
         try {
-            const base = document.body.dataset.adminBase;
+            const base = root.dataset.adminBase;
             const res = await fetch(`${base}/api/user/${id}`);
             const data = await res.json();
             if (data.id) {

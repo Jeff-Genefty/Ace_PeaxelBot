@@ -16,7 +16,7 @@ function readJson(path, fallback) {
     try { return JSON.parse(readFileSync(path, 'utf-8')); } catch { return fallback; }
 }
 
-export async function gatherAdminStats(client) {
+export async function gatherAdminStats(client, locale = 'en') {
     const stats = readJson(STATS_FILE, {
         messagesSent: 0, commandsExecuted: 0, feedbacksReceived: 0,
         arrivalsToday: 0, dailyActiveRoleUsers: [], dailyHistory: {}, history: {}, totalBans: 0,
@@ -96,10 +96,13 @@ export async function gatherAdminStats(client) {
             commandsExecuted: stats.commandsExecuted || 0,
             totalPosts: activity.totalPostsSent || 0,
             gameweek: getCurrentWeekNumber(),
-            dayName: getCurrentDayName(),
+            dayName: getCurrentDayName(locale),
         },
         charts: { dates, messageCounts, last7History, memberTrend, arrivalTrend, roleActivityTrend },
-        giveaway: { count: participants.length, list: participantList.join(', ') || 'Aucun participant' },
+        giveaway: {
+            count: participants.length,
+            list: participantList.join(', ') || (locale === 'fr' ? 'Aucun participant' : 'No participants'),
+        },
         scheduler: {
             nextLabel: nextRun.label,
             hoursUntil: nextRun.hoursUntil,
@@ -109,7 +112,7 @@ export async function gatherAdminStats(client) {
     };
 }
 
-export async function gatherPublicStats(client) {
+export async function gatherPublicStats(client, locale = 'en') {
     const stats = readJson(STATS_FILE, { history: {} });
     const guildId = process.env.DISCORD_GUILD_ID;
     const guild = guildId ? await client.guilds.fetch(guildId).catch(() => null) : null;
@@ -119,7 +122,7 @@ export async function gatherPublicStats(client) {
     return {
         memberCount: guild?.memberCount || 0,
         gameweek: getCurrentWeekNumber(),
-        dayName: getCurrentDayName(),
+        dayName: getCurrentDayName(locale),
         botOnline: client.isReady(),
         ping: client.ws.ping ?? 0,
         memberTrend: last7.map((d) => ({ date: d, members: stats.history[d]?.totalMembers || 0 })),

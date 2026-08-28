@@ -1,20 +1,17 @@
-export function escapeHtml(str) {
-    return String(str ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
+import { escapeHtml } from './render.js';
 
-export function pageShell({ title, body, extraCss = '', extraJs = '', bodyClass = '', includeNav = true }) {
+export function pageShell({
+    title, body, extraCss = '', extraJs = '', bodyClass = '', includeNav = true, locale = 'en', description = '',
+}) {
     const navScript = includeNav ? '<script src="/js/nav.js" defer></script>' : '';
+    const htmlLang = locale === 'fr' ? 'fr' : 'en';
     return `<!DOCTYPE html>
-<html lang="fr">
+<html lang="${htmlLang}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#050508">
-    <meta name="description" content="Peaxel Community Hub — Connecte-toi avec Discord et rejoins la communauté.">
+    <meta name="description" content="${escapeHtml(description)}">
     <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="/img/favicon.ico">
     <title>${escapeHtml(title)}</title>
@@ -30,4 +27,12 @@ ${navScript}
 ${extraJs}
 </body>
 </html>`;
+}
+
+export function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }

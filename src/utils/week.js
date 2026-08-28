@@ -60,10 +60,10 @@ export function getCurrentWeekNumber() {
 }
 
 /**
- * Get the current day name in English
- * @returns {string} e.g., "Monday", "Tuesday"
+ * @param {string} [locale='en'] 'en' | 'fr'
+ * @returns {string} e.g. "Monday" / "lundi"
  */
-export function getCurrentDayName() {
+export function getCurrentDayName(locale = 'en') {
   const parisDate = getParisDate();
-  return parisDate.toLocaleDateString('en-US', { weekday: 'long' });
+  return parisDate.toLocaleDateString(locale === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long' });
 }
