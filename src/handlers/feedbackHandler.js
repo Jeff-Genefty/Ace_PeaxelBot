@@ -3,7 +3,7 @@ import {
   ActionRowBuilder, EmbedBuilder, AttachmentBuilder 
 } from 'discord.js';
 import { saveFeedbackData, hasAlreadySubmitted, getFeedbackStats } from '../utils/feedbackStore.js';
-import { getConfig } from '../utils/configManager.js'; // Import config to find the general channel
+import { getChannel } from '../utils/configManager.js';
 import fs from 'fs';
 import { resolve } from 'path';
 
@@ -103,8 +103,8 @@ export async function handleFeedbackSubmit(interaction) {
 
   // 3. ANNOUNCEMENT: Post in the Welcome/General channel to boost engagement
   try {
-    const config = getConfig();
-    const generalChannelId = config.channels?.welcome || '1369976259613954059'; 
+    const generalChannelId = getChannel('welcome');
+    if (!generalChannelId) return;
     const generalChannel = await interaction.client.channels.fetch(generalChannelId);
 
     if (generalChannel) {
@@ -116,31 +116,32 @@ export async function handleFeedbackSubmit(interaction) {
     console.error('[FeedbackHandler] Public announcement failed:', error.message);
   }
 
-  // 4. Forward feedback to the specific admin channel (Logs)
-  const feedbackChannelId = process.env.FEEDBACK_CHANNEL_ID || '1369976255860051973';
-  
-  try {
-    const feedbackChannel = await interaction.client.channels.fetch(feedbackChannelId);
-    if (feedbackChannel) {
-      const stars = '⭐'.repeat(ratingNum);
-      const embed = new EmbedBuilder()
-        .setTitle('📝 New Feedback Received')
-        .setColor(ratingNum > 3 ? 0x22C55E : 0xEF4444) 
-        .addFields(
-          { name: '👤 Manager', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: true },
-          { name: '⭐ Rating', value: `${stars} (${ratingNum}/5)`, inline: true },
-          { name: '📅 Date', value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true },
-          { name: '💚 What worked', value: liked },
-          { name: '💡 Improvements', value: improve },
-          { name: '💬 Extra Comments', value: comments }
-        )
-        .setTimestamp()
-        .setFooter({ text: `User ID: ${interaction.user.id}` });
+  // 4. Forward feedback to the specific admin channel
+  const feedbackChannelId = getChannel('feedback');
+  if (feedbackChannelId) {
+    try {
+      const feedbackChannel = await interaction.client.channels.fetch(feedbackChannelId);
+      if (feedbackChannel) {
+        const stars = '⭐'.repeat(ratingNum);
+        const embed = new EmbedBuilder()
+          .setTitle('📝 New Feedback Received')
+          .setColor(ratingNum > 3 ? 0x22C55E : 0xEF4444)
+          .addFields(
+            { name: '👤 Manager', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: true },
+            { name: '⭐ Rating', value: `${stars} (${ratingNum}/5)`, inline: true },
+            { name: '📅 Date', value: `<t:${Math.floor(Date.now() / 1000)}:f>`, inline: true },
+            { name: '💚 What worked', value: liked },
+            { name: '💡 Improvements', value: improve },
+            { name: '💬 Extra Comments', value: comments }
+          )
+          .setTimestamp()
+          .setFooter({ text: `User ID: ${interaction.user.id}` });
 
-      await feedbackChannel.send({ embeds: [embed] });
+        await feedbackChannel.send({ embeds: [embed] });
+      }
+    } catch (error) {
+      console.error('[FeedbackHandler] Error sending to admin channel:', error.message);
     }
-  } catch (error) {
-    console.error('[FeedbackHandler] Error sending to admin channel:', error.message);
   }
 
   // Confirm submission to the user

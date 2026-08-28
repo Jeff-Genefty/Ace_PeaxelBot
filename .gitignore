@@ -24,16 +24,11 @@ Thumbs.db
 # === Build / Temp ===
 dist/
 build/
+uploads/
 
 # === Railway Volume (Persistent Data) ===
-# We ignore the entire data folder content so Git never overwrites the Volume
 data/*
-data/users.json
-
-# Exceptions: Keep the folder structure and critical fixed config
 !data/.gitkeep
-!data/config.json
 
-# === Scripts & Misc ===
-sync_peaxel.js
-List_active_talents - Data.csv
+# === Local uploads ===
+uploads/

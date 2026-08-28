@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } from 'discord.js';
 import { getPreviewAthlete } from '../utils/spotlightManager.js';
+import { getChannel } from '../utils/configManager.js';
 
 export const data = new SlashCommandBuilder()
     .setName('spotlight-test')
@@ -13,7 +14,7 @@ export async function execute(interaction) {
         return await interaction.reply({ content: "❌ No athlete found.", ephemeral: true });
     }
 
-    const generalChannelId = '1369976259613954059'; 
+    const generalChannelId = getChannel('welcome');
     const athleteName = (athlete.name || "Athlete").toUpperCase();
 
     let prizesText = "";

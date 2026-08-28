@@ -87,12 +87,6 @@ export function recordBotStart() {
   saveActivity(activity);
 }
 
-export function recordError(errorMessage) {
-  const activity = loadActivity();
-  activity.lastError = { message: errorMessage, timestamp: new Date().toISOString() };
-  saveActivity(activity);
-}
-
 /**
  * Logic to calculate the next scheduled publication time (Paris Timezone)
  */

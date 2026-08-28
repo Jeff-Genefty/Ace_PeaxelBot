@@ -19,7 +19,7 @@ import {
 import { loadReactionsConfig } from '../config/reactionsConfig.js';
 import { recordWeeklyPost } from './activityTracker.js';
 import { logWeeklyPost } from './discordLogger.js';
-import { getConfig } from './configManager.js';
+import { getChannel, getRole } from './configManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,12 +27,11 @@ const __dirname = dirname(__filename);
 export async function sendWeeklyMessage(client, { isManual = false, type = 'opening' } = {}) {
   const logPrefix = '[Peaxel Send]';
   
-  const configDB = getConfig();
-  const channelId = configDB.channels.announce || process.env.ANNOUNCE_CHANNEL_ID;
-  const ROLE_ID = "1369976254685642925"; 
+  const channelId = getChannel('announce');
+  const ROLE_ID = getRole('verified');
 
-  if (!channelId) {
-    console.error(`${logPrefix} Missing ANNOUNCE_CHANNEL_ID`);
+  if (!channelId || !ROLE_ID) {
+    console.error(`${logPrefix} Missing announce channel or verified role in config`);
     return false;
   }
 

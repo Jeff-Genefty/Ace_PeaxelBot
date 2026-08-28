@@ -4,7 +4,7 @@
 >
 > **Légende des statuts :** `⬜ À faire` · `🔄 En cours` · `✅ Terminé` · `⏸️ En pause` · `❌ Annulé`
 
-**Dernière mise à jour :** 2026-08-28 (Phase 0 — bugs critiques corrigés)
+**Dernière mise à jour :** 2026-08-28 (Phase 0 terminée ✅)
 
 ---
 
@@ -12,7 +12,7 @@
 
 | Phase | Nom | Statut global | Cible |
 |-------|-----|---------------|-------|
-| 0 | Stabilisation & cleanup | 🔄 En cours | 2–3 semaines |
+| 0 | Stabilisation & cleanup | ✅ Terminé | |
 | 1 | Fondations | ⬜ À faire | 4–6 semaines |
 | 2 | Engagement Discord++ | ⬜ À faire | 6–8 semaines |
 | 3 | Interface web complète | ⬜ À faire | 8–12 semaines |
@@ -40,39 +40,39 @@
 | 0.6 | Incrémenter `totalBans` lors des bans dashboard | ✅ Terminé | |
 | 0.7 | Ne plus enregistrer les slash commands à chaque boot (utiliser `register-commands.js` ou flag) | ✅ Terminé | Chargement local au boot, sync via `npm run register-commands` |
 | 0.8 | Corriger commentaire Coach Ace (25 % vs 10 % réel) | ✅ Terminé | Commentaire aligné sur 10 % |
-| 0.9 | Centraliser handlers `GuildMemberAdd` (index + welcomeListener) | ⬜ À faire | |
+| 0.9 | Centraliser handlers `GuildMemberAdd` (index + welcomeListener) | ✅ Terminé | `memberJoinHandler.js` |
 
 ### Nettoyage code & dépendances
 
 | # | Tâche | Statut | Notes |
 |---|-------|--------|-------|
-| 0.10 | Supprimer dépendances mortes : `axios`, `cheerio`, `csv-parse` | ⬜ À faire | |
-| 0.11 | Supprimer `src/utils/analyticsManager.js` (jamais importé) | ⬜ À faire | |
-| 0.12 | Supprimer exports morts dans `discordLogger.js` (`logFeedbackReceived`, `logCommandUsage`, `logError`) | ⬜ À faire | |
-| 0.13 | Supprimer `recordError()` non utilisé dans `activityTracker.js` | ⬜ À faire | |
-| 0.14 | Nettoyer `.gitignore` (`sync_peaxel.js`, `List_active_talents - Data.csv` absents) | ⬜ À faire | |
+| 0.10 | Supprimer dépendances mortes : `axios`, `cheerio`, `csv-parse` | ✅ Terminé | |
+| 0.11 | Supprimer `src/utils/analyticsManager.js` (jamais importé) | ✅ Terminé | |
+| 0.12 | Supprimer exports morts dans `discordLogger.js` (`logFeedbackReceived`, `logCommandUsage`, `logError`) | ✅ Terminé | |
+| 0.13 | Supprimer `recordError()` non utilisé dans `activityTracker.js` | ✅ Terminé | |
+| 0.14 | Nettoyer `.gitignore` (`sync_peaxel.js`, `List_active_talents - Data.csv` absents) | ✅ Terminé | |
 | 0.15 | Choisir une seule stratégie enregistrement commandes (auto boot vs script CLI) | ✅ Terminé | Script CLI uniquement |
 
 ### Configuration & documentation
 
 | # | Tâche | Statut | Notes |
 |---|-------|--------|-------|
-| 0.16 | Centraliser toute la config (salons, rôles, IDs) — supprimer hardcoding | ⬜ À faire | |
-| 0.17 | Unifier sources config : `.env` + `config.json` + fallbacks en dur | ⬜ À faire | |
-| 0.18 | Faire lire `SPOTLIGHT_CHANNEL_ID` et `LOG_CHANNEL_ID` depuis `.env` | ⬜ À faire | |
-| 0.19 | Documenter `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PORT` dans `.env.example` | ⬜ À faire | |
-| 0.20 | Exiger `SESSION_SECRET` fort en production (pas de défaut faible) | ⬜ À faire | |
-| 0.21 | Mettre à jour `README.md` (commandes réelles, setup, déploiement) | ✅ Terminé | |
-| 0.22 | Ajouter endpoint `/health` pour monitoring | ⬜ À faire | |
+| 0.16 | Centraliser toute la config (salons, rôles, IDs) — supprimer hardcoding | ✅ Terminé | `configManager.js` + `config.json` |
+| 0.17 | Unifier sources config : `.env` + `config.json` + fallbacks en dur | ✅ Terminé | Priorité `.env` > `config.json` |
+| 0.18 | Faire lire `SPOTLIGHT_CHANNEL_ID` et `LOG_CHANNEL_ID` depuis `.env` | ✅ Terminé | Tous les salons via env |
+| 0.19 | Documenter `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `PORT` dans `.env.example` | ✅ Terminé | `.env.example` complet |
+| 0.20 | Exiger `SESSION_SECRET` fort en production (pas de défaut faible) | ✅ Terminé | `process.exit(1)` si absent en prod |
+| 0.21 | Mettre à jour `README.md` (commandes réelles, setup, déploiement) | ✅ Terminé | + `/health`, config |
+| 0.22 | Ajouter endpoint `/health` pour monitoring | ✅ Terminé | `GET /health` |
 
 ### Refactoring rapide
 
 | # | Tâche | Statut | Notes |
 |---|-------|--------|-------|
-| 0.23 | Extraire logique Scout Quiz en module partagé (`scheduler.js` + `scoutQuiz.js`) | ⬜ À faire | |
-| 0.24 | Fusionner pages analytics dupliquées (`/dashboard/analytics` + `/analytics`) | ⬜ À faire | |
-| 0.25 | Ajouter protection CSRF sur formulaires POST dashboard | ⬜ À faire | |
-| 0.26 | Ajouter rate limit login dashboard | ⬜ À faire | |
+| 0.23 | Extraire logique Scout Quiz en module partagé (`scheduler.js` + `scoutQuiz.js`) | ✅ Terminé | `scoutQuizRunner.js` |
+| 0.24 | Fusionner pages analytics dupliquées (`/dashboard/analytics` + `/analytics`) | ✅ Terminé | `/analytics` unifié, redirect legacy |
+| 0.25 | Ajouter protection CSRF sur formulaires POST dashboard | ✅ Terminé | `src/utils/csrf.js` |
+| 0.26 | Ajouter rate limit login dashboard | ✅ Terminé | 5 tentatives / 15 min par IP |
 
 ---
 
@@ -110,7 +110,7 @@
 | 1.11 | **GW Check-in** — bouton « J'ai soumis ma lineup » dans annonce opening | ⬜ À faire | |
 | 1.12 | Streak GW check-in (4 GW consécutives = récompense) | ⬜ À faire | |
 | 1.13 | **Prediction Challenge Discord** — thread hebdo (aligné X) | ⬜ À faire | |
-| 1.14 | Scout Quiz v2 — module partagé + indices progressifs | ⬜ À faire | |
+| 1.14 | Scout Quiz v2 — module partagé + indices progressifs | 🔄 En cours | Module partagé ✅, indices à faire |
 | 1.15 | Scout Quiz — leaderboard saisonnier | ⬜ À faire | |
 
 ### Dashboard améliorations
@@ -282,9 +282,9 @@
 
 | Epic | Description | Effort | Statut |
 |------|-------------|--------|--------|
-| E1 | Stabilisation — bugs P0/P1, cleanup | S | 🔄 En cours |
-| E2 | Config centralisée — un seul source of truth | S | ⬜ À faire |
-| E3 | Scout Quiz v2 — module partagé, leaderboard, indices | M | ⬜ À faire |
+| E1 | Stabilisation — bugs P0/P1, cleanup | S | ✅ Terminé |
+| E2 | Config centralisée — un seul source of truth | S | ✅ Terminé |
+| E3 | Scout Quiz v2 — module partagé, leaderboard, indices | M | 🔄 En cours |
 | E4 | GW Check-in — bouton, streak, rôle | M | ⬜ À faire |
 | E5 | Feedback v2 — par saison, NPS | S | ⬜ À faire |
 | E6 | Migration DB — JSON → Supabase | L | ⬜ À faire |
@@ -315,7 +315,7 @@
 | Date | Tâche(s) | Action |
 |------|----------|--------|
 | 2026-08-28 | — | Création roadmap v2 |
-| 2026-08-28 | 0.1–0.8, 0.15, 0.21 | Bugs P0/P1 corrigés, persistance scheduler/rewards, jsonStore atomique, README mis à jour, rewards chat = cartes uniquement (fin XP Zealy manuel) |
+| 2026-08-28 | 0.9, 0.20, 0.25, 0.26 | Handler membre centralisé, SESSION_SECRET obligatoire en prod, CSRF + rate limit login — Phase 0 complète |
 
 ---
 
@@ -325,4 +325,5 @@
 |------|----------|--------|
 | 2026-08-28 | Stack web recommandée | Next.js + Supabase |
 | 2026-08-28 | Rewards chat | XP Zealy manuel supprimé — cartes athlète uniquement |
+| 2026-08-28 | Config | Priorité `.env` > `src/config/config.json`, helpers `getChannel()` / `getRole()` |
 | 2026-08-28 | API Peaxel | Bloquant Phase 4 — spec à valider avec équipe game |

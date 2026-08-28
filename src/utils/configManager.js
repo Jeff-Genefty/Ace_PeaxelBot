@@ -1,77 +1,114 @@
 import fs from 'fs';
 import { resolve } from 'path';
 
-// Pointing to the new static location in src/config (tracked by Git)
 const CONFIG_FILE = resolve('./src/config/config.json');
+
+const ENV_CHANNEL_KEYS = {
+    announce: 'ANNOUNCE_CHANNEL_ID',
+    spotlight: 'SPOTLIGHT_CHANNEL_ID',
+    welcome: 'WELCOME_CHANNEL_ID',
+    feedback: 'FEEDBACK_CHANNEL_ID',
+    logs: 'LOG_CHANNEL_ID',
+    tickets: 'TICKET_CHANNEL_ID',
+};
+
+const ENV_ROLE_KEYS = {
+    verified: 'VERIFIED_ROLE_ID',
+    activityTrack: 'ACTIVITY_TRACK_ROLE_ID',
+};
 
 const defaultConfig = {
     channels: {
         announce: null,
         spotlight: null,
+        welcome: null,
         feedback: null,
         logs: null,
-        welcome: null 
-    }
+        tickets: null,
+    },
+    roles: {
+        verified: null,
+        activityTrack: null,
+        staffExcluded: [],
+    },
 };
 
-/**
- * Loads configuration from the static config file
- * @returns {Object}
- */
-export function getConfig() {
+function loadFileConfig() {
     try {
-        if (!fs.existsSync(CONFIG_FILE)) {
-            // Return default if file doesn't exist yet
-            return defaultConfig;
-        }
-        const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
-        const parsed = JSON.parse(data);
-        
-        return {
-            ...defaultConfig,
-            ...parsed,
-            channels: { ...defaultConfig.channels, ...parsed.channels }
-        };
+        if (!fs.existsSync(CONFIG_FILE)) return {};
+        return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
     } catch (e) {
         console.error('[Config Manager] Error reading file:', e.message);
-        return defaultConfig;
+        return {};
     }
 }
 
-/**
- * Gets a specific channel ID by type
- * @param {string} type 
- * @returns {string|null}
- */
-export function getChannel(type) {
-    const config = getConfig();
-    return config.channels?.[type] || null;
+function parseStaffRoleIds() {
+    const raw = process.env.STAFF_EXCLUDED_ROLE_IDS;
+    if (!raw?.trim()) return null;
+    return raw.split(',').map((id) => id.trim()).filter(Boolean);
 }
 
 /**
- * Updates a channel ID in the config file
- * Note: Since this is in src/config, it will update the local file.
- * On Railway, manual changes via commands might not persist between deployments 
- * if you don't commit them to Git.
- * @param {string} type 
- * @param {string} channelId 
- * @returns {boolean}
+ * Source unique de vérité : .env > config.json > null
+ */
+export function getConfig() {
+    const file = loadFileConfig();
+
+    const channels = { ...defaultConfig.channels };
+    for (const [key, envKey] of Object.entries(ENV_CHANNEL_KEYS)) {
+        channels[key] = process.env[envKey] || file.channels?.[key] || null;
+    }
+
+    const staffFromEnv = parseStaffRoleIds();
+    const roles = {
+        verified: process.env[ENV_ROLE_KEYS.verified] || file.roles?.verified || null,
+        activityTrack: process.env[ENV_ROLE_KEYS.activityTrack] || file.roles?.activityTrack || null,
+        staffExcluded: staffFromEnv ?? file.roles?.staffExcluded ?? [],
+    };
+
+    return { channels, roles };
+}
+
+export function getChannel(type) {
+    return getConfig().channels?.[type] || null;
+}
+
+export function getRole(type) {
+    return getConfig().roles?.[type] || null;
+}
+
+export function getStaffExcludedRoles() {
+    return getConfig().roles?.staffExcluded ?? [];
+}
+
+export function getTicketChannelId() {
+    return getChannel('tickets');
+}
+
+export function requireChannel(type) {
+    const id = getChannel(type);
+    if (!id) throw new Error(`Missing channel config: ${type}`);
+    return id;
+}
+
+/**
+ * Met à jour config.json (dashboard /setup). Les .env gardent la priorité au runtime.
  */
 export function setChannel(type, channelId) {
     try {
-        const config = getConfig();
-        if (!config.channels) config.channels = {};
-        config.channels[type] = channelId;
-        
-        // Ensure the directory exists
+        const file = loadFileConfig();
+        if (!file.channels) file.channels = {};
+        file.channels[type] = channelId;
+
         const dir = resolve('./src/config');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        
-        fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
-        console.log(`[Config Manager] ✅ Updated ${type} to ${channelId}`);
+
+        fs.writeFileSync(CONFIG_FILE, JSON.stringify(file, null, 2), 'utf-8');
+        console.log(`[Config Manager] Updated ${type} → ${channelId}`);
         return true;
     } catch (error) {
-        console.error('[Config Manager] ❌ Error saving config:', error.message);
+        console.error('[Config Manager] Error saving config:', error.message);
         return false;
     }
 }

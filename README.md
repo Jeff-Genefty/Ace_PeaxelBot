@@ -73,12 +73,20 @@ This bot automates community engagement through scheduled announcements, athlete
 | `DISCORD_TOKEN` | Yes | Bot token |
 | `DISCORD_CLIENT_ID` | Yes | Application client ID |
 | `DISCORD_GUILD_ID` | Recommended | Guild ID for command registration |
-| `ANNOUNCE_CHANNEL_ID` | Yes* | Fallback announce channel |
-| `SESSION_SECRET` | Prod | Dashboard session secret |
+| `ANNOUNCE_CHANNEL_ID` | Yes* | Announce channel |
+| `WELCOME_CHANNEL_ID` | Optional | General chat (rewards, quiz) |
+| `TICKET_CHANNEL_ID` | Optional | Reward claim tickets |
+| `VERIFIED_ROLE_ID` | Optional | Role pinged in weekly posts |
+| `SESSION_SECRET` | **Prod (required)** | Dashboard session secret — bot refuse de démarrer sans en production |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Optional | Initial dashboard admin account |
 | `ACTIVITY_TRACK_ROLE_ID` | Optional | Role tracked for daily activity KPIs |
+| `STAFF_EXCLUDED_ROLE_IDS` | Optional | Comma-separated role IDs excluded from chat rewards |
 
-\* Or configure via `/setup` and `src/config/config.json`.
+\* Or configure all channels/roles in `src/config/config.json` (`.env` takes priority).
+
+### Monitoring
+
+- `GET /health` — JSON status (Discord connection, ping, uptime). Returns `503` if bot is not ready.
 
 ### Deployment
 Deployed via GitHub Actions to FTP (o2switch). Ensure `./data/` and `./assets/` persist between restarts.

@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { getConfig } from './configManager.js';
+import { getChannel } from './configManager.js';
 
 const logPrefix = '[Peaxel Logger]';
 let logChannel = null;
@@ -16,8 +16,7 @@ const LOG_LEVELS = {
  * Initialize the Logger
  */
 export async function initDiscordLogger(client) {
-const config = getConfig();
-  const channelId = config.channels?.logs;
+  const channelId = getChannel('logs');
   
   if (!channelId) {
     console.log(`${logPrefix} LOG_CHANNEL_ID not set. Discord logging disabled.`);
@@ -79,25 +78,6 @@ export async function logWeeklyPost(isManual, weekNumber, channelName) {
   await logToDiscord('success', 'Announcement Published', `Weekly message for **Week ${weekNumber}** is live.`, {
     'Method': isManual ? 'Manual (/send-weekly-now)' : 'Scheduled',
     'Channel': `#${channelName}`
-  });
-}
-
-export async function logFeedbackReceived(username, rating) {
-  await logToDiscord('activity', 'New Feedback', `User **${username}** submitted a rating.`, {
-    'Rating': `${'⭐'.repeat(rating)} (${rating}/5)`
-  });
-}
-
-export async function logError(context, error) {
-  await logToDiscord('error', `Critical Error: ${context}`, `\`\`\`${error.message}\`\`\``, {
-    'Location': context
-  });
-}
-
-export async function logCommandUsage(commandName, username, guildName) {
-  await logToDiscord('info', 'Command Executed', `User used **/${commandName}**`, {
-    'User': username,
-    'Guild': guildName || 'DMs'
   });
 }
 

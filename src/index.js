@@ -10,6 +10,7 @@ import cron from 'node-cron';
 import analyticsRoutes from './routes/analytics.js';
 import feedbackRoutes from './routes/feedbacks.js';
 import { updateJsonSync } from './utils/jsonStore.js';
+import { getRole } from './utils/configManager.js';
 
 // Router Import
 import dashboardRouter from './routes/dashboard.js';
@@ -19,16 +20,23 @@ import { initScheduler } from './scheduler.js';
 import { handleFeedbackButton, handleFeedbackSubmit, updateFeedbackStatsChannel } from './handlers/feedbackHandler.js';
 import { initDiscordLogger } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
-import { setupWelcomeListener } from './listeners/welcomeListener.js';
+import { registerMemberJoinHandler } from './handlers/memberJoinHandler.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
 
 config();
 
+const logPrefix = '[Peaxel Bot]';
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd && !process.env.SESSION_SECRET) {
+    console.error(`${logPrefix} ❌ FATAL: SESSION_SECRET est obligatoire en production. Arrêt du bot.`);
+    process.exit(1);
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const logPrefix = '[Peaxel Bot]';
 const PORT = process.env.PORT || 8080;
-const ACTIVITY_TRACK_ROLE_ID = process.env.ACTIVITY_TRACK_ROLE_ID || '1371904297498841148';
+
+const ACTIVITY_TRACK_ROLE_ID = getRole('activityTrack');
 
 // --- DATA PATHS & INIT ---
 const DATA_DIR = resolve('./data');
@@ -95,12 +103,11 @@ const app = express();
 app.set('trust proxy', 1);
 app.set('discordClient', client); 
 app.use(express.urlencoded({ extended: true }));
-const isProd = process.env.NODE_ENV === 'production';
-if (isProd && !process.env.SESSION_SECRET) {
-    console.warn(`${logPrefix} ⚠️ SESSION_SECRET manquant en production : définissez-le pour sécuriser les sessions.`);
+if (!isProd && !process.env.SESSION_SECRET) {
+    console.warn(`${logPrefix} ⚠️ SESSION_SECRET absent — utilisation d'une clé de dev (non production).`);
 }
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'cyber-secret-key',
+    secret: process.env.SESSION_SECRET || 'cyber-secret-key-dev-only',
     resave: false,
     saveUninitialized: false,
     cookie: { maxAge: 3600000, secure: isProd, httpOnly: true, sameSite: 'lax' }
@@ -110,6 +117,19 @@ app.use(session({
 app.use('/analytics', analyticsRoutes);
 app.use('/', dashboardRouter);
 app.use('/feedbacks', feedbackRoutes);
+
+// Health check (monitoring / uptime)
+app.get('/health', (req, res) => {
+    const discordClient = app.get('discordClient');
+    const ready = discordClient?.isReady() ?? false;
+    res.status(ready ? 200 : 503).json({
+        status: ready ? 'ok' : 'starting',
+        discord: ready,
+        ping: ready ? discordClient.ws.ping : null,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+    });
+});
 
 
 // --- COMMAND LOADER (local only — register via npm run register-commands) ---
@@ -140,8 +160,8 @@ client.once(Events.ClientReady, async (readyClient) => {
     await updateFeedbackStatsChannel(readyClient);
 });
 
-// Track arrivals
-client.on(Events.GuildMemberAdd, () => {
+// Track arrivals + welcome message (handler centralisé)
+registerMemberJoinHandler(client, () => {
     updateStats((stats) => {
         stats.arrivalsToday = (stats.arrivalsToday || 0) + 1;
         return stats;
@@ -168,6 +188,7 @@ client.on(Events.MessageCreate, async (message) => {
 
 // Midnight Analytics Snapshot
 cron.schedule('0 0 * * *', async () => {
+    if (!ACTIVITY_TRACK_ROLE_ID) return;
     const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID).catch(() => null);
     if (!guild) return;
 
@@ -255,11 +276,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     try {
         // Dashboard listening first
         app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
-        
-        setupWelcomeListener(client);
-        
-        // Fixed the function call (no arguments needed based on your definition)
-        await loadCommands(); 
+
+        await loadCommands();
         
         await client.login(process.env.DISCORD_TOKEN);
     } catch (error) { 

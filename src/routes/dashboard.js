@@ -3,12 +3,14 @@ import fs, { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import bcrypt from 'bcrypt';
 import multer from 'multer';
-import { getConfig, setChannel } from '../utils/configManager.js';
+import { getConfig, setChannel, getRole } from '../utils/configManager.js';
 import { updateJsonSync } from '../utils/jsonStore.js';
+import { csrfInput, loginCsrfInput, validateCsrf, validateLoginCsrf, initSessionCsrf } from '../utils/csrf.js';
+import { loginRateLimit, recordFailedLogin, clearLoginAttempts } from '../utils/loginRateLimit.js';
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
-const ACTIVITY_TRACK_ROLE_ID = process.env.ACTIVITY_TRACK_ROLE_ID || '1371904297498841148';
+const ACTIVITY_TRACK_ROLE_ID = getRole('activityTrack');
 
 // --- DATA PATHS ---
 const DATA_DIR = resolve('./data');
@@ -39,19 +41,33 @@ const isAuthenticated = (req, res, next) => {
 
 // --- AUTH ROUTES ---
 router.get('/login', (req, res) => {
-    res.send(`<html><head><title>Peaxel Auth</title><style>body{font-family:'Inter',sans-serif;background:#050505;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}.card{background:#0f0f15;padding:30px;border-radius:12px;border-top:4px solid ${PRIMARY_PURPLE};width:320px;box-shadow: 0 0 20px rgba(168, 85, 247, 0.2)}input{width:100%;padding:12px;margin:10px 0;background:#1a1a24;border:1px solid #333;color:white;border-radius:6px;box-sizing:border-box}button{width:100%;padding:12px;background:linear-gradient(90deg, ${PRIMARY_PURPLE}, ${NEON_BLUE});border:none;border-radius:6px;font-weight:bold;color:white;cursor:pointer}h2{text-align:center;color:${PRIMARY_PURPLE};letter-spacing:2px}</style></head><body><div class="card"><h2>PEAXEL LOGIN</h2><form action="/login" method="POST"><input type="email" name="email" placeholder="Admin ID" required><input type="password" name="password" placeholder="Passkey" required><button type="submit">INITIALIZE</button></form></div></body></html>`);
+    const csrf = loginCsrfInput(req.session);
+    const errorMsg = req.query.error === '1'
+        ? '<p style="color:#ef4444;text-align:center;font-size:0.85em;">Identifiants incorrects.</p>'
+        : req.query.error === 'fs'
+            ? '<p style="color:#ef4444;text-align:center;font-size:0.85em;">Erreur système.</p>'
+            : '';
+    res.send(`<html><head><title>Peaxel Auth</title><style>body{font-family:'Inter',sans-serif;background:#050505;color:white;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}.card{background:#0f0f15;padding:30px;border-radius:12px;border-top:4px solid ${PRIMARY_PURPLE};width:320px;box-shadow: 0 0 20px rgba(168, 85, 247, 0.2)}input{width:100%;padding:12px;margin:10px 0;background:#1a1a24;border:1px solid #333;color:white;border-radius:6px;box-sizing:border-box}button{width:100%;padding:12px;background:linear-gradient(90deg, ${PRIMARY_PURPLE}, ${NEON_BLUE});border:none;border-radius:6px;font-weight:bold;color:white;cursor:pointer}h2{text-align:center;color:${PRIMARY_PURPLE};letter-spacing:2px}</style></head><body><div class="card"><h2>PEAXEL LOGIN</h2>${errorMsg}<form action="/login" method="POST">${csrf}<input type="email" name="email" placeholder="Admin ID" required><input type="password" name="password" placeholder="Passkey" required><button type="submit">INITIALIZE</button></form></div></body></html>`);
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginRateLimit, validateLoginCsrf, async (req, res) => {
     const { email, password } = req.body;
     try {
         const users = JSON.parse(readFileSync(USERS_FILE, 'utf-8'));
         const user = users.find(u => u.email === email);
         if (user && await bcrypt.compare(password, user.password)) {
+            clearLoginAttempts(req);
+            initSessionCsrf(req.session);
             req.session.user = { email: user.email };
             res.redirect('/dashboard');
-        } else res.redirect('/login?error=1');
-    } catch (e) { res.redirect('/login?error=fs'); }
+        } else {
+            recordFailedLogin(req);
+            res.redirect('/login?error=1');
+        }
+    } catch (e) {
+        recordFailedLogin(req);
+        res.redirect('/login?error=fs');
+    }
 });
 
 router.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
@@ -80,63 +96,14 @@ router.get('/api/user/:id', isAuthenticated, async (req, res) => {
     } catch (e) { res.status(404).json({ error: "Not found" }); }
 });
 
-// --- NEW ROUTE: DEEP ANALYTICS ---
-router.get('/dashboard/analytics', isAuthenticated, (req, res) => {
-    let stats = { history: {} };
-    if (fs.existsSync(STATS_FILE)) {
-        try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { }
-    }
-
-    const history = stats.history || {};
-    const labels = Object.keys(history).sort(); 
-    const roleData = labels.map(d => history[d].roleActivity);
-    const arrivalData = labels.map(d => history[d].arrivals);
-    const memberData = labels.map(d => history[d].totalMembers);
-
-    res.send(`
-        <html>
-            <head>
-                <title>Peaxel Deep Analytics</title>
-                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-                <style>
-                    :root { --primary: ${PRIMARY_PURPLE}; --neon: ${NEON_BLUE}; }
-                    body { font-family: 'Inter', sans-serif; background: #050505; color: white; padding: 30px; }
-                    .card { background: #0f0f15; padding: 20px; border-radius: 12px; border: 1px solid #1a1a24; margin-bottom: 20px; }
-                    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                    .full { grid-column: span 2; }
-                    .btn { color: var(--neon); text-decoration: none; border: 1px solid var(--neon); padding: 8px 15px; border-radius: 4px; font-size: 0.8em; display: inline-block; margin-bottom: 20px; }
-                </style>
-            </head>
-            <body>
-                <a href="/dashboard" class="btn">← BACK TO TERMINAL</a>
-                <h1 style="color:var(--primary)">📊 DEEP-DIVE ANALYTICS</h1>
-                <div class="grid">
-                    <div class="card full">
-                        <h2>Evolution Totale Membres</h2>
-                        <canvas id="growthChart" height="100"></canvas>
-                    </div>
-                    <div class="card">
-                        <h2>Taux d'Activité Rôle @i (%)</h2>
-                        <canvas id="roleChart"></canvas>
-                    </div>
-                    <div class="card">
-                        <h2>Nouveaux Arrivants (Quotidien)</h2>
-                        <canvas id="arrivalChart"></canvas>
-                    </div>
-                </div>
-                <script>
-                    const opt = { responsive: true, plugins: { legend: { display: false } } };
-                    new Chart(document.getElementById('growthChart'), { type: 'line', data: { labels: ${JSON.stringify(labels)}, datasets: [{ data: ${JSON.stringify(memberData)}, borderColor: '${PRIMARY_PURPLE}', fill: true, backgroundColor: 'rgba(168, 85, 247, 0.1)', tension: 0.3 }] }, options: opt });
-                    new Chart(document.getElementById('roleChart'), { type: 'bar', data: { labels: ${JSON.stringify(labels)}, datasets: [{ data: ${JSON.stringify(roleData)}, backgroundColor: '${NEON_BLUE}' }] }, options: opt });
-                    new Chart(document.getElementById('arrivalChart'), { type: 'line', data: { labels: ${JSON.stringify(labels)}, datasets: [{ data: ${JSON.stringify(arrivalData)}, borderColor: '#ef4444', tension: 0.3 }] }, options: opt });
-                </script>
-            </body>
-        </html>
-    `);
+// Redirect legacy route → unified analytics page
+router.get('/dashboard/analytics', isAuthenticated, (_req, res) => {
+    res.redirect('/analytics');
 });
 
 router.get('/dashboard', isAuthenticated, async (req, res) => {
     const client = req.app.get('discordClient');
+    const csrf = csrfInput(req.session);
     
     // Perform initial health check for UI styling
     const isEmergency = !client.isReady() || client.ws.ping > 250;
@@ -153,7 +120,9 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
     const guild = guildId ? await client.guilds.fetch(guildId).catch(() => null) : null;
 
     // KPI 1 - Active Pop (Specific Role Activity)
-    const roleMembers = guild?.roles.cache.get(ACTIVITY_TRACK_ROLE_ID)?.members.size || 1;
+    const roleMembers = ACTIVITY_TRACK_ROLE_ID
+        ? (guild?.roles.cache.get(ACTIVITY_TRACK_ROLE_ID)?.members.size || 1)
+        : 1;
     const activeToday = stats.dailyActiveRoleUsers?.length || 0;
     const activePopRate = ((activeToday / roleMembers) * 100).toFixed(1);
 
@@ -352,6 +321,7 @@ stats.feedbacksReceived = feedbacks.length;
                         <div class="card">
                             <h2>⚙️ Configuration</h2>
                             <form action="/dashboard/save-config" method="POST">
+                                ${csrf}
                                 <label>Log Channel</label> ${renderChannelSelect('logs', currentConfig.channels?.logs)}
                                 <label>Announce Channel</label> ${renderChannelSelect('announce', currentConfig.channels?.announce)}
                                 <label>Welcome Channel</label> ${renderChannelSelect('welcome', currentConfig.channels?.welcome)}
@@ -372,6 +342,7 @@ stats.feedbacksReceived = feedbacks.length;
                                 </div>
                             </div>
                             <form action="/dashboard/mod-action" method="POST" id="mod-form">
+                                ${csrf}
                                 <input type="hidden" name="userId" id="hidden-mod-id">
                                 <input type="text" name="reason" placeholder="Reason (required)" required>
                                 <label>Duration</label>
@@ -387,6 +358,7 @@ stats.feedbacksReceived = feedbacks.length;
                         <div class="card">
                             <h2>📣 Cyber Broadcast</h2>
                             <form action="/dashboard/send-announce" method="POST" enctype="multipart/form-data">
+                                ${csrf}
                                 <label>Target Channel</label> ${renderChannelSelect('chanId', currentConfig.channels?.announce)}
                                 <textarea name="message" placeholder="Input message data..." rows="3" required></textarea>
                                 <label>Broadcast Image</label> <input type="file" name="footerImage">
@@ -536,7 +508,7 @@ stats.feedbacksReceived = feedbacks.length;
 });
 
 // --- POST ACTIONS ---
-router.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
+router.post('/dashboard/mod-action', isAuthenticated, validateCsrf, async (req, res) => {
     const { userId, reason, action, duration } = req.body;
     const client = req.app.get('discordClient');
     try {
@@ -563,7 +535,7 @@ router.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
     } catch (e) { res.status(500).send("Mod Error: " + e.message); }
 });
 
-router.post('/dashboard/save-config', isAuthenticated, (req, res) => {
+router.post('/dashboard/save-config', isAuthenticated, validateCsrf, (req, res) => {
     const { logs, announce, welcome, spotlight, feedback } = req.body;
     if (logs) setChannel('logs', logs);
     if (announce) setChannel('announce', announce);
@@ -574,7 +546,7 @@ router.post('/dashboard/save-config', isAuthenticated, (req, res) => {
     res.redirect('/dashboard');
 });
 
-router.post('/dashboard/send-announce', isAuthenticated, upload.single('footerImage'), async (req, res) => {
+router.post('/dashboard/send-announce', isAuthenticated, validateCsrf, upload.single('footerImage'), async (req, res) => {
     const { message, chanId } = req.body;
     const client = req.app.get('discordClient');
     try {

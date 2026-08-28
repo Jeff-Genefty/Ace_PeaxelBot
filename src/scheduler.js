@@ -1,10 +1,11 @@
 import cron from 'node-cron';
 import { ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
 import { sendWeeklyMessage } from './utils/sendWeeklyMessage.js';
-import { getRandomAthlete, getPreviewAthlete } from './utils/spotlightManager.js';
+import { getRandomAthlete } from './utils/spotlightManager.js';
 import { getCurrentWeekNumber, getParisDate } from './utils/week.js';
-import { getConfig } from './utils/configManager.js';
+import { getChannel, getTicketChannelId } from './utils/configManager.js';
 import { sendAceMotivation } from './utils/rewardSystem.js';
+import { runScoutQuiz } from './utils/scoutQuizRunner.js';
 import { loadSchedulerState, saveSchedulerState } from './utils/schedulerState.js';
 import { readJsonSync, writeJsonSync, updateJsonSync } from './utils/jsonStore.js';
 
@@ -51,55 +52,13 @@ export function initScheduler(client) {
     // --- 2. AUTOMATIC SCOUT QUIZ (Tuesday 19:00) ---
     cron.schedule('0 19 * * 2', async () => {
         try {
-            const athlete = getPreviewAthlete();
-            if (!athlete) return;
-            
-            const config = getConfig();
-            const announceChannelId = config.channels?.announce || '1369976257047167059';
-            const generalChannelId = config.channels?.welcome || '1369976259613954059'; 
-
-            const announceChannel = await client.channels.fetch(announceChannelId);
-            const generalChannel = await client.channels.fetch(generalChannelId);
-
-            const quizEmbed = new EmbedBuilder()
-                .setTitle('🎲 SCOUT QUIZ: THE TALENT HUNT IS ON!')
-                .setDescription(
-                    `🏆 **THE PRIZE:**\n` +
-                    `The first Manager to find the correct answer wins a **Free Athlete Card**! 🃏✨\n\n` +
-                    `📖 **HOW TO PLAY:**\n` +
-                    `1️⃣ Analyze the scouting report below.\n` +
-                    `2️⃣ Head over to <#${generalChannelId}>.\n` +
-                    `3️⃣ Type the **EXACT NAME** of this athlete.\n\n` +
-                    `⚠️ *Precision is key! Only the exact spelling will be validated.*`
-                )
-                .addFields(
-                    { name: '📍 Nationality', value: athlete.main_nationality || "N/A", inline: true },
-                    { name: '🏆 Sport', value: athlete.occupation || "N/A", inline: true },
-                    { name: '🗂️ Category', value: athlete.main_category || "N/A", inline: true },
-                    { name: '💡 Scouting Hint', value: `The name starts with the letter: **${athlete.name.charAt(0).toUpperCase()}**` }
-                )
-                .setColor('#a855f7')
-                .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png') 
-                .setFooter({ text: 'Tournament Points and Cards are at stake!' });
-
-            await announceChannel.send({ content: '✨ **Weekly Scout Quiz is LIVE!** @everyone', embeds: [quizEmbed] });
-            updatePresence(client, `Quiz Active 🎲`);
-
-            const filter = m => m.content.toUpperCase().trim() === athlete.name.toUpperCase().trim();
-            const collector = generalChannel.createMessageCollector({ filter, time: 7200000, max: 1 });
-
-            collector.on('collect', async m => {
-                const winEmbed = new EmbedBuilder()
-                    .setTitle('🏆 WE HAVE A WINNER!')
-                    .setDescription(`Congratulations <@${m.author.id}>! You found the correct athlete: **${athlete.name.toUpperCase()}**.\n\n` +
-                                    `📩 To claim your reward, please open a ticket: <#1369976260066803794>`)
-                    .setColor('#2ECC71')
-                    .setThumbnail(athlete.talent_profile_image_url || null);
-
-                await announceChannel.send({ embeds: [winEmbed] });
-                await m.reply(`🏆 **Correct!** You won the Scout Quiz! Check <#${announceChannelId}> for details.`);
-                updatePresence(client);
+            const result = await runScoutQuiz(client, {
+                onStart: () => updatePresence(client, 'Quiz Active 🎲'),
+                onWinner: () => updatePresence(client),
             });
+            if (!result.success) {
+                console.warn(`${logPrefix} [Quiz] Skipped: ${result.reason}`);
+            }
         } catch (error) { console.error(`${logPrefix} [Quiz] Error:`, error.message); }
     }, { scheduled: true, timezone });
 
@@ -109,9 +68,8 @@ cron.schedule('0 16 * * 3', async () => {
         const athlete = getRandomAthlete(); 
         if (!athlete) return;
         
-        const config = getConfig();
-        const spotlightChannelId = config.channels?.spotlight || config.channels?.welcome;
-        const generalChannelId = config.channels?.welcome || '1369976259613954059';
+        const spotlightChannelId = getChannel('spotlight') || getChannel('welcome');
+        const generalChannelId = getChannel('welcome');
         const channel = await client.channels.fetch(spotlightChannelId);
 
         const athleteName = (athlete.name || "Athlete").toUpperCase();
@@ -242,8 +200,9 @@ cron.schedule('0 16 * * 3', async () => {
     // --- 6. GIVEAWAY LAUNCH (Saturday 10:00) ---
     cron.schedule('0 10 * * 6', async () => {
         try {
-            const config = getConfig();
-            const channel = await client.channels.fetch(config.channels?.announce || '1369976257047167059');
+            const announceId = getChannel('announce');
+            if (!announceId) return;
+            const channel = await client.channels.fetch(announceId);
             
             // Reset giveaway data
             writeJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
@@ -264,9 +223,11 @@ cron.schedule('0 16 * * 3', async () => {
 // --- 7. GIVEAWAY DRAW (Sunday 20:00) ---
 cron.schedule('0 20 * * 0', async () => {
     try {
-        const config = getConfig();
-        const channelId = config.channels?.announce || '1369976257047167059';
+        const channelId = getChannel('announce');
+        if (!channelId) return;
         const channel = await client.channels.fetch(channelId);
+        const ticketChannelId = getTicketChannelId();
+        const ticketMention = ticketChannelId ? `<#${ticketChannelId}>` : 'the support ticket channel';
         const data = readJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
 
         if (!data.participants?.length) {
@@ -283,7 +244,7 @@ cron.schedule('0 20 * * 0', async () => {
             .setDescription(
                 `Congratulations to <@${winnerId}>! You have been randomly selected as our lucky winner! 🥳\n\n` +
                 `🎫 **HOW TO CLAIM:**\n` +
-                `Please head over to <#1369976260066803794> and open a ticket to receive your reward.`
+                `Please head over to ${ticketMention} and open a ticket to receive your reward.`
             )
             .setColor('#2ECC71')
             .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png')
