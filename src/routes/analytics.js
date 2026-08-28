@@ -1,19 +1,15 @@
 import express from 'express';
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
+import { requireAdmin } from '../web/middleware/auth.js';
+import { adminSidebar } from '../web/utils/adminLayout.js';
+import { pageShell } from '../web/utils/render.js';
+import { adminUrl } from '../web/services/adminPath.js';
 
 const router = express.Router();
 const STATS_FILE = resolve('./data/analytics.json');
 
-const PRIMARY_PURPLE = '#a855f7';
-const NEON_BLUE = '#2dd4bf';
-
-const isAuthenticated = (req, res, next) => {
-    if (req.session.user) return next();
-    res.redirect('/login');
-};
-
-router.get('/', isAuthenticated, (req, res) => {
+router.get('/', requireAdmin, (req, res) => {
     let stats = {
         messagesSent: 0,
         commandsExecuted: 0,
@@ -22,10 +18,11 @@ router.get('/', isAuthenticated, (req, res) => {
         dailyActiveRoleUsers: [],
         totalBans: 0,
         history: {},
+        dailyHistory: {},
     };
 
     if (existsSync(STATS_FILE)) {
-        try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch { /* keep defaults */ }
+        try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch { /* defaults */ }
     }
 
     const historyDates = Object.keys(stats.history || {}).sort();
@@ -34,135 +31,88 @@ router.get('/', isAuthenticated, (req, res) => {
     const arrivalData = last7Days.map((d) => stats.history[d].arrivals || 0);
     const roleData = last7Days.map((d) => stats.history[d].roleActivity || 0);
 
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Peaxel | Analytics</title>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-            <style>
-                :root { --bg: #030305; --card: #0a0a0f; --primary: ${PRIMARY_PURPLE}; --neon: ${NEON_BLUE}; --text: #f8fafc; --danger: #ef4444; }
-                body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); padding: 40px; margin: 0; line-height: 1.5; }
-                .header { margin-bottom: 40px; border-left: 4px solid var(--primary); padding-left: 20px; }
-                .header h1 { margin: 0; font-size: 2.5em; font-weight: 800; }
-                .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 40px; }
-                .stat-box { background: var(--card); border: 1px solid #1e1e2e; padding: 20px; border-radius: 12px; transition: transform 0.2s; }
-                .stat-box:hover { transform: translateY(-5px); border-color: var(--primary); }
-                .stat-label { color: #64748b; font-size: 0.75em; text-transform: uppercase; font-weight: 700; }
-                .stat-number { font-size: 2em; font-weight: 800; display: block; margin: 5px 0; color: var(--primary); }
-                .stat-desc { font-size: 0.8em; color: #475569; }
-                .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
-                .panel { background: var(--card); border: 1px solid #1e1e2e; border-radius: 20px; padding: 25px; }
-                .panel.full { grid-column: span 2; }
-                .panel-title { font-size: 1.1em; font-weight: 700; margin-bottom: 20px; color: #94a3b8; }
-                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                th { text-align: left; color: #475569; font-size: 0.7em; padding: 12px; border-bottom: 1px solid #1e1e2e; }
-                td { padding: 15px 12px; font-size: 0.85em; border-bottom: 1px solid #0f0f15; }
-                .btn-back { display: inline-block; margin-bottom: 20px; color: var(--primary); text-decoration: none; font-weight: 600; font-size: 0.9em; }
-            </style>
-        </head>
-        <body>
-            <a href="/dashboard" class="btn-back">← RETOUR DASHBOARD</a>
-            <div class="header">
-                <h1>Intelligence Center</h1>
-                <p style="color: #64748b">Analyse granulaire des données du serveur</p>
-            </div>
-
-            <div class="stats-grid">
-                <div class="stat-box">
-                    <span class="stat-label">Messages Totaux</span>
-                    <span class="stat-number">${(stats.messagesSent || 0).toLocaleString()}</span>
-                    <span class="stat-desc">Volume de discussion</span>
+    const base = adminUrl('');
+    const body = `
+    <div class="admin-body">
+        ${adminSidebar('/analytics', base)}
+        <main class="admin-main">
+            <div class="admin-header">
+                <div>
+                    <h1>Intelligence Center</h1>
+                    <p style="margin:0.25rem 0 0;color:var(--text-dim);font-size:0.85rem;">Analyse granulaire des données serveur</p>
                 </div>
-                <div class="stat-box">
-                    <span class="stat-label">Slash Commands</span>
-                    <span class="stat-number">${stats.commandsExecuted || 0}</span>
-                    <span class="stat-desc">Interactions bot</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-label">Retours Clients</span>
-                    <span class="stat-number">${stats.feedbacksReceived || 0}</span>
-                    <span class="stat-desc">Feedbacks reçus</span>
-                </div>
-                <div class="stat-box" style="border-bottom: 3px solid var(--danger)">
-                    <span class="stat-label">Modération</span>
-                    <span class="stat-number" style="color: var(--danger)">${stats.totalBans || 0}</span>
-                    <span class="stat-desc">Bans définitifs</span>
-                </div>
-                <div class="stat-box" style="border-bottom: 3px solid var(--neon)">
-                    <span class="stat-label">Arrivées Jour</span>
-                    <span class="stat-number" style="color: var(--neon)">+${stats.arrivalsToday || 0}</span>
-                    <span class="stat-desc">Nouveaux membres</span>
+                <div class="admin-header-actions">
+                    <a href="${base}" class="btn btn-ghost btn-sm">← Console</a>
                 </div>
             </div>
 
-            <div class="charts-grid">
-                <div class="panel full">
-                    <div class="panel-title">📈 Évolution totale membres</div>
-                    <canvas id="growthChart" height="100"></canvas>
+            <div class="kpi-grid">
+                <div class="kpi-card"><span class="kpi-value">${(stats.messagesSent || 0).toLocaleString()}</span><span class="kpi-label">Messages</span></div>
+                <div class="kpi-card"><span class="kpi-value">${stats.commandsExecuted || 0}</span><span class="kpi-label">Commandes</span></div>
+                <div class="kpi-card"><span class="kpi-value">${stats.feedbacksReceived || 0}</span><span class="kpi-label">Feedbacks</span></div>
+                <div class="kpi-card danger"><span class="kpi-value">${stats.totalBans || 0}</span><span class="kpi-label">Bans</span></div>
+                <div class="kpi-card highlight"><span class="kpi-value">+${stats.arrivalsToday || 0}</span><span class="kpi-label">Arrivées jour</span></div>
+            </div>
+
+            <div class="panel-grid">
+                <div class="panel" style="grid-column:1/-1;">
+                    <h2>📈 Évolution membres (7j)</h2>
+                    <div class="chart-wrap" style="height:280px;"><canvas id="growthChart"></canvas></div>
                 </div>
                 <div class="panel">
-                    <div class="panel-title">📊 Taux d'activité rôle suivi (%)</div>
-                    <canvas id="roleChart"></canvas>
+                    <h2>📊 Activité rôle (%)</h2>
+                    <div class="chart-wrap"><canvas id="roleChart"></canvas></div>
                 </div>
                 <div class="panel">
-                    <div class="panel-title">🆕 Nouveaux arrivants (quotidien)</div>
-                    <canvas id="arrivalChart"></canvas>
+                    <h2>🆕 Arrivants quotidiens</h2>
+                    <div class="chart-wrap"><canvas id="arrivalChart"></canvas></div>
                 </div>
             </div>
 
             <div class="panel">
-                <div class="panel-title">🗓️ Historique quotidien (7 derniers jours)</div>
+                <h2>🗓️ Historique quotidien</h2>
+                <div class="table-scroll">
                 <table>
-                    <thead>
-                        <tr>
-                            <th>DATE</th>
-                            <th>MEMBRES</th>
-                            <th>FLUX (+)</th>
-                            <th>ACTIVITÉ</th>
-                        </tr>
-                    </thead>
+                    <thead><tr><th>Date</th><th>Membres</th><th>Flux (+)</th><th>Activité</th></tr></thead>
                     <tbody>
                         ${[...last7Days].reverse().map((date) => {
                             const d = stats.history[date];
-                            return `
-                                <tr>
-                                    <td style="font-weight:700">${date}</td>
-                                    <td>${d?.totalMembers ?? '—'}</td>
-                                    <td style="color:var(--neon)">+${d?.arrivals ?? 0}</td>
-                                    <td>${d?.roleActivity ?? 0}%</td>
-                                </tr>
-                            `;
+                            return `<tr>
+                                <td style="font-weight:700">${date}</td>
+                                <td>${d?.totalMembers ?? '—'}</td>
+                                <td style="color:var(--neon)">+${d?.arrivals ?? 0}</td>
+                                <td>${d?.roleActivity ?? 0}%</td>
+                            </tr>`;
                         }).join('')}
                     </tbody>
                 </table>
+                </div>
             </div>
+        </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+    const chartOpt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { y: { grid: { color: '#1e1e2e' }, ticks: { color: '#475569' } }, x: { grid: { display: false }, ticks: { color: '#475569' } } } };
+    const labels = ${JSON.stringify(last7Days)};
+    new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: { labels, datasets: [{ data: ${JSON.stringify(memberData)}, borderColor: '#22d3ee', backgroundColor: 'rgba(34,211,238,0.1)', fill: true, tension: 0.4 }] },
+        options: chartOpt
+    });
+    new Chart(document.getElementById('roleChart'), {
+        type: 'bar',
+        data: { labels, datasets: [{ data: ${JSON.stringify(roleData)}, backgroundColor: '#7c3aed' }] },
+        options: chartOpt
+    });
+    new Chart(document.getElementById('arrivalChart'), {
+        type: 'line',
+        data: { labels, datasets: [{ data: ${JSON.stringify(arrivalData)}, borderColor: '#ef4444', tension: 0.3 }] },
+        options: chartOpt
+    });
+    </script>`;
 
-            <script>
-                const chartOpt = { responsive: true, plugins: { legend: { display: false } },
-                    scales: { y: { grid: { color: '#1e1e2e' }, ticks: { color: '#475569' } }, x: { grid: { display: false }, ticks: { color: '#475569' } } } };
-                const labels = ${JSON.stringify(last7Days)};
-
-                new Chart(document.getElementById('growthChart'), {
-                    type: 'line',
-                    data: { labels, datasets: [{ label: 'Membres', data: ${JSON.stringify(memberData)}, borderColor: '${PRIMARY_PURPLE}', backgroundColor: 'rgba(168, 85, 247, 0.1)', fill: true, tension: 0.4 }] },
-                    options: chartOpt
-                });
-                new Chart(document.getElementById('roleChart'), {
-                    type: 'bar',
-                    data: { labels, datasets: [{ data: ${JSON.stringify(roleData)}, backgroundColor: '${NEON_BLUE}' }] },
-                    options: chartOpt
-                });
-                new Chart(document.getElementById('arrivalChart'), {
-                    type: 'line',
-                    data: { labels, datasets: [{ data: ${JSON.stringify(arrivalData)}, borderColor: '#ef4444', tension: 0.3 }] },
-                    options: chartOpt
-                });
-            </script>
-        </body>
-        </html>
-    `);
+    res.send(pageShell({ title: 'Analytics — Ace Console', body }));
 });
 
 export default router;

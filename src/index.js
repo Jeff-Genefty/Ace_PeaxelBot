@@ -10,11 +10,12 @@ import bcrypt from 'bcrypt';
 import cron from 'node-cron';
 import analyticsRoutes from './routes/analytics.js';
 import feedbackRoutes from './routes/feedbacks.js';
+import publicRouter from './web/routes/public.js';
+import adminRouter from './web/routes/admin.js';
+import legacyRouter from './routes/legacy.js';
+import { getAdminPath } from './web/services/adminPath.js';
 import { updateJsonSync } from './utils/jsonStore.js';
 import { getRole } from './utils/configManager.js';
-
-// Router Import
-import dashboardRouter from './routes/dashboard.js';
 
 // Utility Imports
 import { initScheduler } from './scheduler.js';
@@ -116,10 +117,13 @@ app.use(session({
     cookie: { maxAge: 3600000, secure: isProd, httpOnly: true, sameSite: 'lax' }
 }));
 
-// USE THE EXTERNAL ROUTER
+// Web v2 — static assets + routes
+app.use(express.static(join(__dirname, 'web/public')));
+app.use('/', publicRouter);
+app.use(`/${getAdminPath()}`, adminRouter);
 app.use('/analytics', analyticsRoutes);
-app.use('/', dashboardRouter);
 app.use('/feedbacks', feedbackRoutes);
+app.use('/', legacyRouter);
 
 // Health check (monitoring / uptime)
 app.get('/health', (req, res) => {
@@ -278,7 +282,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 (async () => {
     try {
         // Dashboard listening first
-        app.listen(PORT, () => console.log(`${logPrefix} Dashboard active on port ${PORT}`));
+        app.listen(PORT, () => console.log(`${logPrefix} Web v2 active on port ${PORT} (admin: /${getAdminPath()})`));
 
         await loadCommands();
         
