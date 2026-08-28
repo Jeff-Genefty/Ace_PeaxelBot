@@ -10,7 +10,7 @@ export const ROLES = {
     ADMIN: 'admin',
 };
 
-/** Accès total — super_admin ou rôle admin legacy sans restriction. */
+/** Accès total : super_admin ou rôle admin legacy sans restriction. */
 export function hasFullAccess(session) {
     const role = session?.admin?.role;
     return !role || role === ROLES.SUPER_ADMIN || role === ROLES.ADMIN;
@@ -30,31 +30,48 @@ function writeUsers(users) {
     writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
+/** Lit tous les couples email/mot de passe définis dans .env */
+function getAdminCredentialsFromEnv() {
+    const pairs = [
+        { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD },
+        { email: process.env.SUPER_ADMIN_EMAIL, password: process.env.SUPER_ADMIN_PASSWORD },
+    ];
+
+    const map = new Map();
+    for (const { email, password } of pairs) {
+        if (!email?.trim() || !password) continue;
+        map.set(email.trim().toLowerCase(), password);
+    }
+    return [...map.entries()].map(([email, password]) => ({ email, password }));
+}
+
 /**
- * Crée ou met à jour le super admin depuis ADMIN_EMAIL + ADMIN_PASSWORD (.env).
- * S'exécute à chaque boot pour synchroniser le mot de passe Railway.
+ * Crée ou met à jour les super admins depuis .env (ADMIN_* et SUPER_ADMIN_*).
+ * S'exécute à chaque boot pour synchroniser les mots de passe Railway.
  */
 export async function ensureAdminUsers() {
-    const email = (process.env.ADMIN_EMAIL || process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
-    const password = process.env.ADMIN_PASSWORD || process.env.SUPER_ADMIN_PASSWORD;
-    if (!email || !password) return;
+    const credentials = getAdminCredentialsFromEnv();
+    if (!credentials.length) return;
 
-    const hash = await bcrypt.hash(password, 10);
     const users = readUsers();
-    const idx = users.findIndex((u) => u.email?.toLowerCase() === email);
 
-    const superUser = {
-        email,
-        password: hash,
-        role: ROLES.SUPER_ADMIN,
-        name: 'Super Admin',
-        updatedAt: new Date().toISOString(),
-    };
+    for (const { email, password } of credentials) {
+        const hash = await bcrypt.hash(password, 10);
+        const idx = users.findIndex((u) => u.email?.toLowerCase() === email);
 
-    if (idx >= 0) {
-        users[idx] = { ...users[idx], ...superUser };
-    } else {
-        users.push(superUser);
+        const superUser = {
+            email,
+            password: hash,
+            role: ROLES.SUPER_ADMIN,
+            name: 'Super Admin',
+            updatedAt: new Date().toISOString(),
+        };
+
+        if (idx >= 0) {
+            users[idx] = { ...users[idx], ...superUser };
+        } else {
+            users.push(superUser);
+        }
     }
 
     writeUsers(users);
