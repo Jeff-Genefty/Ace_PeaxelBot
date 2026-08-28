@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 import multer from 'multer';
 import { getConfig, setChannel, getRole } from '../utils/configManager.js';
 import { updateJsonSync } from '../utils/jsonStore.js';
-import { csrfInput, loginCsrfInput, validateCsrf, validateLoginCsrf, initSessionCsrf } from '../utils/csrf.js';
+import { csrfInput, createLoginCsrfToken, loginCsrfInput, setLoginCsrfCookie, validateCsrf, validateLoginCsrf, initSessionCsrf } from '../utils/csrf.js';
 import { loginRateLimit, recordFailedLogin, clearLoginAttempts } from '../utils/loginRateLimit.js';
 
 const router = express.Router();
@@ -41,7 +41,10 @@ const isAuthenticated = (req, res, next) => {
 
 // --- AUTH ROUTES ---
 router.get('/login', (req, res) => {
-    const csrf = loginCsrfInput(req.session);
+    const isProd = process.env.NODE_ENV === 'production';
+    const token = createLoginCsrfToken();
+    setLoginCsrfCookie(res, token, isProd);
+    const csrf = loginCsrfInput(token);
     const errorMsg = req.query.error === '1'
         ? '<p style="color:#ef4444;text-align:center;font-size:0.85em;">Identifiants incorrects.</p>'
         : req.query.error === 'fs'
@@ -59,7 +62,10 @@ router.post('/login', loginRateLimit, validateLoginCsrf, async (req, res) => {
             clearLoginAttempts(req);
             initSessionCsrf(req.session);
             req.session.user = { email: user.email };
-            res.redirect('/dashboard');
+            req.session.save((err) => {
+                if (err) return res.status(500).send('Erreur session.');
+                res.redirect('/dashboard');
+            });
         } else {
             recordFailedLogin(req);
             res.redirect('/login?error=1');

@@ -5,6 +5,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
+import cookieParser from 'cookie-parser';
 import bcrypt from 'bcrypt';
 import cron from 'node-cron';
 import analyticsRoutes from './routes/analytics.js';
@@ -103,6 +104,7 @@ const app = express();
 app.set('trust proxy', 1);
 app.set('discordClient', client); 
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 if (!isProd && !process.env.SESSION_SECRET) {
     console.warn(`${logPrefix} ⚠️ SESSION_SECRET absent — utilisation d'une clé de dev (non production).`);
 }
@@ -110,6 +112,7 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'cyber-secret-key-dev-only',
     resave: false,
     saveUninitialized: false,
+    proxy: isProd,
     cookie: { maxAge: 3600000, secure: isProd, httpOnly: true, sameSite: 'lax' }
 }));
 
