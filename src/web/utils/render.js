@@ -1,4 +1,10 @@
-import { escapeHtml } from './render.js';
+export function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
 
 export function pageShell({
     title, body, extraCss = '', extraJs = '', bodyClass = '', includeNav = true, locale = 'en', description = '',
@@ -27,12 +33,4 @@ ${navScript}
 ${extraJs}
 </body>
 </html>`;
-}
-
-export function escapeHtml(str) {
-    return String(str ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }
