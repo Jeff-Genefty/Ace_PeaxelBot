@@ -62,12 +62,12 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
                        `🏆 **Earn:** Secure your spot at the top for XP and exclusive rewards.\n\n` +
                        `Good luck, Managers! Let's see those dream teams. 🚀`;
   } else {
-    finalDescription = `Hello <@&${ROLE_ID}>, Ace here! 📢 Attention Managers, the clock is ticking for **Game Week ${weekNumber}**!\n\n` +
-                       `The stadium gates are about to close. This is your final chance to finalize your strategy before the matches begin.\n\n` +
+    finalDescription = `Hello <@&${ROLE_ID}>, Ace here! 📢 **Final call for Game Week ${weekNumber}!**\n\n` +
+                       `The lineup deadline is tonight at **23:59 (Paris time)** — that's about **5 hours** from now. This is your last chance to finalize your strategy before the matches begin.\n\n` +
                        `**Final Check:**\n` +
                        `✅ **Review:** Ensure your best athletes are in the starting lineup.\n` +
                        `⚔️ **Challenge:** Double-check your captain selection for maximum points.\n` +
-                       `🔒 **Lock:** Submit your team before the deadline hits!`;
+                       `🔒 **Lock:** Submit your team before 23:59 tonight!`;
   }
 
   const imageFileName = getImageName(validType);
@@ -83,12 +83,10 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
     const deadline = new Date(now);
     const dayDiff = (4 - now.getDay() + 7) % 7;
     deadline.setDate(now.getDate() + dayDiff);
-    
-    // MODIFICATION ICI : On règle sur 23:59 au lieu de 18:59
     deadline.setHours(23, 59, 0, 0);
 
     const unix = Math.floor(deadline.getTime() / 1000);
-    countdownText = `\n\n⏱️ **TIME REMAINING:**\n> Lineups lock in **<t:${unix}:R>**\n> Deadline: <t:${unix}:f>`;
+    countdownText = `\n\n⏱️ **TIME REMAINING:**\n> Lineups lock at **23:59 (Paris)** — <t:${unix}:R>\n> Deadline: <t:${unix}:f>`;
   }
 
   const embed = new EmbedBuilder()

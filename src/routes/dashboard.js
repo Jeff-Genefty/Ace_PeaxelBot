@@ -1,12 +1,14 @@
 import express from 'express';
-import fs, { readFileSync, writeFileSync } from 'fs';
+import fs, { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import bcrypt from 'bcrypt';
 import multer from 'multer';
 import { getConfig, setChannel } from '../utils/configManager.js';
+import { updateJsonSync } from '../utils/jsonStore.js';
 
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
+const ACTIVITY_TRACK_ROLE_ID = process.env.ACTIVITY_TRACK_ROLE_ID || '1371904297498841148';
 
 // --- DATA PATHS ---
 const DATA_DIR = resolve('./data');
@@ -23,13 +25,10 @@ const NEON_BLUE = '#2dd4bf';
 // --- HELPERS ---
 // Helper for logging web actions to the live console
 const addLiveLog = (action, detail) => {
-    let logs = [];
-    if (fs.existsSync(LIVE_LOGS_FILE)) {
-        try { logs = JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')); } catch (e) { }
-    }
-    logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
-    // Keep only the latest 50 logs
-    writeFileSync(LIVE_LOGS_FILE, JSON.stringify(logs.slice(0, 50), null, 2));
+    updateJsonSync(LIVE_LOGS_FILE, [], (logs) => {
+        logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
+        return logs.slice(0, 50);
+    });
 };
 
 // Middleware to ensure user is logged in
@@ -154,8 +153,7 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
     const guild = guildId ? await client.guilds.fetch(guildId).catch(() => null) : null;
 
     // KPI 1 - Active Pop (Specific Role Activity)
-    const targetRoleId = "1371904297498841148"; 
-    const roleMembers = guild?.roles.cache.get(targetRoleId)?.members.size || 1;
+    const roleMembers = guild?.roles.cache.get(ACTIVITY_TRACK_ROLE_ID)?.members.size || 1;
     const activeToday = stats.dailyActiveRoleUsers?.length || 0;
     const activePopRate = ((activeToday / roleMembers) * 100).toFixed(1);
 
@@ -555,6 +553,10 @@ router.post('/dashboard/mod-action', isAuthenticated, async (req, res) => {
         } else if (action === 'ban') {
             await member.ban({ reason });
             logMsg = `BAN: ${member.user.tag}`;
+            updateJsonSync(STATS_FILE, { totalBans: 0 }, (stats) => {
+                stats.totalBans = (stats.totalBans || 0) + 1;
+                return stats;
+            });
         }
         addLiveLog("MOD", logMsg);
         res.redirect('/dashboard');

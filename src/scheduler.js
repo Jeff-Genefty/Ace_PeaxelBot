@@ -1,17 +1,19 @@
 import cron from 'node-cron';
-import fs from 'fs';
 import { ActivityType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder } from 'discord.js';
 import { sendWeeklyMessage } from './utils/sendWeeklyMessage.js';
 import { getRandomAthlete, getPreviewAthlete } from './utils/spotlightManager.js';
 import { getCurrentWeekNumber, getParisDate } from './utils/week.js';
 import { getConfig } from './utils/configManager.js';
 import { sendAceMotivation } from './utils/rewardSystem.js';
+import { loadSchedulerState, saveSchedulerState } from './utils/schedulerState.js';
+import { readJsonSync, writeJsonSync, updateJsonSync } from './utils/jsonStore.js';
 
 const logPrefix = '[Peaxel Scheduler]';
 const GIVEAWAY_FILE = './data/giveaways.json';
 
-let lastSentOpenWeek = null;
-let lastSentCloseWeek = null;
+const schedulerState = loadSchedulerState();
+let lastSentOpenWeek = schedulerState.lastSentOpenWeek;
+let lastSentCloseWeek = schedulerState.lastSentCloseWeek;
 
 /**
  * Updates bot presence based on the current day and event
@@ -39,7 +41,8 @@ export function initScheduler(client) {
         try {
             const success = await sendWeeklyMessage(client, { isManual: false, type: 'opening' });
             if (success) { 
-                lastSentOpenWeek = weekKey; 
+                lastSentOpenWeek = weekKey;
+                saveSchedulerState({ lastSentOpenWeek, lastSentCloseWeek });
                 updatePresence(client); 
             }
         } catch (error) { console.error(`${logPrefix} [Opening] Error:`, error.message); }
@@ -217,11 +220,17 @@ cron.schedule('0 16 * * 3', async () => {
     }
 }, { scheduled: true, timezone: "Europe/Paris" });
 
-    // --- 4. LINEUP CLOSING (Thursday 18:59) ---
+    // --- 4. LINEUP CLOSING (Thursday 18:59 — rappel 5h avant deadline 23:59) ---
     cron.schedule('59 18 * * 4', async () => {
+        const weekKey = getWeekKey();
+        if (lastSentCloseWeek === weekKey) return;
         try {
             const success = await sendWeeklyMessage(client, { isManual: false, type: 'closing' });
-            if (success) updatePresence(client);
+            if (success) {
+                lastSentCloseWeek = weekKey;
+                saveSchedulerState({ lastSentOpenWeek, lastSentCloseWeek });
+                updatePresence(client);
+            }
         } catch (error) { console.error(`${logPrefix} [Closing] Error:`, error.message); }
     }, { scheduled: true, timezone });
 
@@ -237,8 +246,7 @@ cron.schedule('0 16 * * 3', async () => {
             const channel = await client.channels.fetch(config.channels?.announce || '1369976257047167059');
             
             // Reset giveaway data
-            if (!fs.existsSync('./data')) fs.mkdirSync('./data');
-            fs.writeFileSync(GIVEAWAY_FILE, JSON.stringify({ participants: [] }, null, 2));
+            writeJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
 
             const giveawayEmbed = new EmbedBuilder()
                 .setTitle('🎟️ WEEKEND GIVEAWAY IS LIVE!')
@@ -256,13 +264,12 @@ cron.schedule('0 16 * * 3', async () => {
 // --- 7. GIVEAWAY DRAW (Sunday 20:00) ---
 cron.schedule('0 20 * * 0', async () => {
     try {
-        if (!fs.existsSync(GIVEAWAY_FILE)) return;
         const config = getConfig();
-        const data = JSON.parse(fs.readFileSync(GIVEAWAY_FILE, 'utf-8'));
         const channelId = config.channels?.announce || '1369976257047167059';
         const channel = await client.channels.fetch(channelId);
+        const data = readJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
 
-        if (!data.participants || data.participants.length === 0) {
+        if (!data.participants?.length) {
             return await channel.send('😔 **Giveaway Results:** No one participated this weekend.');
         }
 
@@ -295,8 +302,7 @@ cron.schedule('0 20 * * 0', async () => {
             files: [imageFile] 
         });
 
-        // Reset the giveaway data
-        fs.writeFileSync(GIVEAWAY_FILE, JSON.stringify({ participants: [] }, null, 2));
+        writeJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
         
     } catch (e) { 
         console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message); 

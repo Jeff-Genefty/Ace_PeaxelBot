@@ -1,14 +1,15 @@
-import { Client, GatewayIntentBits, Collection, Events, REST, Routes } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events } from 'discord.js';
 import { config } from 'dotenv';
-import fs, { readdirSync, readFileSync, writeFileSync } from 'fs';
+import fs, { readdirSync, writeFileSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
 import bcrypt from 'bcrypt';
-import cron from 'node-cron'; 
+import cron from 'node-cron';
 import analyticsRoutes from './routes/analytics.js';
 import feedbackRoutes from './routes/feedbacks.js';
+import { updateJsonSync } from './utils/jsonStore.js';
 
 // Router Import
 import dashboardRouter from './routes/dashboard.js';
@@ -20,7 +21,6 @@ import { initDiscordLogger } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
 import { setupWelcomeListener } from './listeners/welcomeListener.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
-import { getConfig } from './utils/configManager.js';
 
 config();
 
@@ -28,6 +28,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const logPrefix = '[Peaxel Bot]';
 const PORT = process.env.PORT || 8080;
+const ACTIVITY_TRACK_ROLE_ID = process.env.ACTIVITY_TRACK_ROLE_ID || '1371904297498841148';
 
 // --- DATA PATHS & INIT ---
 const DATA_DIR = resolve('./data');
@@ -35,6 +36,17 @@ const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
 const USERS_FILE = join(DATA_DIR, 'users.json');
 const GIVEAWAYS_FILE = join(DATA_DIR, 'giveaways.json');
+
+const DEFAULT_STATS = {
+    messagesSent: 0,
+    commandsExecuted: 0,
+    feedbacksReceived: 0,
+    arrivalsToday: 0,
+    dailyActiveRoleUsers: [],
+    dailyHistory: {},
+    history: {},
+    totalBans: 0,
+};
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -49,29 +61,27 @@ if (!fs.existsSync(USERS_FILE)) {
 }
 
 // --- ANALYTICS ENGINE ---
-// Added arrivalsToday, dailyActiveRoleUsers and history to the initial object
-let stats = { messagesSent: 0, commandsExecuted: 0, feedbacksReceived: 0, arrivalsToday: 0, dailyActiveRoleUsers: [], dailyHistory: {}, history: {} };
-if (fs.existsSync(STATS_FILE)) {
-    try { stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch (e) { }
+function updateStats(updater) {
+    return updateJsonSync(STATS_FILE, DEFAULT_STATS, updater);
 }
 
 const trackEvent = (type) => {
-    if (stats[type] !== undefined) {
-        stats[type]++;
-        const today = new Date().toISOString().split('T')[0];
-        if (!stats.dailyHistory) stats.dailyHistory = {};
-        stats.dailyHistory[today] = (stats.dailyHistory[today] || 0) + 1;
-        writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
-    }
+    updateStats((stats) => {
+        if (stats[type] !== undefined) {
+            stats[type]++;
+            const today = new Date().toISOString().split('T')[0];
+            if (!stats.dailyHistory) stats.dailyHistory = {};
+            stats.dailyHistory[today] = (stats.dailyHistory[today] || 0) + 1;
+        }
+        return stats;
+    });
 };
 
 const addLiveLog = (action, detail) => {
-    let logs = [];
-    if (fs.existsSync(LIVE_LOGS_FILE)) {
-        try { logs = JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')); } catch(e) {}
-    }
-    logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
-    writeFileSync(LIVE_LOGS_FILE, JSON.stringify(logs.slice(0, 50), null, 2));
+    updateJsonSync(LIVE_LOGS_FILE, [], (logs) => {
+        logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
+        return logs.slice(0, 50);
+    });
 };
 
 // --- DISCORD CLIENT ---
@@ -82,13 +92,18 @@ client.commands = new Collection();
 
 // --- WEB SERVER CONFIG ---
 const app = express();
+app.set('trust proxy', 1);
 app.set('discordClient', client); 
 app.use(express.urlencoded({ extended: true }));
+const isProd = process.env.NODE_ENV === 'production';
+if (isProd && !process.env.SESSION_SECRET) {
+    console.warn(`${logPrefix} ⚠️ SESSION_SECRET manquant en production : définissez-le pour sécuriser les sessions.`);
+}
 app.use(session({
     secret: process.env.SESSION_SECRET || 'cyber-secret-key',
-    resave: true, 
-    saveUninitialized: true,
-    cookie: { maxAge: 3600000, secure: false }
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 3600000, secure: isProd, httpOnly: true, sameSite: 'lax' }
 }));
 
 // USE THE EXTERNAL ROUTER
@@ -97,10 +112,9 @@ app.use('/', dashboardRouter);
 app.use('/feedbacks', feedbackRoutes);
 
 
-// --- COMMAND LOADER ---
-async function loadAndRegisterCommands() {
+// --- COMMAND LOADER (local only — register via npm run register-commands) ---
+async function loadCommands() {
     const commandsPath = join(__dirname, 'commands');
-    const commandsToRegister = [];
     try {
         if (!fs.existsSync(commandsPath)) return;
         const commandFiles = readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -110,15 +124,10 @@ async function loadAndRegisterCommands() {
             const command = commandModule.default || commandModule;
             if (command?.data && command.execute) {
                 client.commands.set(command.data.name, command);
-                commandsToRegister.push(command.data.toJSON());
             }
         }
-        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
-        const route = process.env.DISCORD_GUILD_ID 
-            ? Routes.applicationGuildCommands(process.env.DISCORD_CLIENT_ID, process.env.DISCORD_GUILD_ID)
-            : Routes.applicationCommands(process.env.DISCORD_CLIENT_ID);
-        await rest.put(route, { body: commandsToRegister });
-    } catch (err) { console.error(`${logPrefix} Sync error:`, err.message); }
+        console.log(`${logPrefix} ${client.commands.size} command(s) loaded locally`);
+    } catch (err) { console.error(`${logPrefix} Command load error:`, err.message); }
 }
 
 // --- EVENTS ---
@@ -132,9 +141,11 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 
 // Track arrivals
-client.on(Events.GuildMemberAdd, (member) => {
-    stats.arrivalsToday = (stats.arrivalsToday || 0) + 1;
-    writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
+client.on(Events.GuildMemberAdd, () => {
+    updateStats((stats) => {
+        stats.arrivalsToday = (stats.arrivalsToday || 0) + 1;
+        return stats;
+    });
 });
 
 client.on(Events.MessageCreate, async (message) => {
@@ -142,13 +153,14 @@ client.on(Events.MessageCreate, async (message) => {
         trackEvent('messagesSent');
         
         // Role penetration tracking
-        const targetRoleId = "1371904297498841148";
-        if (message.member?.roles.cache.has(targetRoleId)) {
-            if (!stats.dailyActiveRoleUsers) stats.dailyActiveRoleUsers = [];
-            if (!stats.dailyActiveRoleUsers.includes(message.author.id)) {
-                stats.dailyActiveRoleUsers.push(message.author.id);
-                writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
-            }
+        if (message.member?.roles.cache.has(ACTIVITY_TRACK_ROLE_ID)) {
+            updateStats((stats) => {
+                if (!stats.dailyActiveRoleUsers) stats.dailyActiveRoleUsers = [];
+                if (!stats.dailyActiveRoleUsers.includes(message.author.id)) {
+                    stats.dailyActiveRoleUsers.push(message.author.id);
+                }
+                return stats;
+            });
         }
     }
     await handleMessageReward(message);
@@ -159,21 +171,22 @@ cron.schedule('0 0 * * *', async () => {
     const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID).catch(() => null);
     if (!guild) return;
 
-    const targetRoleId = "1371904297498841148";
-    const roleMembers = guild.roles.cache.get(targetRoleId)?.members.size || 1;
-    const activeToday = stats.dailyActiveRoleUsers?.length || 0;
+    const roleMembers = guild.roles.cache.get(ACTIVITY_TRACK_ROLE_ID)?.members.size || 1;
     const today = new Date().toISOString().split('T')[0];
 
-    if (!stats.history) stats.history = {};
-    stats.history[today] = {
-        roleActivity: ((activeToday / roleMembers) * 100).toFixed(1),
-        arrivals: stats.arrivalsToday || 0,
-        totalMembers: guild.memberCount
-    };
+    updateStats((stats) => {
+        const activeToday = stats.dailyActiveRoleUsers?.length || 0;
+        if (!stats.history) stats.history = {};
+        stats.history[today] = {
+            roleActivity: ((activeToday / roleMembers) * 100).toFixed(1),
+            arrivals: stats.arrivalsToday || 0,
+            totalMembers: guild.memberCount
+        };
+        stats.arrivalsToday = 0;
+        stats.dailyActiveRoleUsers = [];
+        return stats;
+    });
 
-    stats.arrivalsToday = 0;
-    stats.dailyActiveRoleUsers = [];
-    writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
     console.log(`${logPrefix} Daily analytics snapshot saved.`);
 });
 
@@ -192,25 +205,27 @@ client.on(Events.InteractionCreate, async (interaction) => {
         } 
         else if (interaction.customId === 'join_giveaway') {
             try {
-                let data = { participants: [], participantTags: [] };
-                if (fs.existsSync(GIVEAWAYS_FILE)) {
-                    const fileContent = fs.readFileSync(GIVEAWAYS_FILE, 'utf-8');
-                    if (fileContent) data = JSON.parse(fileContent);
-                }
-                if (!data.participants) data.participants = [];
-                if (!data.participantTags) data.participantTags = [];
+                updateJsonSync(GIVEAWAYS_FILE, { participants: [], participantTags: [] }, (data) => {
+                    if (!data.participants) data.participants = [];
+                    if (!data.participantTags) data.participantTags = [];
 
-                if (data.participants.includes(interaction.user.id)) {
-                    return await interaction.reply({ content: "❌ Already registered!", ephemeral: true });
-                }
+                    if (data.participants.includes(interaction.user.id)) {
+                        throw new Error('ALREADY_JOINED');
+                    }
 
-                data.participants.push(interaction.user.id);
-                data.participantTags.push(interaction.user.tag); 
-                fs.writeFileSync(GIVEAWAYS_FILE, JSON.stringify(data, null, 2));
+                    data.participants.push(interaction.user.id);
+                    data.participantTags.push(interaction.user.tag);
+                    return data;
+                });
 
                 addLiveLog("GIVEAWAY", `${interaction.user.tag} joined the draw 🎟️`);
                 await interaction.reply({ content: "✅ Entry recorded!", ephemeral: true });
-            } catch (err) { console.error(`Giveaway Join Error:`, err); }
+            } catch (err) {
+                if (err.message === 'ALREADY_JOINED') {
+                    return await interaction.reply({ content: "❌ Already registered!", ephemeral: true });
+                }
+                console.error(`Giveaway Join Error:`, err);
+            }
         }
     }
     // Handle Modal Submissions
@@ -244,7 +259,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         setupWelcomeListener(client);
         
         // Fixed the function call (no arguments needed based on your definition)
-        await loadAndRegisterCommands(); 
+        await loadCommands(); 
         
         await client.login(process.env.DISCORD_TOKEN);
     } catch (error) { 
