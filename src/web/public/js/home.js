@@ -1,4 +1,4 @@
-/** Parallaxe, lazy blur, carousel hero (homepage) */
+/** Parallaxe et lazy blur (homepage) */
 (function () {
     const scene = document.querySelector('.landing-home');
     if (!scene) return;
@@ -34,23 +34,10 @@
         function tick() {
             raf = 0;
             cards.forEach((card, i) => {
-                const depth = 6 + (i % 4) * 3;
+                const depth = 8 + (i % 4) * 4;
                 card.style.setProperty('--parallax-x', `${targetX * depth}px`);
                 card.style.setProperty('--parallax-y', `${targetY * depth}px`);
             });
-        }
-    }
-
-    const carousel = scene.querySelector('.hero-carousel');
-    if (carousel && !reduced) {
-        const slides = carousel.querySelectorAll('.hero-carousel-slide');
-        if (slides.length > 1) {
-            let idx = 0;
-            setInterval(() => {
-                slides[idx]?.classList.remove('is-active');
-                idx = (idx + 1) % slides.length;
-                slides[idx]?.classList.add('is-active');
-            }, 4000);
         }
     }
 })();

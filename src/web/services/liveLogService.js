@@ -5,7 +5,7 @@ import { updateJsonSync } from '../../utils/jsonStore.js';
 const LIVE_LOGS_FILE = join(resolve('./data'), 'live_logs.json');
 const MAX_LOGS = 500;
 
-export const LOG_ACTIONS = ['MOD', 'CONFIG', 'BROADCAST', 'GIVEAWAY', 'COMMAND', 'FEEDBACK', 'SYSTEM', 'ERROR', 'LINK', 'CHECKIN'];
+export const LOG_ACTIONS = ['MOD', 'CONFIG', 'BROADCAST', 'GIVEAWAY', 'COMMAND', 'FEEDBACK', 'SYSTEM', 'ERROR'];
 
 export function addLiveLog(action, detail, meta = {}) {
     const entry = {

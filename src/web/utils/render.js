@@ -6,7 +6,7 @@ export function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
-const DEFAULT_OG_IMAGE = '/img/favicon.ico';
+const DEFAULT_OG_IMAGE = '/img/peaxel-mark.svg';
 
 export function pageShell({
     title,

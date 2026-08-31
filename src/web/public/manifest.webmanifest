@@ -4,8 +4,8 @@
   "description": "Peaxel Community Hub. Sign in with Discord and join the community.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#050508",
-  "theme_color": "#050508",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait-primary",
   "icons": [
     {

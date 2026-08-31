@@ -55,7 +55,7 @@ router.get('/login', (req, res) => {
     <div class="login-page">
         <div class="login-card">
             <div class="login-brand">
-                <img src="/img/favicon.ico" alt="Peaxel">
+                <img src="/img/peaxel-mark.svg" alt="" width="56" height="56">
                 <h1>${t('admin.loginTitle')}</h1>
                 <p class="subtitle">${t('admin.loginSub')}</p>
             </div>

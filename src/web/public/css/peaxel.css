@@ -8,9 +8,9 @@
     --peaxel-gradient: linear-gradient(135deg, #22d3ee 0%, #6366f1 45%, #7c3aed 100%);
     --peaxel-gradient-soft: linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(124, 58, 237, 0.15));
 
-    --bg: #050508;
-    --bg-elevated: #0a0a10;
-    --bg-card: #0f0f18;
+    --bg: #000000;
+    --bg-elevated: #050505;
+    --bg-card: #0a0a0a;
     --border: #1a1a28;
     --border-hover: #2a2a3e;
     --primary: var(--peaxel-cyan);

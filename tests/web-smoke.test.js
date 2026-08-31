@@ -1,16 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { getGameweekStatus } from '../src/web/services/gameweekService.js';
-import { generateLinkCode, verifyLinkCode, getAccountLink } from '../src/web/services/linkService.js';
 import { getLiveLogs, LOG_ACTIONS } from '../src/web/services/liveLogService.js';
 import { pageShell, escapeHtml } from '../src/web/utils/render.js';
 import { getFeaturedCards } from '../src/web/services/featuredCards.js';
-import fs from 'fs';
-import { join, resolve } from 'path';
-
-const DATA_DIR = resolve('./data');
-const TEST_LINKS = join(DATA_DIR, 'account_links.json');
-const TEST_CODES = join(DATA_DIR, 'link_codes.json');
 
 describe('gameweekService', () => {
     it('returns a valid gameweek status object', () => {
@@ -22,41 +15,11 @@ describe('gameweekService', () => {
     });
 });
 
-describe('linkService', () => {
-    const testId = '999999999999999999';
-
-    it('generates and verifies a link code', () => {
-        const { code } = generateLinkCode(testId, 'test#0001');
-        assert.match(code, /^\d{6}$/);
-
-        const result = verifyLinkCode(code, testId, 'TestManager');
-        assert.equal(result.ok, true);
-        assert.equal(result.link.peaxelUsername, 'TestManager');
-
-        const link = getAccountLink(testId);
-        assert.equal(link.discordId, testId);
-
-        if (fs.existsSync(TEST_LINKS)) {
-            const links = JSON.parse(fs.readFileSync(TEST_LINKS, 'utf-8'));
-            delete links[testId];
-            fs.writeFileSync(TEST_LINKS, JSON.stringify(links, null, 2));
-        }
-        if (fs.existsSync(TEST_CODES)) {
-            fs.writeFileSync(TEST_CODES, '{}');
-        }
-    });
-
-    it('rejects invalid code format', () => {
-        const result = verifyLinkCode('abc', testId);
-        assert.equal(result.ok, false);
-        assert.equal(result.error, 'INVALID_CODE');
-    });
-});
-
 describe('liveLogService', () => {
     it('exposes expected log action types', () => {
         assert.ok(LOG_ACTIONS.includes('MOD'));
-        assert.ok(LOG_ACTIONS.includes('LINK'));
+        assert.ok(LOG_ACTIONS.includes('GIVEAWAY'));
+        assert.ok(!LOG_ACTIONS.includes('LINK'));
     });
 
     it('filters logs by action', () => {
@@ -88,10 +51,10 @@ describe('pageShell', () => {
 });
 
 describe('featuredCards', () => {
-    it('returns up to 8 cards with urls', () => {
+    it('returns TA3 cards from media.peaxel.me', () => {
         const cards = getFeaturedCards(8);
         assert.ok(cards.length >= 1 && cards.length <= 8);
-        assert.ok(cards.every((c) => c.url.startsWith('http')));
+        assert.ok(cards.every((c) => c.url.includes('_ta3_2026.png')));
     });
 });
 

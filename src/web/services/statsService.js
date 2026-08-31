@@ -6,7 +6,6 @@ import { loadActivity, getNextScheduledRun, getUptime } from '../../utils/activi
 import { getFeedbackStats } from '../../utils/feedbackStore.js';
 import { getGiveawayState } from './giveawayService.js';
 import { getGameweekStatus } from './gameweekService.js';
-import { getCheckinCount } from './gwCheckinService.js';
 import { getLiveLogs } from './liveLogService.js';
 
 const DATA_DIR = resolve('./data');
@@ -159,7 +158,6 @@ export async function gatherPublicStats(client, locale = 'en', discordId = null)
         memberTrend: last7.map((d) => ({ date: d, members: stats.history[d]?.totalMembers || 0 })),
         gameweekStatus: gw,
         giveaway,
-        checkinCount: getCheckinCount(gw.gameweek),
     };
 
     cache.public = { data: result, expiresAt: now + PUBLIC_TTL, cacheKey };
