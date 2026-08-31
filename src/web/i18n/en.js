@@ -105,6 +105,7 @@ export default {
         },
         liveFeedTitle: 'Live Discord',
         liveFeedEmpty: 'No recent activity.',
+        comingSoonTitle: 'Coming soon',
         reminderTitle: 'GW deadline reminder',
         reminderDesc: 'Get a Discord DM 2h before lineup deadline (Thursday 23:59 Paris).',
         reminderOn: 'Enable reminder',

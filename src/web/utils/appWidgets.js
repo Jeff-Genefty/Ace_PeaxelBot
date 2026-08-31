@@ -186,18 +186,11 @@ export function renderAppChallengeCard({ dashboard, t, locale, user }) {
     </section>`;
 }
 
-export function renderAppLiveFeed({ dashboard, t }) {
-    const items = dashboard.liveFeed.map((log) => `
-        <li class="live-feed-item">
-            <span class="live-feed-time">${escapeHtml(log.time)}</span>
-            <span class="live-feed-action type-${escapeHtml(log.action)}">${escapeHtml(log.action)}</span>
-            <span class="live-feed-detail">${escapeHtml(log.detail)}</span>
-        </li>`).join('');
-
+export function renderAppComingSoonCard({ t }) {
     return `
-    <section class="app-card app-live-card">
-        <h2 class="app-card-title">📡 ${t('app.liveFeedTitle')}</h2>
-        <ul class="live-feed-list">${items || `<li class="live-feed-empty">${t('app.liveFeedEmpty')}</li>`}</ul>
+    <section class="app-card app-coming-soon-card">
+        <div class="coming-soon-visual" aria-hidden="true">👁️</div>
+        <p class="coming-soon-label">${escapeHtml(t('app.comingSoonTitle'))}</p>
     </section>`;
 }
 
@@ -228,7 +221,7 @@ export function renderAppDashboard({ dashboard, t, csrf, locale, user }) {
         </div>
         ${renderAppChallengeCard({ dashboard, t, csrf, locale, user })}
         <div class="app-grid app-grid-split">
-            ${renderAppLiveFeed({ dashboard, t })}
+            ${renderAppComingSoonCard({ t })}
             ${renderAppReminderCard({ dashboard, t, csrf })}
         </div>
     </div>`;

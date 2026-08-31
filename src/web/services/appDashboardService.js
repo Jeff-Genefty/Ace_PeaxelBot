@@ -2,11 +2,10 @@ import fs, { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { getGameweekStatus } from './gameweekService.js';
 import { getGiveawayState } from './giveawayService.js';
-import { getLiveLogs } from './liveLogService.js';
 import { getNextScheduledRun } from '../../utils/activityTracker.js';
 import { getFeedbackStats, hasAlreadySubmitted } from '../../utils/feedbackStore.js';
 import { fetchMemberProfile } from './memberProfileService.js';
-import { getChallengeState, syncExternalTasks, notifyQuestComplete, getTicketUrl } from './weeklyChallengeService.js';
+import { getChallengeState, syncExternalTasks, getTicketUrl } from './weeklyChallengeService.js';
 import { hasGwReminder } from './gwReminderService.js';
 import { getCurrentDayName } from '../../utils/week.js';
 import { getChannel } from '../../utils/configManager.js';
@@ -35,14 +34,9 @@ export async function gatherAppDashboard(client, locale, discordId, discordUser)
     const giveaway = getGiveawayState(discordId);
     const feedbackStats = getFeedbackStats();
     const nextEvent = getNextScheduledRun();
-    const { logs } = getLiveLogs({ limit: 8 });
     const profile = await fetchMemberProfile(client, discordId);
     syncExternalTasks(discordId, gw.gameweek);
-    let challenge = getChallengeState(discordId, gw.gameweek);
-    if (challenge.allDone && !challenge.questNotified && client?.isReady?.()) {
-        await notifyQuestComplete(client, discordId, discordUser.username, gw.gameweek, challenge.set.tasks);
-        challenge = getChallengeState(discordId, gw.gameweek);
-    }
+    const challenge = getChallengeState(discordId, gw.gameweek);
     challenge.ticketUrl = getTicketUrl();
     const announceChannelId = getChannel('announce');
     const feedbackChannelId = getChannel('feedback');
@@ -72,7 +66,6 @@ export async function gatherAppDashboard(client, locale, discordId, discordUser)
             channelUrl: discordChannelUrl(feedbackChannelId),
         },
         challenge,
-        liveFeed: logs.slice(0, 5),
         reminder: {
             enabled: hasGwReminder(discordId),
         },
