@@ -13,9 +13,13 @@ import publicRouter from './web/routes/public.js';
 import adminRouter from './web/routes/admin.js';
 import legacyRouter from './routes/legacy.js';
 import langRouter from './web/routes/lang.js';
+import themeRouter from './web/routes/theme.js';
 import { ensureAdminUsers } from './web/services/adminUsers.js';
 import { getAdminPath } from './web/services/adminPath.js';
 import { attachI18n } from './web/i18n/index.js';
+import { addLiveLog } from './web/services/liveLogService.js';
+import { joinGiveaway } from './web/services/giveawayService.js';
+import { invalidateStatsCache } from './web/services/statsService.js';
 import { updateJsonSync } from './utils/jsonStore.js';
 import { getRole } from './utils/configManager.js';
 
@@ -45,8 +49,6 @@ const ACTIVITY_TRACK_ROLE_ID = getRole('activityTrack');
 // --- DATA PATHS & INIT ---
 const DATA_DIR = resolve('./data');
 const STATS_FILE = join(DATA_DIR, 'analytics.json');
-const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
-const GIVEAWAYS_FILE = join(DATA_DIR, 'giveaways.json');
 
 const DEFAULT_STATS = {
     messagesSent: 0,
@@ -81,13 +83,6 @@ const trackEvent = (type) => {
     });
 };
 
-const addLiveLog = (action, detail) => {
-    updateJsonSync(LIVE_LOGS_FILE, [], (logs) => {
-        logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
-        return logs.slice(0, 50);
-    });
-};
-
 // --- DISCORD CLIENT ---
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions]
@@ -115,6 +110,7 @@ app.use(session({
 app.use(express.static(join(__dirname, 'web/public')));
 app.use(attachI18n);
 app.use('/lang', langRouter);
+app.use('/theme', themeRouter);
 app.use('/', publicRouter);
 app.use(`/${getAdminPath()}`, adminRouter);
 app.use('/analytics', analyticsRoutes);
@@ -229,26 +225,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
         } 
         else if (interaction.customId === 'join_giveaway') {
             try {
-                updateJsonSync(GIVEAWAYS_FILE, { participants: [], participantTags: [] }, (data) => {
-                    if (!data.participants) data.participants = [];
-                    if (!data.participantTags) data.participantTags = [];
-
-                    if (data.participants.includes(interaction.user.id)) {
-                        throw new Error('ALREADY_JOINED');
-                    }
-
-                    data.participants.push(interaction.user.id);
-                    data.participantTags.push(interaction.user.tag);
-                    return data;
-                });
-
-                addLiveLog("GIVEAWAY", `${interaction.user.tag} joined the draw 🎟️`);
-                await interaction.reply({ content: "✅ Entry recorded!", ephemeral: true });
+                joinGiveaway(interaction.user.id, interaction.user.tag);
+                invalidateStatsCache('public');
+                addLiveLog('GIVEAWAY', `${interaction.user.tag} joined the draw 🎟️`);
+                await interaction.reply({ content: '✅ Entry recorded!', ephemeral: true });
             } catch (err) {
                 if (err.message === 'ALREADY_JOINED') {
-                    return await interaction.reply({ content: "❌ Already registered!", ephemeral: true });
+                    return await interaction.reply({ content: '❌ Already registered!', ephemeral: true });
                 }
-                console.error(`Giveaway Join Error:`, err);
+                console.error('Giveaway Join Error:', err);
             }
         }
     }

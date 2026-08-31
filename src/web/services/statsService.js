@@ -4,12 +4,27 @@ import { getRole } from '../../utils/configManager.js';
 import { getCurrentWeekNumber, getCurrentDayName } from '../../utils/week.js';
 import { loadActivity, getNextScheduledRun, getUptime } from '../../utils/activityTracker.js';
 import { getFeedbackStats } from '../../utils/feedbackStore.js';
+import { getGiveawayState } from './giveawayService.js';
+import { getGameweekStatus } from './gameweekService.js';
+import { getCheckinCount } from './gwCheckinService.js';
+import { getLiveLogs } from './liveLogService.js';
 
 const DATA_DIR = resolve('./data');
 const STATS_FILE = join(DATA_DIR, 'analytics.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedbacks.json');
-const GIVEAWAYS_FILE = join(DATA_DIR, 'giveaways.json');
-const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
+
+const cache = {
+    admin: { data: null, expiresAt: 0 },
+    public: { data: null, expiresAt: 0 },
+};
+
+const ADMIN_TTL = 30_000;
+const PUBLIC_TTL = 60_000;
+
+export function invalidateStatsCache(scope = 'all') {
+    if (scope === 'all' || scope === 'admin') cache.admin = { data: null, expiresAt: 0 };
+    if (scope === 'all' || scope === 'public') cache.public = { data: null, expiresAt: 0 };
+}
 
 function readJson(path, fallback) {
     if (!fs.existsSync(path)) return fallback;
@@ -17,13 +32,17 @@ function readJson(path, fallback) {
 }
 
 export async function gatherAdminStats(client, locale = 'en') {
+    const now = Date.now();
+    if (cache.admin.data && now < cache.admin.expiresAt) {
+        return cache.admin.data;
+    }
+
     const stats = readJson(STATS_FILE, {
         messagesSent: 0, commandsExecuted: 0, feedbacksReceived: 0,
         arrivalsToday: 0, dailyActiveRoleUsers: [], dailyHistory: {}, history: {}, totalBans: 0,
     });
     const feedbacks = readJson(FEEDBACK_FILE, []);
-    const giveawayData = readJson(GIVEAWAYS_FILE, { participants: [], participantTags: [] });
-    const liveLogs = readJson(LIVE_LOGS_FILE, []);
+    const { logs: liveLogs } = getLiveLogs({ limit: 50 });
     const activity = loadActivity();
     const feedbackStats = getFeedbackStats();
     const nextRun = getNextScheduledRun();
@@ -50,7 +69,6 @@ export async function gatherAdminStats(client, locale = 'en') {
 
     const dates = [];
     const messageCounts = [];
-    const commandCounts = [];
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
@@ -64,8 +82,9 @@ export async function gatherAdminStats(client, locale = 'en') {
     const arrivalTrend = last7History.map((d) => stats.history[d]?.arrivals || 0);
     const roleActivityTrend = last7History.map((d) => parseFloat(stats.history[d]?.roleActivity || 0));
 
-    const participants = giveawayData.participants || [];
-    const tags = giveawayData.participantTags || [];
+    const giveaway = getGiveawayState();
+    const participants = giveaway.participantCount ? readJson(join(DATA_DIR, 'giveaways.json'), {}).participants || [] : [];
+    const tags = readJson(join(DATA_DIR, 'giveaways.json'), {}).participantTags || [];
     const participantList = [];
     for (let i = 0; i < participants.length; i++) {
         const userId = participants[i];
@@ -77,7 +96,7 @@ export async function gatherAdminStats(client, locale = 'en') {
         }
     }
 
-    return {
+    const result = {
         stats,
         feedbacks,
         liveLogs,
@@ -100,8 +119,9 @@ export async function gatherAdminStats(client, locale = 'en') {
         },
         charts: { dates, messageCounts, last7History, memberTrend, arrivalTrend, roleActivityTrend },
         giveaway: {
-            count: participants.length,
+            count: giveaway.participantCount,
             list: participantList.join(', ') || (locale === 'fr' ? 'Aucun participant' : 'No participants'),
+            status: giveaway.status,
         },
         scheduler: {
             nextLabel: nextRun.label,
@@ -110,21 +130,38 @@ export async function gatherAdminStats(client, locale = 'en') {
         },
         feedbackStats,
     };
+
+    cache.admin = { data: result, expiresAt: now + ADMIN_TTL };
+    return result;
 }
 
-export async function gatherPublicStats(client, locale = 'en') {
+export async function gatherPublicStats(client, locale = 'en', discordId = null) {
+    const now = Date.now();
+    const cacheKey = discordId || 'anon';
+    if (cache.public.data && cache.public.cacheKey === cacheKey && now < cache.public.expiresAt) {
+        return cache.public.data;
+    }
+
     const stats = readJson(STATS_FILE, { history: {} });
     const guildId = process.env.DISCORD_GUILD_ID;
     const guild = guildId ? await client.guilds.fetch(guildId).catch(() => null) : null;
     const historyDates = Object.keys(stats.history || {}).sort();
     const last7 = historyDates.slice(-7);
+    const gw = getGameweekStatus();
+    const giveaway = getGiveawayState(discordId);
 
-    return {
+    const result = {
         memberCount: guild?.memberCount || 0,
-        gameweek: getCurrentWeekNumber(),
+        gameweek: gw.gameweek,
         dayName: getCurrentDayName(locale),
         botOnline: client.isReady(),
         ping: client.ws.ping ?? 0,
         memberTrend: last7.map((d) => ({ date: d, members: stats.history[d]?.totalMembers || 0 })),
+        gameweekStatus: gw,
+        giveaway,
+        checkinCount: getCheckinCount(gw.gameweek),
     };
+
+    cache.public = { data: result, expiresAt: now + PUBLIC_TTL, cacheKey };
+    return result;
 }

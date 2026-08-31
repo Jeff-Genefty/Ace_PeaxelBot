@@ -7,7 +7,8 @@ import { adminSidebar, adminTopbar, kpiCard, toolPanel, ADMIN_CSS } from '../uti
 import { requireAdmin, requireAdminApi } from '../middleware/auth.js';
 import { adminUrl } from '../services/adminPath.js';
 import { authenticateAdmin } from '../services/adminUsers.js';
-import { gatherAdminStats } from '../services/statsService.js';
+import { gatherAdminStats, invalidateStatsCache } from '../services/statsService.js';
+import { addLiveLog, getLiveLogs, LOG_ACTIONS } from '../services/liveLogService.js';
 import { getConfig, setChannel } from '../../utils/configManager.js';
 import { updateJsonSync } from '../../utils/jsonStore.js';
 import { langSwitcher } from '../i18n/index.js';
@@ -22,14 +23,6 @@ const upload = multer({ dest: 'uploads/' });
 
 const DATA_DIR = resolve('./data');
 const STATS_FILE = join(DATA_DIR, 'analytics.json');
-const LIVE_LOGS_FILE = join(DATA_DIR, 'live_logs.json');
-
-const addLiveLog = (action, detail) => {
-    updateJsonSync(LIVE_LOGS_FILE, [], (logs) => {
-        logs.unshift({ time: new Date().toLocaleTimeString('fr-FR'), action, detail });
-        return logs.slice(0, 50);
-    });
-};
 
 function renderChannelSelect(name, currentId, guildChannels, t) {
     if (!guildChannels.length) {
@@ -47,7 +40,7 @@ function renderChannelSelect(name, currentId, guildChannels, t) {
         <datalist id="${listId}">${options}</datalist>`;
 }
 
-const i18nOpts = (req) => ({ t: req.t, locale: req.locale, returnPath: req.originalUrl });
+const i18nOpts = (req) => ({ t: req.t, locale: req.locale, returnPath: req.originalUrl, theme: req.theme });
 
 router.get('/login', (req, res) => {
     if (req.session.admin) return res.redirect(adminUrl('/'));
@@ -117,9 +110,19 @@ router.get('/logout', (req, res) => {
 });
 
 router.get('/api/logs', requireAdminApi, (req, res) => {
-    const logs = fs.existsSync(LIVE_LOGS_FILE) ? JSON.parse(readFileSync(LIVE_LOGS_FILE, 'utf-8')) : [];
+    const { action = 'ALL', q = '', limit = '50', offset = '0' } = req.query;
+    const result = getLiveLogs({
+        action,
+        q,
+        limit: Math.min(parseInt(limit, 10) || 50, 200),
+        offset: parseInt(offset, 10) || 0,
+    });
     const client = req.app.get('discordClient');
-    res.json({ logs, emergency: !client.isReady() || client.ws.ping > 250, ping: client.ws.ping });
+    res.json({
+        ...result,
+        emergency: !client.isReady() || client.ws.ping > 250,
+        ping: client.ws.ping,
+    });
 });
 
 router.get('/api/user/:id', requireAdminApi, async (req, res) => {
@@ -203,7 +206,8 @@ router.get('/', requireAdmin, async (req, res) => {
          data-i18n-online="${escapeHtml(t('admin.statusOnline'))}"
          data-i18n-critical="${escapeHtml(t('admin.statusCritical'))}"
          data-i18n-entries="${escapeHtml(t('admin.logEntries', { count: '{n}' }))}"
-         data-i18n-sync="${escapeHtml(t('common.sync'))}">
+         data-i18n-sync="${escapeHtml(t('common.sync'))}"
+         data-i18n-no-results="${escapeHtml(t('admin.logNoResults'))}">
         ${adminSidebar('', base, req.session.admin, i18n)}
         <main class="admin-main">
             ${adminTopbar({
@@ -233,6 +237,14 @@ router.get('/', requireAdmin, async (req, res) => {
                         <div class="live-panel-head">
                             <span class="live-indicator">${t('admin.liveLogs')}</span>
                             <span id="log-counter">${t('common.sync')}</span>
+                        </div>
+                        <div class="log-filters" id="log-filters">
+                            <label class="sr-only" for="log-action-filter">${t('admin.logFilter')}</label>
+                            <select id="log-action-filter" aria-label="${t('admin.logFilter')}">
+                                <option value="ALL">${t('admin.logAll')}</option>
+                                ${LOG_ACTIONS.map((a) => `<option value="${a}">${a}</option>`).join('')}
+                            </select>
+                            <input type="search" id="log-search" placeholder="${t('admin.logSearch')}" autocomplete="off">
                         </div>
                         <div class="console-body" id="console-output">
                             ${data.liveLogs.map(l => `<div class="log-entry"><span class="log-time">[${escapeHtml(l.time)}]</span><span class="type-${l.action}">${escapeHtml(l.action)}</span><span>${escapeHtml(l.detail)}</span></div>`).join('')}
@@ -313,6 +325,7 @@ router.post('/mod-action', requireAdmin, validateCsrf, async (req, res) => {
             updateJsonSync(STATS_FILE, { totalBans: 0 }, (s) => { s.totalBans = (s.totalBans || 0) + 1; return s; });
         }
         addLiveLog('MOD', logMsg);
+        invalidateStatsCache('admin');
         res.redirect(adminUrl('/'));
     } catch (e) { res.status(500).send(req.t('admin.modError', { msg: e.message })); }
 });

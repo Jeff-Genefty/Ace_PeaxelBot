@@ -1,0 +1,20 @@
+{
+  "name": "Peaxel Community Hub",
+  "short_name": "Peaxel Hub",
+  "description": "Peaxel Community Hub. Sign in with Discord and join the community.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050508",
+  "theme_color": "#050508",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/img/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ],
+  "lang": "en",
+  "categories": ["games", "social"]
+}

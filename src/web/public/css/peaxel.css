@@ -759,3 +759,36 @@ body.nav-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* ─── Light theme ─── */
+body.theme-light {
+    --bg: #f0f4ff;
+    --bg-elevated: #e8eeff;
+    --bg-card: #ffffff;
+    --border: #c7d2fe;
+    --border-hover: #a5b4fc;
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-dim: #64748b;
+    --primary-dim: rgba(34, 211, 238, 0.2);
+    --accent-dim: rgba(124, 58, 237, 0.12);
+    --neon-dim: rgba(34, 211, 238, 0.15);
+    --shadow: 0 8px 32px rgba(99, 102, 241, 0.12);
+}
+
+body.theme-light .landing-home {
+    background:
+        radial-gradient(ellipse 100% 70% at 50% -20%, rgba(34, 211, 238, 0.35), transparent 55%),
+        radial-gradient(ellipse 80% 60% at 95% 70%, rgba(124, 58, 237, 0.2), transparent 50%),
+        linear-gradient(180deg, #eef2ff 0%, #f0f4ff 100%);
+}
+
+body.theme-light .hero-glass::before,
+body.theme-light .gw-live-inner,
+body.theme-light .profile-card-glow {
+    background: rgba(255, 255, 255, 0.85);
+}
+
+body.theme-light .site-footer {
+    background: rgba(255, 255, 255, 0.9);
+}

@@ -8,6 +8,7 @@ import { sendAceMotivation } from './utils/rewardSystem.js';
 import { runScoutQuiz } from './utils/scoutQuizRunner.js';
 import { loadSchedulerState, saveSchedulerState } from './utils/schedulerState.js';
 import { readJsonSync, writeJsonSync, updateJsonSync } from './utils/jsonStore.js';
+import { openGiveaway, closeGiveaway } from './web/services/giveawayService.js';
 
 const logPrefix = '[Peaxel Scheduler]';
 const GIVEAWAY_FILE = './data/giveaways.json';
@@ -205,7 +206,7 @@ cron.schedule('0 16 * * 3', async () => {
             const channel = await client.channels.fetch(announceId);
             
             // Reset giveaway data
-            writeJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
+            openGiveaway('scheduler');
 
             const giveawayEmbed = new EmbedBuilder()
                 .setTitle('🎟️ WEEKEND GIVEAWAY IS LIVE!')
@@ -263,10 +264,9 @@ cron.schedule('0 20 * * 0', async () => {
             files: [imageFile] 
         });
 
-        writeJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
-        
-    } catch (e) { 
-        console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message); 
+        closeGiveaway();
+    } catch (e) {
+        console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message);
     }
 }, { scheduled: true, timezone });
 }

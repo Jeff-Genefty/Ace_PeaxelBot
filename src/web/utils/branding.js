@@ -1,4 +1,4 @@
-import { langSwitcher } from '../i18n/index.js';
+import { langSwitcher, themeToggle } from '../i18n/index.js';
 
 export function peaxelLogo({ href = '/', size = 'md', showText = true, subtitle = '', t }) {
     const sizes = { sm: 28, md: 36, lg: 48 };
@@ -17,7 +17,7 @@ export function peaxelLogo({ href = '/', size = 'md', showText = true, subtitle 
     return `<div class="logo-link logo-${size}">${inner}</div>`;
 }
 
-export function peaxelFooter({ t, locale, returnPath = '/' }) {
+export function peaxelFooter({ t, locale, returnPath = '/', theme = 'dark' }) {
     return `
     <footer class="site-footer">
         <div class="footer-inner">
@@ -29,7 +29,11 @@ export function peaxelFooter({ t, locale, returnPath = '/' }) {
                 <a href="https://discord.gg/PNyAqI8hio" target="_blank" rel="noopener">${t('footer.discord')}</a>
             </nav>
             <p class="footer-copy">&copy; ${t('footer.copy')}</p>
-            ${langSwitcher(returnPath, locale, t)}
+            <p class="footer-genefty">${t('footer.geneftyPrefix')} <a href="https://genefty.com" target="_blank" rel="noopener noreferrer">${t('footer.geneftyName')}</a></p>
+            <div class="footer-controls">
+                ${langSwitcher(returnPath, locale, t)}
+                ${themeToggle(returnPath, theme, t)}
+            </div>
         </div>
     </footer>`;
 }

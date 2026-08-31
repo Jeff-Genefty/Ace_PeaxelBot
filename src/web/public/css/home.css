@@ -1,0 +1,284 @@
+/* Homepage — scène animée, cartes Peaxel, hero lumineux */
+
+.landing-home {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+        radial-gradient(ellipse 100% 70% at 50% -20%, rgba(34, 211, 238, 0.22), transparent 55%),
+        radial-gradient(ellipse 80% 60% at 95% 70%, rgba(124, 58, 237, 0.18), transparent 50%),
+        radial-gradient(ellipse 60% 50% at 5% 75%, rgba(99, 102, 241, 0.14), transparent 45%),
+        linear-gradient(180deg, #0c0c14 0%, #080810 40%, #050508 100%);
+}
+
+.landing-home .landing-nav,
+.landing-home .hero,
+.landing-home .features,
+.landing-home .site-footer {
+    position: relative;
+    z-index: 10;
+}
+
+.landing-home .site-footer {
+    background: rgba(10, 10, 16, 0.75);
+    backdrop-filter: blur(12px);
+    border-top-color: rgba(34, 211, 238, 0.12);
+}
+
+/* ─── Background scene ─── */
+.home-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.home-bg-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.55;
+    animation: home-orb-drift 18s ease-in-out infinite;
+}
+
+.home-bg-orb-1 {
+    width: min(520px, 70vw);
+    height: min(520px, 70vw);
+    top: -15%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.45), transparent 70%);
+}
+
+.home-bg-orb-2 {
+    width: min(420px, 55vw);
+    height: min(420px, 55vw);
+    bottom: 5%;
+    right: -8%;
+    background: radial-gradient(circle, rgba(124, 58, 237, 0.4), transparent 70%);
+    animation-delay: -6s;
+}
+
+.home-bg-orb-3 {
+    width: min(360px, 45vw);
+    height: min(360px, 45vw);
+    bottom: 20%;
+    left: -10%;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.35), transparent 70%);
+    animation-delay: -12s;
+}
+
+.home-bg-shimmer {
+    position: absolute;
+    inset: -50%;
+    background: conic-gradient(
+        from 180deg at 50% 50%,
+        transparent 0deg,
+        rgba(34, 211, 238, 0.04) 60deg,
+        transparent 120deg,
+        rgba(124, 58, 237, 0.05) 200deg,
+        transparent 280deg
+    );
+    animation: home-shimmer-spin 30s linear infinite;
+}
+
+.home-bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(34, 211, 238, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 211, 238, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, black 20%, transparent 75%);
+    opacity: 0.6;
+}
+
+/* ─── Floating talent cards ─── */
+.home-bg-cards {
+    position: absolute;
+    inset: 0;
+}
+
+.home-float-card {
+    position: absolute;
+    width: clamp(72px, 11vw, 130px);
+    will-change: transform;
+    transform: translate3d(var(--parallax-x, 0), var(--parallax-y, 0), 0);
+}
+
+.home-float-card-inner {
+    animation: home-card-float 7s ease-in-out infinite;
+    filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.55));
+}
+
+.home-float-card img {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        0 0 24px rgba(34, 211, 238, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    opacity: 0.85;
+}
+
+.home-float-card-1 { top: 12%; left: 4%; --rot: -14deg; }
+.home-float-card-2 { top: 8%; right: 6%; --rot: 10deg; }
+.home-float-card-3 { top: 38%; left: 2%; --rot: -8deg; }
+.home-float-card-4 { top: 32%; right: 3%; --rot: 12deg; }
+.home-float-card-5 { bottom: 28%; left: 8%; --rot: 6deg; }
+.home-float-card-6 { bottom: 22%; right: 7%; --rot: -11deg; }
+.home-float-card-7 { bottom: 12%; left: 18%; --rot: -5deg; }
+.home-float-card-8 { bottom: 10%; right: 16%; --rot: 9deg; }
+
+.home-float-card-1 .home-float-card-inner { animation-delay: 0s; }
+.home-float-card-2 .home-float-card-inner { animation-delay: -1.2s; }
+.home-float-card-3 .home-float-card-inner { animation-delay: -2.4s; }
+.home-float-card-4 .home-float-card-inner { animation-delay: -0.8s; }
+.home-float-card-5 .home-float-card-inner { animation-delay: -3s; }
+.home-float-card-6 .home-float-card-inner { animation-delay: -1.8s; }
+.home-float-card-7 .home-float-card-inner { animation-delay: -2.6s; }
+.home-float-card-8 .home-float-card-inner { animation-delay: -0.4s; }
+
+.home-float-card-inner {
+    transform: rotate(var(--rot, 0deg));
+}
+
+@keyframes home-orb-drift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(3%, 2%) scale(1.05); }
+    66% { transform: translate(-2%, 3%) scale(0.98); }
+}
+
+@keyframes home-shimmer-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes home-card-float {
+    0%, 100% { transform: rotate(var(--rot, 0deg)) translateY(0); }
+    50% { transform: rotate(calc(var(--rot, 0deg) + 3deg)) translateY(-14px); }
+}
+
+/* ─── Hero glass ─── */
+.landing-home .hero-glass {
+    position: relative;
+    z-index: 10;
+}
+
+.landing-home .hero-glass::before {
+    content: '';
+    position: absolute;
+    inset: -1rem clamp(0.5rem, 4vw, 2rem);
+    border-radius: var(--radius-lg);
+    background: rgba(15, 15, 24, 0.45);
+    border: 1px solid rgba(34, 211, 238, 0.15);
+    backdrop-filter: blur(16px);
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    z-index: -1;
+}
+
+.hero-logo-pulse img {
+    animation: home-logo-pulse 3s ease-in-out infinite;
+}
+
+@keyframes home-logo-pulse {
+    0%, 100% { box-shadow: 0 0 40px rgba(34, 211, 238, 0.35), 0 0 80px rgba(124, 58, 237, 0.25); }
+    50% { box-shadow: 0 0 56px rgba(34, 211, 238, 0.5), 0 0 100px rgba(124, 58, 237, 0.35); }
+}
+
+.hero-badge-glow {
+    animation: home-badge-glow 2.5s ease-in-out infinite;
+}
+
+@keyframes home-badge-glow {
+    0%, 100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
+    50% { box-shadow: 0 0 20px rgba(34, 211, 238, 0.25); }
+}
+
+.btn-glow {
+    box-shadow: 0 4px 24px rgba(88, 101, 242, 0.35);
+    transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.btn-glow:hover {
+    box-shadow: 0 8px 32px rgba(88, 101, 242, 0.5);
+    transform: translateY(-2px);
+}
+
+/* ─── Feature cards elevated ─── */
+.landing-home .features-elevated .feature-card {
+    background: rgba(15, 15, 24, 0.65);
+    backdrop-filter: blur(10px);
+    border-color: rgba(34, 211, 238, 0.12);
+    transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+}
+
+.landing-home .features-elevated .feature-card:hover {
+    border-color: rgba(34, 211, 238, 0.35);
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px rgba(34, 211, 238, 0.08);
+}
+
+/* ─── Footer Genefty ─── */
+.footer-genefty {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+}
+
+.footer-genefty a {
+    color: var(--text-muted);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: rgba(34, 211, 238, 0.35);
+}
+
+.footer-genefty a:hover {
+    color: var(--peaxel-cyan);
+    text-decoration-color: var(--peaxel-cyan);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+    .home-float-card-3,
+    .home-float-card-4,
+    .home-float-card-7,
+    .home-float-card-8 {
+        opacity: 0.45;
+        transform: scale(0.85);
+    }
+
+    .home-float-card-1 { top: 14%; left: -2%; }
+    .home-float-card-2 { top: 12%; right: -2%; }
+}
+
+@media (max-width: 480px) {
+    .home-float-card-3,
+    .home-float-card-4,
+    .home-float-card-5,
+    .home-float-card-6,
+    .home-float-card-7,
+    .home-float-card-8 {
+        display: none;
+    }
+
+    .home-float-card-1,
+    .home-float-card-2 {
+        width: 64px;
+        opacity: 0.5;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-bg-orb,
+    .home-bg-shimmer,
+    .home-float-card-inner,
+    .hero-logo-pulse img,
+    .hero-badge-glow {
+        animation: none !important;
+    }
+}
