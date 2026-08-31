@@ -51,10 +51,10 @@ describe('pageShell', () => {
 });
 
 describe('featuredCards', () => {
-    it('returns TA3 cards from media.peaxel.me', () => {
+    it('returns 2026 cards from media.peaxel.me', () => {
         const cards = getFeaturedCards(8);
         assert.ok(cards.length >= 1 && cards.length <= 8);
-        assert.ok(cards.every((c) => c.url.includes('_ta3_2026.png')));
+        assert.ok(cards.every((c) => c.url.includes('media.peaxel.me/pxl_') && c.url.endsWith('.png')));
     });
 });
 

@@ -1,5 +1,15 @@
 import { escapeHtml } from './render.js';
 
+function buildTickerGroup({ t, gw, phaseLabel, title, desc, deadlinePrefix }) {
+    const items = [
+        `<span class="gw-ticker-item"><strong>${escapeHtml(phaseLabel)}</strong></span>`,
+        `<span class="gw-ticker-item"><strong>${escapeHtml(title)}</strong></span>`,
+        `<span class="gw-ticker-item">${escapeHtml(desc)}</span>`,
+        `<span class="gw-ticker-item gw-ticker-deadline">${escapeHtml(deadlinePrefix)} <span data-countdown>${escapeHtml(t('gw.loading'))}</span></span>`,
+    ];
+    return items.join('<span class="gw-ticker-sep" aria-hidden="true">•</span>');
+}
+
 /** Ruban défilant GW en haut du site (lineups ouverts / closing). */
 export function renderGwTicker({ t, gw }) {
     if (!gw.isLineupOpen) return '';
@@ -8,21 +18,16 @@ export function renderGwTicker({ t, gw }) {
     const title = t('gw.liveTitle', { n: gw.gameweek });
     const desc = t(`gw.desc.${gw.phase}`);
     const deadlinePrefix = t('gw.deadlineLabel');
-
-    const items = [
-        `<strong>${escapeHtml(phaseLabel)}</strong>`,
-        `<strong>${escapeHtml(title)}</strong>`,
-        escapeHtml(desc),
-        `<span class="gw-ticker-deadline">${escapeHtml(deadlinePrefix)} <span data-countdown>${escapeHtml(t('gw.loading'))}</span></span>`,
-    ];
-
-    const segment = items.map((item) => `<span class="gw-ticker-item">${item}</span>`).join('<span class="gw-ticker-sep" aria-hidden="true">•</span>');
-    const track = `${segment}<span class="gw-ticker-sep" aria-hidden="true">•</span>${segment}`;
+    const payload = { t, gw, phaseLabel, title, desc, deadlinePrefix };
+    const group = buildTickerGroup(payload);
 
     return `
     <div class="gw-ticker" data-gw-countdown="${gw.deadlineUnix}" role="marquee" aria-live="polite">
         <div class="gw-ticker-viewport">
-            <div class="gw-ticker-track">${track}</div>
+            <div class="gw-ticker-track">
+                <div class="gw-ticker-group">${group}</div>
+                <div class="gw-ticker-group" aria-hidden="true">${group}</div>
+            </div>
         </div>
     </div>`;
 }

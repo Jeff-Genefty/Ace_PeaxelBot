@@ -758,5 +758,6 @@ body.nav-open { overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-    .gw-ticker-track { animation: none; padding-inline: 1rem; flex-wrap: wrap; white-space: normal; justify-content: center; }
+    .gw-ticker-track { animation: none; transform: none; flex-wrap: wrap; justify-content: center; width: 100%; }
+    .gw-ticker-group { flex-wrap: wrap; justify-content: center; white-space: normal; padding-inline: 1rem; }
 }
