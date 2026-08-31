@@ -22,62 +22,6 @@
     backdrop-filter: blur(10px);
 }
 
-/* GW ticker ruban */
-.gw-ticker {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: linear-gradient(90deg, rgba(34, 211, 238, 0.14), rgba(124, 58, 237, 0.14));
-    border-bottom: 1px solid rgba(34, 211, 238, 0.22);
-    overflow: hidden;
-}
-
-.gw-ticker-viewport {
-    overflow: hidden;
-    width: 100%;
-    mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
-}
-
-.gw-ticker-track {
-    display: flex;
-    width: max-content;
-    animation: gw-ticker-scroll 28s linear infinite;
-    will-change: transform;
-}
-
-.gw-ticker-group {
-    display: flex;
-    align-items: center;
-    gap: 1.25rem;
-    padding: 0.75rem 2rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-    font-size: 0.875rem;
-    color: var(--text-muted);
-}
-
-.gw-ticker-item strong {
-    color: var(--peaxel-cyan);
-    font-weight: 800;
-    letter-spacing: 0.02em;
-}
-
-.gw-ticker-sep {
-    color: rgba(34, 211, 238, 0.45);
-    font-weight: 700;
-    flex-shrink: 0;
-}
-
-.gw-ticker-deadline [data-countdown] {
-    color: var(--text);
-    font-weight: 800;
-}
-
-@keyframes gw-ticker-scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-}
-
 /* Giveaway strip */
 .giveaway-strip {
     display: flex;

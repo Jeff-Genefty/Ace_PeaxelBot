@@ -1,32 +1,33 @@
 import { escapeHtml } from './render.js';
 
-function buildTickerGroup({ t, gw, phaseLabel, title, desc, deadlinePrefix }) {
-    const items = [
+function buildTickerRun({ phaseLabel, title, desc, deadlinePrefix, loading }) {
+    const sep = '<span class="gw-ticker-sep" aria-hidden="true">•</span>';
+    return [
         `<span class="gw-ticker-item"><strong>${escapeHtml(phaseLabel)}</strong></span>`,
         `<span class="gw-ticker-item"><strong>${escapeHtml(title)}</strong></span>`,
         `<span class="gw-ticker-item">${escapeHtml(desc)}</span>`,
-        `<span class="gw-ticker-item gw-ticker-deadline">${escapeHtml(deadlinePrefix)} <span data-countdown>${escapeHtml(t('gw.loading'))}</span></span>`,
-    ];
-    return items.join('<span class="gw-ticker-sep" aria-hidden="true">•</span>');
+        `<span class="gw-ticker-item gw-ticker-deadline">${escapeHtml(deadlinePrefix)} <span data-countdown>${escapeHtml(loading)}</span></span>`,
+    ].join(sep);
 }
 
-/** Ruban défilant GW en haut du site (lineups ouverts / closing). */
+/** Ruban défilant GW — une seule ligne, défile gauche → droite. */
 export function renderGwTicker({ t, gw }) {
     if (!gw.isLineupOpen) return '';
 
-    const phaseLabel = t(`gw.phase.${gw.phase}`);
-    const title = t('gw.liveTitle', { n: gw.gameweek });
-    const desc = t(`gw.desc.${gw.phase}`);
-    const deadlinePrefix = t('gw.deadlineLabel');
-    const payload = { t, gw, phaseLabel, title, desc, deadlinePrefix };
-    const group = buildTickerGroup(payload);
+    const run = buildTickerRun({
+        phaseLabel: t(`gw.phase.${gw.phase}`),
+        title: t('gw.liveTitle', { n: gw.gameweek }),
+        desc: t(`gw.desc.${gw.phase}`),
+        deadlinePrefix: t('gw.deadlineLabel'),
+        loading: t('gw.loading'),
+    });
 
     return `
-    <div class="gw-ticker" data-gw-countdown="${gw.deadlineUnix}" role="marquee" aria-live="polite">
+    <div class="gw-ticker" data-gw-countdown="${gw.deadlineUnix}" role="marquee" aria-label="${escapeHtml(t('gw.liveTitle', { n: gw.gameweek }))}">
         <div class="gw-ticker-viewport">
             <div class="gw-ticker-track">
-                <div class="gw-ticker-group">${group}</div>
-                <div class="gw-ticker-group" aria-hidden="true">${group}</div>
+                <span class="gw-ticker-run">${run}</span>
+                <span class="gw-ticker-run" aria-hidden="true">${run}</span>
             </div>
         </div>
     </div>`;
