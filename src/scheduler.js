@@ -9,6 +9,9 @@ import { runScoutQuiz } from './utils/scoutQuizRunner.js';
 import { loadSchedulerState, saveSchedulerState } from './utils/schedulerState.js';
 import { readJsonSync, writeJsonSync, updateJsonSync } from './utils/jsonStore.js';
 import { openGiveaway, closeGiveaway } from './web/services/giveawayService.js';
+import { generateWeeklyChallenges } from './web/services/weeklyChallengeService.js';
+import { sendGwDeadlineReminders } from './web/services/gwReminderService.js';
+import { addLiveLog } from './web/services/liveLogService.js';
 
 const logPrefix = '[Peaxel Scheduler]';
 const GIVEAWAY_FILE = './data/giveaways.json';
@@ -268,7 +271,28 @@ cron.schedule('0 20 * * 0', async () => {
     } catch (e) {
         console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message);
     }
-}, { scheduled: true, timezone });
+    }, { scheduled: true, timezone });
+
+    // --- 8. WEEKLY CHALLENGES (Monday 00:05) ---
+    cron.schedule('5 0 * * 1', () => {
+        try {
+            const gw = getCurrentWeekNumber();
+            generateWeeklyChallenges(gw);
+            addLiveLog('SYSTEM', `Weekly challenges generated · GW ${gw}`);
+        } catch (e) {
+            console.error(`${logPrefix} [Weekly Challenges] Error:`, e.message);
+        }
+    }, { scheduled: true, timezone });
+
+    // --- 9. GW DEADLINE REMINDERS (Thursday 21:59 — 2h before 23:59) ---
+    cron.schedule('59 21 * * 4', async () => {
+        try {
+            const result = await sendGwDeadlineReminders(client);
+            addLiveLog('SYSTEM', `GW reminders sent: ${result.sent} ok, ${result.failed} failed`);
+        } catch (e) {
+            console.error(`${logPrefix} [GW Reminders] Error:`, e.message);
+        }
+    }, { scheduled: true, timezone });
 }
 
 function getWeekKey() {

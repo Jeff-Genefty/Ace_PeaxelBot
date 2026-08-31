@@ -4,6 +4,13 @@ import { getGameweekStatus } from '../src/web/services/gameweekService.js';
 import { getLiveLogs, LOG_ACTIONS } from '../src/web/services/liveLogService.js';
 import { pageShell, escapeHtml } from '../src/web/utils/render.js';
 import { getFeaturedCards } from '../src/web/services/featuredCards.js';
+import { generateWeeklyChallenges, toggleChallengeTask, getChallengeState } from '../src/web/services/weeklyChallengeService.js';
+import fs from 'fs';
+import { join, resolve } from 'path';
+
+const DATA_DIR = resolve('./data');
+const CHALLENGES_FILE = join(DATA_DIR, 'weekly_challenges.json');
+const PROGRESS_FILE = join(DATA_DIR, 'challenge_progress.json');
 
 describe('gameweekService', () => {
     it('returns a valid gameweek status object', () => {
@@ -55,6 +62,29 @@ describe('featuredCards', () => {
         const cards = getFeaturedCards(8);
         assert.ok(cards.length >= 1 && cards.length <= 8);
         assert.ok(cards.every((c) => c.url.includes('media.peaxel.me/pxl_') && c.url.endsWith('.png')));
+    });
+});
+
+describe('weeklyChallengeService', () => {
+    const testId = '888888888888888888';
+
+    it('generates and toggles weekly challenges', () => {
+        const set = generateWeeklyChallenges(99);
+        assert.ok(set.tasks.length >= 1);
+        assert.equal(set.gameweek, 99);
+
+        const r1 = toggleChallengeTask(testId, 99, set.tasks[0]);
+        assert.equal(r1.ok, true);
+        assert.ok(r1.completedTasks.includes(set.tasks[0]));
+
+        const state = getChallengeState(testId, 99);
+        assert.ok(state.completedTasks.includes(set.tasks[0]));
+
+        if (fs.existsSync(PROGRESS_FILE)) {
+            const progress = JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf-8'));
+            delete progress[testId];
+            fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
+        }
     });
 });
 

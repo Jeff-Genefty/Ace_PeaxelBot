@@ -107,9 +107,10 @@ export function getNextScheduledRun() {
   const parisTime = new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
 
   const schedules = [
-    { day: 1, hour: 0, min: 0, label: 'Opening' },    
-    { day: 3, hour: 16, min: 0, label: 'Spotlight' },  
-    { day: 4, hour: 18, min: 59, label: 'Closing' }   
+    { day: 1, hour: 0, min: 0, label: 'Opening' },
+    { day: 2, hour: 19, min: 0, label: 'Quiz' },
+    { day: 3, hour: 16, min: 0, label: 'Spotlight' },
+    { day: 4, hour: 18, min: 59, label: 'Closing' },
   ];
 
   let nextRun = null;
