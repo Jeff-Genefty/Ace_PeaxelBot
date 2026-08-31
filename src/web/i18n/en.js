@@ -13,11 +13,6 @@ export default {
         en: 'EN',
         fr: 'FR',
     },
-    theme: {
-        label: 'Theme',
-        light: 'Light',
-        dark: 'Dark',
-    },
     nav: {
         menu: 'Menu',
         guide: 'Guide',
@@ -51,7 +46,7 @@ export default {
         },
         desc: {
             open: 'Build your squad and submit your lineup before Thursday 23:59 (Paris).',
-            closing: 'Final hours! Lock in your lineup before the deadline tonight.',
+            closing: 'Final hours! Lock in your lineup before the deadline tonight at 23:59 (Paris).',
             matchday: 'Lineups are locked. Matches are underway. Good luck!',
             locked: 'This Gameweek is closed. The next one opens Monday.',
         },

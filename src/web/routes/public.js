@@ -14,7 +14,8 @@ import { gatherPublicStats, invalidateStatsCache } from '../services/statsServic
 import { getFeaturedCards } from '../services/featuredCards.js';
 import { renderHomeBackground } from '../utils/homeBackground.js';
 import {
-    renderGameweekLive,
+    renderGwTicker,
+    renderAppCheckin,
     renderGiveawayStrip,
     renderHeroCarousel,
     renderLinkStatus,
@@ -38,7 +39,6 @@ function shellOpts(req, extra = {}) {
     const base = process.env.WEB_BASE_URL || '';
     return {
         locale: req.locale,
-        theme: req.theme,
         description: req.t('meta.siteDescription'),
         ogUrl: base ? `${base}${req.originalUrl.split('?')[0]}` : '',
         ...extra,
@@ -53,7 +53,7 @@ router.get('/api/public/stats', async (req, res) => {
 });
 
 router.get('/', async (req, res) => {
-    const { t, locale, theme } = req;
+    const { t, locale } = req;
     const client = req.app.get('discordClient');
     const loginRequired = req.query.login === 'required';
     const oauthError = req.query.error;
@@ -61,11 +61,10 @@ router.get('/', async (req, res) => {
     const discordUser = req.session.discordUser || null;
     const publicStats = await gatherPublicStats(client, locale, discordUser?.id);
     const gw = publicStats.gameweekStatus;
-    const checkedIn = discordUser ? hasCheckedIn(discordUser.id, gw.gameweek) : false;
-    const csrf = discordUser ? csrfInput(req.session) : '';
 
     const body = `
     <div class="landing landing-home">
+        ${renderGwTicker({ t, gw })}
         ${renderHomeBackground(featuredCards)}
         ${publicNav({
         user: discordUser ? { username: escapeHtml(discordUser.username), avatarUrl: discordUser.avatarUrl } : null,
@@ -74,14 +73,6 @@ router.get('/', async (req, res) => {
         returnPath: '/',
     })}
         ${renderGiveawayStrip({ t, giveaway: publicStats.giveaway })}
-        ${renderGameweekLive({
-        t,
-        gw,
-        checkinCount: publicStats.checkinCount,
-        checkedIn,
-        showCheckin: Boolean(discordUser),
-        csrf,
-    })}
         <section class="hero hero-glass">
             ${renderHeroCarousel(featuredCards.slice(0, 5))}
             <div class="hero-logo hero-logo-pulse">
@@ -119,7 +110,7 @@ router.get('/', async (req, res) => {
                 <p>${t('home.feature3Desc')}</p>
             </div>
         </section>
-        ${peaxelFooter({ t, locale, returnPath: '/', theme })}
+        ${peaxelFooter({ t, locale, returnPath: '/' })}
     </div>`;
 
     res.send(pageShell({
@@ -132,7 +123,7 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/link', requireDiscordUser, (req, res) => {
-    const { t, locale, theme } = req;
+    const { t, locale } = req;
     const user = req.session.discordUser;
     const link = getAccountLink(user.id);
     const error = req.query.error;
@@ -144,7 +135,7 @@ router.get('/link', requireDiscordUser, (req, res) => {
         <div class="app-layout">
             ${renderLinkStatus({ t, link, csrf: csrfInput(req.session), error, success: success && !error })}
         </div>
-        ${peaxelFooter({ t, locale, returnPath: '/link', theme })}
+        ${peaxelFooter({ t, locale, returnPath: '/link' })}
     </div>`;
 
     res.send(pageShell({
@@ -221,7 +212,7 @@ router.get('/auth/logout', (req, res) => {
 router.get('/app', requireDiscordUser, async (req, res) => {
     const client = req.app.get('discordClient');
     const user = req.session.discordUser;
-    const { t, locale, theme } = req;
+    const { t, locale } = req;
     const publicStats = await gatherPublicStats(client, locale, user.id);
     const botLabel = publicStats.botOnline ? t('app.botOnline') : t('app.botOffline');
     const link = getAccountLink(user.id);
@@ -232,18 +223,12 @@ router.get('/app', requireDiscordUser, async (req, res) => {
 
     const body = `
     <div class="landing landing-app landing-home">
+        ${renderGwTicker({ t, gw })}
         ${renderHomeBackground(getFeaturedCards(4))}
         ${publicNav({ user: { username: escapeHtml(user.username), avatarUrl: user.avatarUrl }, t, locale, returnPath: '/app' })}
         <div class="app-layout app-layout-live">
             ${renderGiveawayStrip({ t, giveaway: publicStats.giveaway })}
-            ${renderGameweekLive({
-        t,
-        gw,
-        checkinCount: publicStats.checkinCount,
-        checkedIn,
-        showCheckin: true,
-        csrf: csrfInput(req.session),
-    })}
+            ${renderAppCheckin({ t, gw, checkedIn, csrf: csrfInput(req.session) })}
             ${checkinMsg ? `<div class="alert alert-info">${checkinMsg}</div>` : ''}
 
             <div class="profile-card profile-card-glow">
@@ -312,7 +297,7 @@ router.get('/app', requireDiscordUser, async (req, res) => {
                 <p style="color:var(--text-muted);margin:0;font-size:0.9rem;">${t('app.comingSoonDesc')}</p>
             </div>
         </div>
-        ${peaxelFooter({ t, locale, returnPath: '/app', theme })}
+        ${peaxelFooter({ t, locale, returnPath: '/app' })}
     </div>`;
 
     res.send(pageShell({

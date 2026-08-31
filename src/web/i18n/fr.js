@@ -13,11 +13,6 @@ export default {
         en: 'EN',
         fr: 'FR',
     },
-    theme: {
-        label: 'Thème',
-        light: 'Clair',
-        dark: 'Sombre',
-    },
     nav: {
         menu: 'Menu',
         guide: 'Guide',

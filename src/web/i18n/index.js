@@ -3,10 +3,7 @@ import fr from './fr.js';
 
 export const DEFAULT_LOCALE = 'en';
 export const LOCALES = ['en', 'fr'];
-export const DEFAULT_THEME = 'dark';
-export const THEMES = ['dark', 'light'];
 const COOKIE_NAME = 'peaxel_lang';
-const THEME_COOKIE = 'peaxel_theme';
 
 const dictionaries = { en, fr };
 
@@ -37,34 +34,11 @@ export function resolveLocale(req) {
     return DEFAULT_LOCALE;
 }
 
-export function resolveTheme(req) {
-    const fromCookie = req.cookies?.[THEME_COOKIE];
-    if (fromCookie && THEMES.includes(fromCookie)) return fromCookie;
-    return DEFAULT_THEME;
-}
-
 export function attachI18n(req, res, next) {
     const locale = resolveLocale(req);
     req.locale = locale;
-    req.theme = resolveTheme(req);
     req.t = (key, vars) => translate(locale, key, vars);
     next();
-}
-
-export function setThemeCookie(res, theme, isProd) {
-    res.cookie(THEME_COOKIE, theme, {
-        maxAge: 365 * 24 * 60 * 60 * 1000,
-        httpOnly: false,
-        secure: isProd,
-        sameSite: 'lax',
-    });
-}
-
-export function themeToggle(returnPath, theme, t) {
-    const path = encodeURIComponent(returnPath || '/');
-    const next = theme === 'light' ? 'dark' : 'light';
-    const label = theme === 'light' ? t('theme.dark') : t('theme.light');
-    return `<a href="/theme/${next}?return=${path}" class="theme-toggle" aria-label="${t('theme.label')}">${label}</a>`;
 }
 
 export function setLocaleCookie(res, locale, isProd) {

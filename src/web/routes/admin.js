@@ -40,7 +40,7 @@ function renderChannelSelect(name, currentId, guildChannels, t) {
         <datalist id="${listId}">${options}</datalist>`;
 }
 
-const i18nOpts = (req) => ({ t: req.t, locale: req.locale, returnPath: req.originalUrl, theme: req.theme });
+const i18nOpts = (req) => ({ t: req.t, locale: req.locale, returnPath: req.originalUrl });
 
 router.get('/login', (req, res) => {
     if (req.session.admin) return res.redirect(adminUrl('/'));

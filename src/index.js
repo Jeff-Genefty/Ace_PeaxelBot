@@ -13,7 +13,6 @@ import publicRouter from './web/routes/public.js';
 import adminRouter from './web/routes/admin.js';
 import legacyRouter from './routes/legacy.js';
 import langRouter from './web/routes/lang.js';
-import themeRouter from './web/routes/theme.js';
 import { ensureAdminUsers } from './web/services/adminUsers.js';
 import { getAdminPath } from './web/services/adminPath.js';
 import { attachI18n } from './web/i18n/index.js';
@@ -110,7 +109,6 @@ app.use(session({
 app.use(express.static(join(__dirname, 'web/public')));
 app.use(attachI18n);
 app.use('/lang', langRouter);
-app.use('/theme', themeRouter);
 app.use('/', publicRouter);
 app.use(`/${getAdminPath()}`, adminRouter);
 app.use('/analytics', analyticsRoutes);

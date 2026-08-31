@@ -1,42 +1,15 @@
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const ATHLETES_FILE = join(dirname(fileURLToPath(import.meta.url)), '../../config/athletes.json');
-
-const FALLBACK_CARDS = [
-    'https://media.peaxel.me/yoong.png',
-    'https://media.peaxel.me/kaiza.png',
-    'https://media.peaxel.me/claudialeon.png',
-    'https://media.peaxel.me/domiger.png',
-    'https://media.peaxel.me/evansantangel.png',
-    'https://media.peaxel.me/kubicek.png',
+/** Cartes officielles Peaxel (media.peaxel.me) — liste fixe, alignée sur le hub / peaxel.me */
+const SITE_CARDS = [
+    { url: 'https://media.peaxel.me/claudialeon.png', name: 'claudialeon' },
+    { url: 'https://media.peaxel.me/yoong.png', name: 'yoong' },
+    { url: 'https://media.peaxel.me/kaiza.png', name: 'kaiza' },
+    { url: 'https://media.peaxel.me/domiger.png', name: 'domikiger' },
+    { url: 'https://media.peaxel.me/evansantangel.png', name: 'evansantangelo' },
+    { url: 'https://media.peaxel.me/kubicek.png', name: 'kubicek' },
+    { url: 'https://media.peaxel.me/overbeek.png', name: 'jamie_overbeek' },
+    { url: 'https://media.peaxel.me/crouin.png', name: 'victor_crouin' },
 ];
 
-/** Sélection stable de cartes athlètes pour le décor de la homepage. */
 export function getFeaturedCards(count = 8) {
-    let athletes = [];
-    try {
-        athletes = JSON.parse(readFileSync(ATHLETES_FILE, 'utf-8'));
-    } catch {
-        return FALLBACK_CARDS.slice(0, count).map((url, i) => ({ url, name: `card-${i}` }));
-    }
-
-    const withCards = athletes.filter((a) => a.talent_card_image_url);
-    if (!withCards.length) {
-        return FALLBACK_CARDS.slice(0, count).map((url, i) => ({ url, name: `card-${i}` }));
-    }
-
-    const picked = [];
-    const step = Math.max(1, Math.floor(withCards.length / count));
-    for (let i = 0; i < withCards.length && picked.length < count; i += step) {
-        picked.push({ url: withCards[i].talent_card_image_url, name: withCards[i].name });
-    }
-    for (const a of withCards) {
-        if (picked.length >= count) break;
-        if (!picked.some((p) => p.url === a.talent_card_image_url)) {
-            picked.push({ url: a.talent_card_image_url, name: a.name });
-        }
-    }
-    return picked.slice(0, count);
+    return SITE_CARDS.slice(0, count);
 }

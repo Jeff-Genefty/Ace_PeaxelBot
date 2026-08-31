@@ -34,109 +34,63 @@
     backdrop-filter: blur(10px);
 }
 
-/* GW live banner */
-.gw-live {
-    position: relative;
-    max-width: 1200px;
-    margin: 1rem auto 1.5rem;
-    padding: 0 clamp(1rem, 4vw, 2rem);
-    z-index: 10;
-}
-
-.gw-live-inner {
-    position: relative;
-    padding: clamp(1.25rem, 4vw, 1.75rem);
-    border-radius: var(--radius-lg);
-    background: rgba(15, 15, 24, 0.72);
-    border: 1px solid rgba(34, 211, 238, 0.2);
-    backdrop-filter: blur(14px);
+/* GW ticker ruban */
+.gw-ticker {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(90deg, rgba(34, 211, 238, 0.14), rgba(124, 58, 237, 0.14));
+    border-bottom: 1px solid rgba(34, 211, 238, 0.22);
     overflow: hidden;
 }
 
-.gw-live-glow {
-    position: absolute;
-    inset: -40%;
-    background: radial-gradient(circle, rgba(34, 211, 238, 0.12), transparent 60%);
-    pointer-events: none;
+.gw-ticker-viewport {
+    overflow: hidden;
+    width: 100%;
 }
 
-.gw-live-head {
-    display: flex;
-    flex-wrap: wrap;
+.gw-ticker-track {
+    display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
-}
-
-.gw-live-head h2 {
-    margin: 0;
-    font-size: clamp(1.25rem, 3vw, 1.75rem);
-}
-
-.gw-live-badge {
-    padding: 0.3rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-
-.gw-phase-open { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.35); }
-.gw-phase-closing { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.35); }
-.gw-phase-matchday { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.35); }
-.gw-phase-locked { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.35); }
-
-.gw-live-desc {
-    margin: 0 0 1rem;
+    gap: 1.25rem;
+    padding: 0.65rem 0;
+    white-space: nowrap;
+    animation: gw-ticker-scroll 38s linear infinite;
+    font-size: 0.85rem;
     color: var(--text-muted);
-    font-size: 0.9rem;
 }
 
-.gw-live-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
+.gw-ticker-item strong {
+    color: var(--peaxel-cyan);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.gw-ticker-sep {
+    color: rgba(34, 211, 238, 0.45);
+    font-weight: 700;
+}
+
+.gw-ticker-deadline [data-countdown] {
+    color: var(--text);
+    font-weight: 800;
+}
+
+@keyframes gw-ticker-scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.app-checkin-banner {
     margin-bottom: 1rem;
 }
 
-.gw-countdown-value {
-    display: block;
-    font-size: 1.35rem;
-    font-weight: 800;
-    background: var(--peaxel-gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.gw-countdown-label,
-.gw-checkins-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-dim);
-}
-
-.gw-checkins-value {
-    display: block;
-    font-size: 1.35rem;
-    font-weight: 800;
-    color: var(--peaxel-cyan);
-}
-
-.gw-live-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    align-items: center;
-}
-
-.gw-checkin-done {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--success);
-    font-weight: 600;
+.app-checkin-banner.gw-checkin-done {
+    margin: 0 0 1rem;
+    padding: 0.65rem 1rem;
+    border-radius: var(--radius);
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 /* Giveaway strip */
@@ -249,32 +203,6 @@
 .img-blur-load.is-loaded {
     filter: blur(0);
     transform: scale(1);
-}
-
-/* Footer controls */
-.footer-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: center;
-    align-items: center;
-}
-
-.theme-toggle {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.35rem 0.75rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-}
-
-.theme-toggle:hover {
-    color: var(--peaxel-cyan);
-    border-color: rgba(34, 211, 238, 0.35);
 }
 
 /* Admin log filters */

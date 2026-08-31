@@ -1,4 +1,4 @@
-/** Countdown timers for GW / giveaway sections */
+/** Countdown timers for GW ticker / giveaway */
 (function () {
     function formatRemaining(seconds, locale) {
         if (seconds <= 0) return locale === 'fr' ? 'Terminé' : 'Ended';
@@ -16,9 +16,11 @@
         const now = Math.floor(Date.now() / 1000);
         document.querySelectorAll('[data-gw-countdown]').forEach((el) => {
             const target = parseInt(el.dataset.gwCountdown, 10);
-            const out = el.querySelector('[data-countdown]');
-            if (!out || !target) return;
-            out.textContent = formatRemaining(target - now, locale);
+            if (!target) return;
+            const remaining = formatRemaining(target - now, locale);
+            el.querySelectorAll('[data-countdown]').forEach((out) => {
+                out.textContent = remaining;
+            });
         });
     }
 

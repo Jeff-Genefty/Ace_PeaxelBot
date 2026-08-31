@@ -1,41 +1,41 @@
 import { escapeHtml } from './render.js';
 
-export function renderGameweekLive({ t, gw, checkinCount, checkedIn, showCheckin = false, csrf = '' }) {
-    const phaseLabel = t(`gw.phase.${gw.phase}`);
-    const countdownTarget = gw.isLineupOpen ? gw.deadlineUnix : gw.nextOpeningUnix;
-    const countdownLabel = gw.isLineupOpen ? t('gw.deadlineLabel') : t('gw.nextOpenLabel');
+/** Ruban défilant GW en haut du site (lineups ouverts / closing). */
+export function renderGwTicker({ t, gw }) {
+    if (!gw.isLineupOpen) return '';
 
-    const checkinBlock = showCheckin ? (checkedIn
-        ? `<p class="gw-checkin-done">${t('gw.checkinDone')}</p>`
-        : `<form action="/app/checkin" method="POST" class="gw-checkin-form">${csrf}
-                <button type="submit" class="btn btn-primary btn-sm"${gw.isLineupOpen ? '' : ' disabled'}>${t('gw.checkinCta')}</button>
-           </form>`) : '';
+    const phaseLabel = t(`gw.phase.${gw.phase}`);
+    const title = t('gw.liveTitle', { n: gw.gameweek });
+    const desc = t(`gw.desc.${gw.phase}`);
+    const deadlinePrefix = t('gw.deadlineLabel');
+
+    const items = [
+        `<strong>${escapeHtml(phaseLabel)}</strong>`,
+        `<strong>${escapeHtml(title)}</strong>`,
+        escapeHtml(desc),
+        `<span class="gw-ticker-deadline">${escapeHtml(deadlinePrefix)} <span data-countdown>${escapeHtml(t('gw.loading'))}</span></span>`,
+    ];
+
+    const segment = items.map((item) => `<span class="gw-ticker-item">${item}</span>`).join('<span class="gw-ticker-sep" aria-hidden="true">•</span>');
+    const track = `${segment}<span class="gw-ticker-sep" aria-hidden="true">•</span>${segment}`;
 
     return `
-    <section class="gw-live" data-gw-countdown="${countdownTarget}">
-        <div class="gw-live-glow" aria-hidden="true"></div>
-        <div class="gw-live-inner">
-            <div class="gw-live-head">
-                <span class="gw-live-badge gw-phase-${escapeHtml(gw.phase)}">${phaseLabel}</span>
-                <h2>${t('gw.liveTitle', { n: gw.gameweek })}</h2>
-            </div>
-            <p class="gw-live-desc">${t(`gw.desc.${gw.phase}`)}</p>
-            <div class="gw-live-meta">
-                <div class="gw-countdown">
-                    <span class="gw-countdown-label">${countdownLabel}</span>
-                    <span class="gw-countdown-value" data-countdown>${t('gw.loading')}</span>
-                </div>
-                <div class="gw-checkins">
-                    <span class="gw-checkins-value">${checkinCount}</span>
-                    <span class="gw-checkins-label">${t('gw.checkins')}</span>
-                </div>
-            </div>
-            <div class="gw-live-actions">
-                <a href="https://game.peaxel.me" class="btn btn-primary" target="_blank" rel="noopener">${t('gw.playCta')}</a>
-                ${checkinBlock}
-            </div>
+    <div class="gw-ticker" data-gw-countdown="${gw.deadlineUnix}" role="marquee" aria-live="polite">
+        <div class="gw-ticker-viewport">
+            <div class="gw-ticker-track">${track}</div>
         </div>
-    </section>`;
+    </div>`;
+}
+
+export function renderAppCheckin({ t, gw, checkedIn, csrf }) {
+    if (checkedIn) {
+        return `<p class="gw-checkin-done app-checkin-banner">${t('gw.checkinDone')}</p>`;
+    }
+    return `
+    <form action="/app/checkin" method="POST" class="app-checkin-banner">
+        ${csrf}
+        <button type="submit" class="btn btn-primary btn-sm"${gw.isLineupOpen ? '' : ' disabled'}>${t('gw.checkinCta')}</button>
+    </form>`;
 }
 
 export function renderGiveawayStrip({ t, giveaway }) {
