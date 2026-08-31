@@ -4,6 +4,7 @@ import {
 } from 'discord.js';
 import { saveFeedbackData, hasAlreadySubmitted, getFeedbackStats } from '../utils/feedbackStore.js';
 import { getChannel } from '../utils/configManager.js';
+import { handleChallengeFeedback } from './challengeTracker.js';
 import fs from 'fs';
 import { resolve } from 'path';
 
@@ -97,6 +98,7 @@ export async function handleFeedbackSubmit(interaction) {
   
   // 1. Save to local JSON database (Railway Volume)
   saveFeedbackData(feedbackEntry);
+  handleChallengeFeedback(interaction.user.id, interaction.user.username, interaction.client);
 
   // 2. Update the Voice Channel Stats immediately
   await updateFeedbackStatsChannel(interaction.client);

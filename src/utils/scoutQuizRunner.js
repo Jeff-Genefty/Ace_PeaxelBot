@@ -4,6 +4,23 @@ import { getChannel, getTicketChannelId } from './configManager.js';
 
 const QUIZ_DURATION_MS = 7200000; // 2 hours
 
+/** Quiz actif — canal general + fin */
+let activeQuiz = null;
+
+export function isQuizActiveInChannel(channelId) {
+    return activeQuiz
+        && activeQuiz.channelId === channelId
+        && Date.now() < activeQuiz.endsAt;
+}
+
+function startQuizWindow(generalChannelId) {
+    activeQuiz = { channelId: generalChannelId, endsAt: Date.now() + QUIZ_DURATION_MS };
+}
+
+function endQuizWindow() {
+    activeQuiz = null;
+}
+
 function buildQuizEmbed(athlete, generalChannelId) {
     return new EmbedBuilder()
         .setTitle('🎲 SCOUT QUIZ: THE TALENT HUNT IS ON!')
@@ -68,12 +85,17 @@ export async function runScoutQuiz(client, options = {}) {
 
     await announceChannel.send({ content: pingContent, embeds: [buildQuizEmbed(athlete, generalChannelId)] });
 
+    startQuizWindow(generalChannelId);
+
     if (options.onStart) await options.onStart(athlete);
 
     const filter = (m) => m.content.toUpperCase().trim() === athlete.name.toUpperCase().trim();
     const collector = generalChannel.createMessageCollector({ filter, time: QUIZ_DURATION_MS, max: 1 });
 
     collector.on('collect', async (m) => {
+        const { handleChallengeQuizParticipation } = await import('../handlers/challengeTracker.js');
+        handleChallengeQuizParticipation(m.author.id, m.author.username, client);
+
         await announceChannel.send({
             content: `🎊 Congratulations <@${m.author.id}>!`,
             embeds: [buildWinEmbed(m.author.id, athlete, ticketChannelId)],
@@ -83,6 +105,7 @@ export async function runScoutQuiz(client, options = {}) {
     });
 
     collector.on('end', (collected, reason) => {
+        endQuizWindow();
         if (reason === 'time' && collected.size === 0) {
             announceChannel.send(`⏰ **Quiz Ended!** No one found the answer in time. It was **${athlete.name.toUpperCase()}**.`);
         }

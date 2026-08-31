@@ -6,7 +6,7 @@ import { getLiveLogs } from './liveLogService.js';
 import { getNextScheduledRun } from '../../utils/activityTracker.js';
 import { getFeedbackStats, hasAlreadySubmitted } from '../../utils/feedbackStore.js';
 import { fetchMemberProfile } from './memberProfileService.js';
-import { getChallengeState } from './weeklyChallengeService.js';
+import { getChallengeState, syncExternalTasks, notifyQuestComplete, getTicketUrl } from './weeklyChallengeService.js';
 import { hasGwReminder } from './gwReminderService.js';
 import { getCurrentDayName } from '../../utils/week.js';
 import { getChannel } from '../../utils/configManager.js';
@@ -37,7 +37,13 @@ export async function gatherAppDashboard(client, locale, discordId, discordUser)
     const nextEvent = getNextScheduledRun();
     const { logs } = getLiveLogs({ limit: 8 });
     const profile = await fetchMemberProfile(client, discordId);
-    const challenge = getChallengeState(discordId, gw.gameweek);
+    syncExternalTasks(discordId, gw.gameweek);
+    let challenge = getChallengeState(discordId, gw.gameweek);
+    if (challenge.allDone && !challenge.questNotified && client?.isReady?.()) {
+        await notifyQuestComplete(client, discordId, discordUser.username, gw.gameweek, challenge.set.tasks);
+        challenge = getChallengeState(discordId, gw.gameweek);
+    }
+    challenge.ticketUrl = getTicketUrl();
     const announceChannelId = getChannel('announce');
     const feedbackChannelId = getChannel('feedback');
 

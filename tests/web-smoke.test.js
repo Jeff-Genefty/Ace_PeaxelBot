@@ -4,7 +4,7 @@ import { getGameweekStatus } from '../src/web/services/gameweekService.js';
 import { getLiveLogs, LOG_ACTIONS } from '../src/web/services/liveLogService.js';
 import { pageShell, escapeHtml } from '../src/web/utils/render.js';
 import { getFeaturedCards } from '../src/web/services/featuredCards.js';
-import { generateWeeklyChallenges, toggleChallengeTask, getChallengeState } from '../src/web/services/weeklyChallengeService.js';
+import { generateWeeklyChallenges, markTaskComplete, incrementChallengeMetric, getChallengeState } from '../src/web/services/weeklyChallengeService.js';
 import fs from 'fs';
 import { join, resolve } from 'path';
 
@@ -68,17 +68,24 @@ describe('featuredCards', () => {
 describe('weeklyChallengeService', () => {
     const testId = '888888888888888888';
 
-    it('generates and toggles weekly challenges', () => {
+    it('generates and auto-completes weekly challenges', () => {
         const set = generateWeeklyChallenges(99);
         assert.ok(set.tasks.length >= 1);
         assert.equal(set.gameweek, 99);
 
-        const r1 = toggleChallengeTask(testId, 99, set.tasks[0]);
-        assert.equal(r1.ok, true);
-        assert.ok(r1.completedTasks.includes(set.tasks[0]));
+        const taskId = set.tasks[0];
+        if (taskId === 'messages') {
+            incrementChallengeMetric(testId, 99, 'messages', null, { silent: true });
+            const mid = getChallengeState(testId, 99);
+            assert.ok(mid.taskProgress[0].detail);
+            incrementChallengeMetric(testId, 99, 'messages', null, { silent: true });
+        } else {
+            const r1 = markTaskComplete(testId, 99, taskId, null, { silent: true });
+            assert.equal(r1.justCompleted, true);
+        }
 
         const state = getChallengeState(testId, 99);
-        assert.ok(state.completedTasks.includes(set.tasks[0]));
+        assert.ok(state.completedTasks.includes(taskId));
 
         if (fs.existsSync(PROGRESS_FILE)) {
             const progress = JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf-8'));

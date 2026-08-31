@@ -298,21 +298,34 @@
     padding: 0.65rem 0.75rem;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    cursor: pointer;
     font-size: 0.85rem;
     color: var(--text-muted);
     transition: border-color 0.2s, background 0.2s;
+}
+
+.challenge-task-icon {
+    flex-shrink: 0;
+    width: 1.1rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.challenge-task.is-done .challenge-task-icon {
+    color: #10b981;
+}
+
+.challenge-task-meta {
+    display: inline-block;
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 600;
 }
 
 .challenge-task.is-done {
     border-color: rgba(16, 185, 129, 0.35);
     background: rgba(16, 185, 129, 0.08);
     color: var(--text);
-}
-
-.challenge-task input {
-    margin-top: 0.15rem;
-    accent-color: var(--peaxel-cyan);
 }
 
 .challenge-proof-stamp {
@@ -347,19 +360,6 @@
 .challenge-proof-date {
     font-size: 0.75rem;
     color: var(--text-dim);
-}
-
-.challenge-submit-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-}
-
-.challenge-file-label input {
-    display: block;
-    margin-top: 0.35rem;
-    font-size: 0.8rem;
 }
 
 .live-feed-list {

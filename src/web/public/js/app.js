@@ -1,4 +1,4 @@
-/** Count-up + défis hebdo (toggle tâches) */
+/** Count-up animations on /app */
 (function () {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         document.querySelectorAll('[data-count-up]').forEach((el) => {
@@ -19,18 +19,6 @@
                 else el.textContent = isInt ? target.toLocaleString() : String(target);
             }
             requestAnimationFrame(frame);
-        });
-    }
-
-    const toggleForm = document.getElementById('challenge-toggle-form');
-    const taskInput = document.getElementById('challenge-task-id');
-    if (toggleForm && taskInput) {
-        document.querySelectorAll('[data-challenge-task]').forEach((cb) => {
-            cb.addEventListener('change', () => {
-                if (cb.disabled) return;
-                taskInput.value = cb.dataset.challengeTask;
-                toggleForm.submit();
-            });
         });
     }
 })();

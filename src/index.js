@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, Events } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, Partials } from 'discord.js';
 import { config } from 'dotenv';
 import fs, { readdirSync } from 'fs';
 import { join, dirname, resolve } from 'path';
@@ -29,6 +29,7 @@ import { initDiscordLogger } from './utils/discordLogger.js';
 import { recordBotStart } from './utils/activityTracker.js';
 import { registerMemberJoinHandler } from './handlers/memberJoinHandler.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
+import { handleChallengeMessage, handleChallengeReaction, handleChallengeGiveawayJoin } from './handlers/challengeTracker.js';
 
 config();
 
@@ -84,7 +85,8 @@ const trackEvent = (type) => {
 
 // --- DISCORD CLIENT ---
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions]
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMessageReactions],
+    partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 client.commands = new Collection();
 
@@ -181,6 +183,18 @@ client.on(Events.MessageCreate, async (message) => {
         }
     }
     await handleMessageReward(message);
+    handleChallengeMessage(message);
+});
+
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
+    if (user.bot) return;
+    try {
+        if (reaction.partial) await reaction.fetch();
+        if (reaction.message.partial) await reaction.message.fetch();
+        handleChallengeReaction(reaction, user);
+    } catch (err) {
+        console.error(`${logPrefix} Challenge reaction error:`, err.message);
+    }
 });
 
 // Midnight Analytics Snapshot
@@ -224,6 +238,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         else if (interaction.customId === 'join_giveaway') {
             try {
                 joinGiveaway(interaction.user.id, interaction.user.tag);
+                handleChallengeGiveawayJoin(interaction.user.id, interaction.user.username, interaction.client);
                 invalidateStatsCache('public');
                 addLiveLog('GIVEAWAY', `${interaction.user.tag} joined the draw 🎟️`);
                 await interaction.reply({ content: '✅ Entry recorded!', ephemeral: true });

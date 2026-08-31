@@ -133,48 +133,40 @@ export function renderAppFeedbackCard({ dashboard, t }) {
     </section>`;
 }
 
-export function renderAppChallengeCard({ dashboard, t, csrf, locale, user }) {
+export function renderAppChallengeCard({ dashboard, t, locale, user }) {
     const { challenge, gameweek } = dashboard;
-    const { set, completedTasks, allDone, submitted, submission } = challenge;
+    const { set, completedTasks, taskProgress, allDone, ticketUrl } = challenge;
     const progress = set.tasks.length ? Math.round((completedTasks.length / set.tasks.length) * 100) : 0;
     const stampDate = new Date().toLocaleString(locale === 'fr' ? 'fr-FR' : 'en-GB', { timeZone: 'Europe/Paris' });
 
-    const taskRows = set.tasks.map((taskId) => {
-        const done = completedTasks.includes(taskId);
-        const disabled = submitted ? ' disabled' : '';
+    const taskRows = taskProgress.map(({ taskId, done, detail }) => {
+        const icon = done ? '✓' : '○';
+        let meta = '';
+        if (detail && !done) {
+            meta = ` <span class="challenge-task-meta">${detail.current}/${detail.target}</span>`;
+        }
         return `
-        <label class="challenge-task${done ? ' is-done' : ''}">
-            <input type="checkbox" value="${escapeHtml(taskId)}"${done ? ' checked' : ''}${disabled}
-                data-challenge-task="${escapeHtml(taskId)}">
-            <span>${escapeHtml(t(`app.challenge.tasks.${taskId}`))}</span>
-        </label>`;
+        <div class="challenge-task${done ? ' is-done' : ''}">
+            <span class="challenge-task-icon" aria-hidden="true">${icon}</span>
+            <span>${escapeHtml(t(`app.challenge.tasks.${taskId}`))}${meta}</span>
+        </div>`;
     }).join('');
 
-    const proofStamp = `
+    const proofStamp = allDone ? `
     <div class="challenge-proof-stamp" id="challenge-proof-stamp">
         <span class="challenge-proof-brand">PEAXEL HUB</span>
         <span class="challenge-proof-gw">GW ${gameweek}</span>
         <span class="challenge-proof-user">${escapeHtml(user.username)}</span>
         <span class="challenge-proof-date">${escapeHtml(stampDate)}</span>
-    </div>`;
+    </div>` : '';
 
-    let submitBlock = '';
-    if (submitted) {
-        submitBlock = `
-        <p class="app-status-ok">✓ ${t('app.challengeSubmitted')}</p>
-        <p class="app-card-meta">${t('app.challengeProofId')}: <code>${escapeHtml(submission.proofId)}</code></p>
-        <a href="https://discord.gg/PNyAqI8hio" target="_blank" rel="noopener" class="btn btn-primary btn-sm">${t('app.challengeOpenTicket')}</a>`;
-    } else if (allDone) {
-        submitBlock = `
-        <p class="app-card-desc">${t('app.challengeSubmitHint')}</p>
-        <form action="/app/challenges/submit" method="POST" enctype="multipart/form-data" class="challenge-submit-form">
-            ${csrf}
-            <label class="challenge-file-label">
-                ${t('app.challengeScreenshot')}
-                <input type="file" name="screenshot" accept="image/png,image/jpeg,image/webp" required>
-            </label>
-            <button type="submit" class="btn btn-primary btn-sm">${t('app.challengeSubmit')}</button>
-        </form>`;
+    let doneBlock = '';
+    if (allDone) {
+        const url = ticketUrl || 'https://discord.gg/PNyAqI8hio';
+        doneBlock = `
+        <p class="app-status-ok">✓ ${t('app.challengeAllDone')}</p>
+        <p class="app-card-desc">${t('app.challengeTicketHint')}</p>
+        <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="btn btn-discord btn-sm">${t('app.challengeOpenTicket')}</a>`;
     }
 
     return `
@@ -188,10 +180,9 @@ export function renderAppChallengeCard({ dashboard, t, csrf, locale, user }) {
             <div class="challenge-progress-bar" style="width:${progress}%"></div>
         </div>
         <p class="app-card-meta">${completedTasks.length}/${set.tasks.length} ${t('app.challengeProgress')}</p>
-        <form id="challenge-toggle-form" action="/app/challenges/toggle" method="POST" class="sr-only">${csrf}<input type="hidden" name="taskId" id="challenge-task-id"></form>
         <div class="challenge-tasks">${taskRows}</div>
         ${proofStamp}
-        ${submitBlock}
+        ${doneBlock}
     </section>`;
 }
 

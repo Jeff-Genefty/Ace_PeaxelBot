@@ -1,7 +1,4 @@
 import express from 'express';
-import fs from 'fs';
-import multer from 'multer';
-import { join, resolve } from 'path';
 import { pageShell, escapeHtml } from '../utils/render.js';
 import { requireDiscordUser } from '../middleware/auth.js';
 import { publicNav, peaxelFooter } from '../utils/branding.js';
@@ -19,29 +16,14 @@ import { getFeaturedCards } from '../services/featuredCards.js';
 import { renderHomeBackground } from '../utils/homeBackground.js';
 import { renderGwTicker, renderGiveawayStrip } from '../utils/widgets.js';
 import { renderAppDashboard } from '../utils/appWidgets.js';
-import { toggleChallengeTask, submitChallengeProof } from '../services/weeklyChallengeService.js';
 import { toggleGwReminder } from '../services/gwReminderService.js';
-import { getGameweekStatus } from '../services/gameweekService.js';
 import { csrfInput, validateCsrf, initSessionCsrf } from '../../utils/csrf.js';
-import { getTicketChannelId } from '../../utils/configManager.js';
 
 const HOME_CSS = '<link rel="stylesheet" href="/css/home.css">';
 const APP_CSS = '<link rel="stylesheet" href="/css/app.css">';
 const HOME_JS = '<script src="/js/home.js" defer></script>';
 const APP_JS = '<script src="/js/app.js" defer></script>';
 const SHARED_JS = '<script src="/js/countdown.js" defer></script>';
-
-const CHALLENGE_UPLOAD_DIR = join(resolve('./uploads'), 'challenges');
-if (!fs.existsSync(CHALLENGE_UPLOAD_DIR)) fs.mkdirSync(CHALLENGE_UPLOAD_DIR, { recursive: true });
-
-const challengeUpload = multer({
-    dest: CHALLENGE_UPLOAD_DIR,
-    limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (_req, file, cb) => {
-        if (/^image\/(jpeg|png|webp)$/.test(file.mimetype)) cb(null, true);
-        else cb(new Error('INVALID_FILE'));
-    },
-});
 
 const router = express.Router();
 
@@ -171,28 +153,14 @@ router.get('/app', requireDiscordUser, async (req, res) => {
     const gw = dashboard.gameweekStatus;
     const csrf = csrfInput(req.session);
 
-    let flash = '';
-    if (req.query.challenge === 'submitted') {
-        flash = `<div class="alert alert-info">${t('app.challengeSubmitSuccess')}</div>`;
-    }
-    if (req.query.error === 'challenge') {
-        flash = `<div class="alert alert-error">${t('app.challengeSubmitError')}</div>`;
-    }
-
-    const guildId = process.env.DISCORD_GUILD_ID;
-    const ticketId = getTicketChannelId();
-    const ticketUrl = guildId && ticketId ? `https://discord.com/channels/${guildId}/${ticketId}` : 'https://discord.gg/PNyAqI8hio';
-
     const body = `
     <div class="landing landing-app landing-home">
         ${renderGwTicker({ t, gw })}
         ${renderHomeBackground(getFeaturedCards(4))}
         ${publicNav({ user: { username: escapeHtml(user.username), avatarUrl: user.avatarUrl }, t, locale, returnPath: '/app' })}
         <div class="app-layout app-layout-live">
-            ${flash}
             ${renderGiveawayStrip({ t, giveaway: dashboard.giveaway })}
             ${renderAppDashboard({ dashboard, t, csrf, locale, user })}
-            ${req.query.challenge === 'submitted' ? `<p class="app-ticket-hint"><a href="${escapeHtml(ticketUrl)}" target="_blank" rel="noopener" class="btn btn-discord btn-sm">${t('app.challengeOpenTicket')}</a></p>` : ''}
         </div>
         ${peaxelFooter({ t, locale, returnPath: '/app' })}
     </div>`;
@@ -204,38 +172,6 @@ router.get('/app', requireDiscordUser, async (req, res) => {
         extraJs: APP_JS + SHARED_JS,
         ...shellOpts(req),
     }));
-});
-
-router.post('/app/challenges/toggle', requireDiscordUser, validateCsrf, (req, res) => {
-    const user = req.session.discordUser;
-    const gw = getGameweekStatus().gameweek;
-    const taskId = req.body.taskId;
-    toggleChallengeTask(user.id, gw, taskId);
-    res.redirect('/app');
-});
-
-router.post('/app/challenges/submit', requireDiscordUser, validateCsrf, challengeUpload.single('screenshot'), async (req, res) => {
-    const client = req.app.get('discordClient');
-    const user = req.session.discordUser;
-    const gw = getGameweekStatus().gameweek;
-
-    if (!req.file) return res.redirect('/app?error=challenge');
-
-    try {
-        const result = await submitChallengeProof(client, {
-            discordId: user.id,
-            username: user.username,
-            gameweek: gw,
-            screenshotPath: req.file.path,
-            locale: req.locale,
-        });
-        if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        if (!result.ok) return res.redirect('/app?error=challenge');
-        res.redirect(`/app?challenge=submitted&proof=${encodeURIComponent(result.proofId)}`);
-    } catch {
-        if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.redirect('/app?error=challenge');
-    }
 });
 
 router.post('/app/reminders/toggle', requireDiscordUser, validateCsrf, (req, res) => {
