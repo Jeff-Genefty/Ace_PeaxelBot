@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { claimDailyConnect, XP_REWARDS } from '../web/services/hubXpService.js';
 import { incrementChallengeMetric } from '../web/services/weeklyChallengeService.js';
 import { getCurrentWeekNumber } from '../utils/week.js';
@@ -18,7 +18,7 @@ export default {
         if (!result.ok) {
             const streak = result.streak || result.profile?.dailyStreak || 0;
             return interaction.reply({
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
                 embeds: [
                     new EmbedBuilder()
                         .setColor(0xf59e0b)

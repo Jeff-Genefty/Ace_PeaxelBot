@@ -1,10 +1,11 @@
-import { Client, GatewayIntentBits, Collection, Events, Partials } from 'discord.js';
+import { Client, GatewayIntentBits, Collection, Events, Partials, MessageFlags } from 'discord.js';
 import { config } from 'dotenv';
 import fs, { readdirSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
+import createMemoryStore from 'memorystore';
 import cookieParser from 'cookie-parser';
 import cron from 'node-cron';
 import analyticsRoutes from './routes/analytics.js';
@@ -21,6 +22,7 @@ import { joinGiveaway } from './web/services/giveawayService.js';
 import { invalidateStatsCache } from './web/services/statsService.js';
 import { updateJsonSync } from './utils/jsonStore.js';
 import { getRole } from './utils/configManager.js';
+import { registerCommands } from './register-commands.js';
 
 // Utility Imports
 import { initScheduler } from './scheduler.js';
@@ -30,6 +32,8 @@ import { recordBotStart } from './utils/activityTracker.js';
 import { registerMemberJoinHandler } from './handlers/memberJoinHandler.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
 import { handleChallengeMessage, handleChallengeReaction, handleChallengeGiveawayJoin } from './handlers/challengeTracker.js';
+
+const MemoryStore = createMemoryStore(session);
 
 config();
 
@@ -104,6 +108,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     proxy: isProd,
+    store: new MemoryStore({ checkPeriod: 24 * 60 * 60 * 1000 }),
     cookie: { maxAge: 3600000, secure: isProd, httpOnly: true, sameSite: 'lax' }
 }));
 
@@ -131,7 +136,7 @@ app.get('/health', (req, res) => {
 });
 
 
-// --- COMMAND LOADER (local only — register via npm run register-commands) ---
+// --- COMMAND LOADER (local handlers; Discord API sync via registerCommands) ---
 async function loadCommands() {
     const commandsPath = join(__dirname, 'commands');
     try {
@@ -241,10 +246,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 handleChallengeGiveawayJoin(interaction.user.id, interaction.user.username, interaction.client);
                 invalidateStatsCache('public');
                 addLiveLog('GIVEAWAY', `${interaction.user.tag} joined the draw 🎟️`);
-                await interaction.reply({ content: '✅ Entry recorded!', ephemeral: true });
+                await interaction.reply({ content: '✅ Entry recorded!', flags: MessageFlags.Ephemeral });
             } catch (err) {
                 if (err.message === 'ALREADY_JOINED') {
-                    return await interaction.reply({ content: '❌ Already registered!', ephemeral: true });
+                    return await interaction.reply({ content: '❌ Already registered!', flags: MessageFlags.Ephemeral });
                 }
                 console.error('Giveaway Join Error:', err);
             }
@@ -279,7 +284,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
         app.listen(PORT, () => console.log(`${logPrefix} Web v2 active on port ${PORT} (admin: /${getAdminPath()})`));
 
         await loadCommands();
-        
+
+        try {
+            await registerCommands();
+        } catch (err) {
+            console.error(`${logPrefix} Slash command sync failed:`, err.message);
+        }
+
         await client.login(process.env.DISCORD_TOKEN);
     } catch (error) { 
         console.error(`${logPrefix} Critical Startup Error:`, error.message); 

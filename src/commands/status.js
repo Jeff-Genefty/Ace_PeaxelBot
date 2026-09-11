@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { getNextScheduledRun, getUptime, getGlobalStats, loadActivity } from '../utils/activityTracker.js'; // Added getGlobalStats
 import { loadMessageConfig, parseColor } from '../config/messageConfig.js';
 import { getCurrentWeekNumber } from '../utils/week.js';
@@ -86,5 +86,5 @@ export async function execute(interaction) {
     });
   }
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }

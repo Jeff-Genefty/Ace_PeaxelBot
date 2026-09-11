@@ -1,7 +1,6 @@
 import { 
   ModalBuilder, TextInputBuilder, TextInputStyle, 
-  ActionRowBuilder, EmbedBuilder, AttachmentBuilder 
-} from 'discord.js';
+  ActionRowBuilder, EmbedBuilder, AttachmentBuilder, MessageFlags } from 'discord.js';
 import { saveFeedbackData, hasAlreadySubmitted, getFeedbackStats } from '../utils/feedbackStore.js';
 import { getChannel } from '../utils/configManager.js';
 import { handleChallengeFeedback } from './challengeTracker.js';
@@ -17,7 +16,7 @@ export async function handleFeedbackButton(interaction) {
   if (hasAlreadySubmitted(interaction.user.id)) {
     return interaction.reply({ 
       content: '❌ You have already submitted your feedback for this period. Thank you!', 
-      ephemeral: true 
+      flags: MessageFlags.Ephemeral 
     });
   }
 
@@ -82,7 +81,7 @@ export async function handleFeedbackSubmit(interaction) {
   const ratingNum = parseInt(rating);
   // Validation: Rating must be a number between 1 and 5
   if (isNaN(ratingNum) || ratingNum < 1 || ratingNum > 5) {
-    return interaction.reply({ content: '❌ Invalid rating. Please enter a number between 1 and 5.', ephemeral: true });
+    return interaction.reply({ content: '❌ Invalid rating. Please enter a number between 1 and 5.', flags: MessageFlags.Ephemeral });
   }
 
   // Prepare data for JSON storage
@@ -149,7 +148,7 @@ export async function handleFeedbackSubmit(interaction) {
   // Confirm submission to the user
   await interaction.reply({ 
     content: '✅ **Thank you!** Feedback saved and stats updated. Coach Ace has received your report.', 
-    ephemeral: true 
+    flags: MessageFlags.Ephemeral 
   });
 }
 
@@ -192,7 +191,7 @@ export async function exportFeedbackCSV(interaction) {
   const DB_PATH = resolve('./data/feedbacks.json');
   
   if (!fs.existsSync(DB_PATH)) {
-    return interaction.reply({ content: '❌ No feedback data found in the database.', ephemeral: true });
+    return interaction.reply({ content: '❌ No feedback data found in the database.', flags: MessageFlags.Ephemeral });
   }
 
   try {
@@ -200,7 +199,7 @@ export async function exportFeedbackCSV(interaction) {
     const data = JSON.parse(rawData);
 
     if (data.length === 0) {
-      return interaction.reply({ content: '❌ The feedback database is currently empty.', ephemeral: true });
+      return interaction.reply({ content: '❌ The feedback database is currently empty.', flags: MessageFlags.Ephemeral });
     }
 
     const header = 'Date,User,Rating,Liked,Improve,Comments\n';
@@ -219,10 +218,10 @@ export async function exportFeedbackCSV(interaction) {
     await interaction.reply({ 
       content: `📊 **Feedback Export Successful**\nTotal records found: **${data.length}**`, 
       files: [file], 
-      ephemeral: true 
+      flags: MessageFlags.Ephemeral 
     });
   } catch (err) {
     console.error('[FeedbackHandler] Export Error:', err);
-    await interaction.reply({ content: '❌ An error occurred while generating the CSV file.', ephemeral: true });
+    await interaction.reply({ content: '❌ An error occurred while generating the CSV file.', flags: MessageFlags.Ephemeral });
   }
 }

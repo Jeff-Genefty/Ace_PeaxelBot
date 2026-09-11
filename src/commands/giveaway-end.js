@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
 import { getTicketChannelId } from '../utils/configManager.js';
@@ -13,14 +13,14 @@ export async function execute(interaction) {
     const GIVEAWAY_FILE = path.join(process.cwd(), 'data', 'giveaways.json');
 
     if (!fs.existsSync(GIVEAWAY_FILE)) {
-        return interaction.reply({ content: 'No giveaway data found.', ephemeral: true });
+        return interaction.reply({ content: 'No giveaway data found.', flags: MessageFlags.Ephemeral });
     }
 
     const data = JSON.parse(fs.readFileSync(GIVEAWAY_FILE, 'utf-8'));
     const participants = data.participants || [];
 
     if (participants.length === 0) {
-        return interaction.reply({ content: '❌ No entries for this giveaway.', ephemeral: true });
+        return interaction.reply({ content: '❌ No entries for this giveaway.', flags: MessageFlags.Ephemeral });
     }
 
     const winnerIndex = Math.floor(Math.random() * participants.length);

@@ -6,7 +6,7 @@ export function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
-const DEFAULT_OG_IMAGE = '/img/peaxel-mark.svg';
+const DEFAULT_OG_IMAGE = '/img/peaxel-mark.png';
 
 export function pageShell({
     title,

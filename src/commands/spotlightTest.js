@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { getPreviewAthlete } from '../utils/spotlightManager.js';
 import { getChannel } from '../utils/configManager.js';
 import { buildSpotlightPayload } from '../utils/spotlightMessage.js';
@@ -12,7 +12,7 @@ export async function execute(interaction) {
     const athlete = getPreviewAthlete();
 
     if (!athlete) {
-        return await interaction.reply({ content: '❌ No athlete found.', ephemeral: true });
+        return await interaction.reply({ content: '❌ No athlete found.', flags: MessageFlags.Ephemeral });
     }
 
     const generalChannelId = getChannel('welcome');

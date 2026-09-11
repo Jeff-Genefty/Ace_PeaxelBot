@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { sendWeeklyMessage } from '../utils/sendWeeklyMessage.js';
 
 /**
@@ -24,7 +24,7 @@ export const data = new SlashCommandBuilder()
  */
 export async function execute(interaction) {
     // Defer the reply to give the bot time to process local assets/files
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     // Retrieve the selected type from the user input
     const messageType = interaction.options.getString('type');

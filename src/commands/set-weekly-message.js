@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
 import { 
   loadMessageConfig, 
   updateMessageConfig, 
@@ -114,7 +114,7 @@ async function handleView(interaction, type) {
   await interaction.reply({
     content: `**Preview for ${type.toUpperCase()} (Week 50):**`,
     embeds: [configEmbed, previewEmbed],
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 
@@ -134,14 +134,14 @@ async function handleSet(interaction, type) {
   if (footer) updates.footerText = footer;
 
   if (Object.keys(updates).length === 0) {
-    return interaction.reply({ content: '❌ Provide at least one value to update.', ephemeral: true });
+    return interaction.reply({ content: '❌ Provide at least one value to update.', flags: MessageFlags.Ephemeral });
   }
 
   updateMessageConfig(type, updates);
 
   await interaction.reply({
     content: `✅ **${type.toUpperCase()} message updated successfully!**`,
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 
@@ -159,14 +159,14 @@ async function handleButtons(interaction, type) {
   if (showLeaderboard !== null) updates.showLeaderboardButton = showLeaderboard;
 
   if (Object.keys(updates).length === 0) {
-    return interaction.reply({ content: '❌ No changes detected.', ephemeral: true });
+    return interaction.reply({ content: '❌ No changes detected.', flags: MessageFlags.Ephemeral });
   }
 
   updateMessageConfig(type, updates);
 
   await interaction.reply({
     content: `✅ **Button configuration for ${type.toUpperCase()} updated!**`,
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 
@@ -178,6 +178,6 @@ async function handleReset(interaction, type) {
 
   await interaction.reply({
     content: `🔄 **${type.toUpperCase()} settings have been reset to default.**`,
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }

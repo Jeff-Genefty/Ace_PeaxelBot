@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { getHubProfile, getUserWeekRank, getWeeklyLeaderboard } from '../web/services/hubXpService.js';
 import { applyHubFooter } from '../utils/hubFooter.js';
 
@@ -45,7 +45,7 @@ export default {
         return interaction.reply({
             embeds: [embed],
             files: footerFile ? [footerFile] : [],
-            ephemeral: target.id !== interaction.user.id,
+            flags: (target.id !== interaction.user.id) ? MessageFlags.Ephemeral : undefined,
         });
     },
 };

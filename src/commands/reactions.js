@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
 import { 
   loadReactionsConfig, 
   updateReactionsConfig,
@@ -98,7 +98,7 @@ async function handleView(interaction) {
     )
     .setFooter({ text: 'Reactions are added automatically to weekly announcements' });
 
-  await interaction.reply({ embeds: [embed], ephemeral: true });
+  await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 /**
@@ -114,7 +114,7 @@ async function handleToggle(interaction) {
     content: enabled 
       ? '✅ **Auto-reactions enabled!**'
       : '❌ **Auto-reactions disabled!**',
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 
@@ -126,11 +126,11 @@ async function handleSet(interaction) {
   const emojis = emojisInput.split(/\s+/).filter(e => e.length > 0);
   
   if (emojis.length === 0) {
-    return interaction.reply({ content: '❌ Provide at least one emoji.', ephemeral: true });
+    return interaction.reply({ content: '❌ Provide at least one emoji.', flags: MessageFlags.Ephemeral });
   }
   
   if (emojis.length > 5) {
-    return interaction.reply({ content: '❌ Maximum 5 reactions allowed for optimal UI.', ephemeral: true });
+    return interaction.reply({ content: '❌ Maximum 5 reactions allowed for optimal UI.', flags: MessageFlags.Ephemeral });
   }
   
   updateReactionsConfig({ reactions: emojis });
@@ -138,7 +138,7 @@ async function handleSet(interaction) {
 
   await interaction.reply({
     content: `✅ **Reactions updated!**\nCurrent list: ${emojis.join(' ')}`,
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }
 
@@ -153,6 +153,6 @@ async function handleReset(interaction) {
 
   await interaction.reply({
     content: `🔄 **Reactions reset to default!** (${defaultConfig.reactions.join(' ')})`,
-    ephemeral: true
+    flags: MessageFlags.Ephemeral
   });
 }

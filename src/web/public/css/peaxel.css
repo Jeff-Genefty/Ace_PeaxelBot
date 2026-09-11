@@ -64,9 +64,10 @@ a:hover { opacity: 0.9; }
 }
 .logo-link:hover { opacity: 1; }
 .logo-mark {
-    border-radius: 50%;
-    box-shadow: 0 0 20px rgba(34, 211, 238, 0.25);
+    border-radius: 0;
+    box-shadow: none;
     flex-shrink: 0;
+    object-fit: contain;
 }
 .logo-text {
     font-weight: 800;

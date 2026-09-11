@@ -69,7 +69,7 @@ router.get('/', async (req, res) => {
         ${renderGiveawayStrip({ t, giveaway: publicStats.giveaway })}
         <section class="hero hero-peaxel">
             <div class="hero-brand">
-                <img src="/img/peaxel-mark.svg" alt="" class="hero-mark" width="72" height="72" decoding="async">
+                <img src="/img/peaxel-mark.png" alt="" class="hero-mark" width="72" height="72" decoding="async">
             </div>
             <span class="hero-badge">${t('home.badge')}</span>
             <h1 class="hero-title">${t('home.title')}</h1>

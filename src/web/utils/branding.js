@@ -1,6 +1,6 @@
 import { langSwitcher } from '../i18n/index.js';
 
-const LOGO_SRC = '/img/peaxel-mark.svg';
+const LOGO_SRC = '/img/peaxel-mark.png';
 
 /** Liens officiels Peaxel (écosystème) */
 export const PEAXEL_LINKS = {

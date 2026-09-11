@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { setChannel } from '../utils/configManager.js';
 
 export const data = new SlashCommandBuilder()
@@ -29,6 +29,6 @@ export async function execute(interaction) {
 
     await interaction.reply({
         content: `✅ Le salon pour **${type}** a été défini sur ${channel}.`,
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
     });
 }
