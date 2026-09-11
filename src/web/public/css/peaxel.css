@@ -142,11 +142,18 @@ a:hover { opacity: 0.9; }
     gap: 0.75rem;
     flex-wrap: wrap;
 }
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+}
 .nav-link {
     color: var(--text-muted);
     font-size: 0.875rem;
     font-weight: 600;
     padding: 0.5rem 0.75rem;
+    text-decoration: none;
+    white-space: nowrap;
 }
 .nav-link:hover { color: var(--peaxel-cyan); }
 .nav-user {
@@ -775,6 +782,18 @@ body.nav-open { overflow: hidden; }
         box-shadow: var(--shadow);
     }
     .nav-actions.is-open { display: flex; }
+    .nav-links {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        gap: 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 0.5rem;
+    }
+    .nav-links .nav-link {
+        padding: 0.75rem 0.5rem;
+    }
     .nav-user { flex-direction: column; align-items: stretch; }
     .nav-user .btn { width: 100%; justify-content: center; }
 

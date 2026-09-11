@@ -5,12 +5,27 @@ import { getLiveLogs, LOG_ACTIONS } from '../src/web/services/liveLogService.js'
 import { pageShell, escapeHtml } from '../src/web/utils/render.js';
 import { getFeaturedCards } from '../src/web/services/featuredCards.js';
 import { generateWeeklyChallenges, markTaskComplete, incrementChallengeMetric, getChallengeState } from '../src/web/services/weeklyChallengeService.js';
+import {
+    xpToNextLevel,
+    totalXpForLevel,
+    computeLevelProgress,
+    tryAwardMessageXp,
+    claimDailyConnect,
+    MESSAGE_XP_COOLDOWN_MS,
+} from '../src/web/services/hubXpService.js';
 import fs from 'fs';
 import { join, resolve } from 'path';
 
 const DATA_DIR = resolve('./data');
-const CHALLENGES_FILE = join(DATA_DIR, 'weekly_challenges.json');
 const PROGRESS_FILE = join(DATA_DIR, 'challenge_progress.json');
+const HUB_FILE = join(DATA_DIR, 'hub_profiles.json');
+
+function wipeHubUser(id) {
+    if (!fs.existsSync(HUB_FILE)) return;
+    const all = JSON.parse(fs.readFileSync(HUB_FILE, 'utf-8'));
+    delete all[id];
+    fs.writeFileSync(HUB_FILE, JSON.stringify(all, null, 2));
+}
 
 describe('gameweekService', () => {
     it('returns a valid gameweek status object', () => {
@@ -92,6 +107,68 @@ describe('weeklyChallengeService', () => {
             delete progress[testId];
             fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
         }
+    });
+});
+
+describe('hubXpService', () => {
+    const testId = '777777777777777777';
+
+    it('follows exponential XP curve', () => {
+        assert.equal(xpToNextLevel(0), 100);
+        assert.equal(xpToNextLevel(1), 155);
+        assert.equal(xpToNextLevel(2), 220);
+        assert.equal(totalXpForLevel(1), 100);
+        assert.equal(totalXpForLevel(2), 255);
+        assert.equal(totalXpForLevel(3), 475);
+
+        const p = computeLevelProgress(255);
+        assert.equal(p.level, 2);
+        assert.equal(p.xpIntoLevel, 0);
+    });
+
+    it('enforces 60s message XP cooldown (anti-farm)', () => {
+        wipeHubUser(testId);
+        const a = tryAwardMessageXp(testId, { silent: true });
+        assert.ok(a.awarded >= 15 && a.awarded <= 25);
+        const b = tryAwardMessageXp(testId, { silent: true });
+        assert.equal(b.skipped, true);
+        assert.equal(b.reason, 'cooldown');
+        assert.ok(MESSAGE_XP_COOLDOWN_MS === 60_000);
+        wipeHubUser(testId);
+    });
+
+    it('allows daily connect once per Paris day', () => {
+        wipeHubUser(testId);
+        const first = claimDailyConnect(testId, { silent: true });
+        assert.equal(first.ok, true);
+        assert.equal(first.awarded, 40);
+        const second = claimDailyConnect(testId, { silent: true });
+        assert.equal(second.ok, false);
+        assert.equal(second.reason, 'already_claimed');
+        wipeHubUser(testId);
+    });
+
+    it('grants and claims pending cards', async () => {
+        wipeHubUser(testId);
+        const { grantPendingCard, claimPendingCard, getWeeklyLeaderboard } = await import('../src/web/services/hubXpService.js');
+        const card = grantPendingCard(testId, 'weekly_quest', { tier: 'common', username: 'Tester' });
+        assert.ok(card.id);
+        const claimed = claimPendingCard(testId, card.id, { username: 'Tester' });
+        assert.equal(claimed.ok, true);
+        assert.equal(claimed.card.reason, 'weekly_quest');
+        const again = claimPendingCard(testId, card.id, { username: 'Tester' });
+        assert.equal(again.ok, false);
+        const lb = getWeeklyLeaderboard(5);
+        assert.ok(Array.isArray(lb));
+        wipeHubUser(testId);
+    });
+
+    it('exposes streak milestones and weekly podium config', async () => {
+        const { STREAK_MILESTONES, WEEKLY_PODIUM, weekKeyDaysAgo } = await import('../src/web/services/hubXpService.js');
+        assert.equal(STREAK_MILESTONES[7].xp, 100);
+        assert.equal(STREAK_MILESTONES[30].cardTier, 'epic');
+        assert.equal(WEEKLY_PODIUM[0].rank, 1);
+        assert.ok(weekKeyDaysAgo(1).includes('-W'));
     });
 });
 

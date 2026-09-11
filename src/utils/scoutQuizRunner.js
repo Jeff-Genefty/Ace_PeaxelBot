@@ -23,37 +23,41 @@ function endQuizWindow() {
 
 function buildQuizEmbed(athlete, generalChannelId) {
     return new EmbedBuilder()
-        .setTitle('🎲 SCOUT QUIZ: THE TALENT HUNT IS ON!')
+        .setTitle('🎲 Scout Quiz — guess the athlete')
         .setDescription(
-            `🏆 **THE PRIZE:**\n` +
-            `The first Manager to find the correct answer wins a **Free Athlete Card**! 🃏✨\n\n` +
-            `📖 **HOW TO PLAY:**\n` +
-            `1️⃣ Analyze the scouting report below.\n` +
-            `2️⃣ Head over to <#${generalChannelId}>.\n` +
-            `3️⃣ Type the **EXACT NAME** of this athlete.\n\n` +
-            `⚠️ *Precision is key! Only the exact spelling will be validated.*`
+            'First correct answer wins a **Free Athlete Card** (+ Hub XP).\n\n'
+            + '**How to play**\n'
+            + `1️⃣ Read the scouting report below\n`
+            + `2️⃣ Go to <#${generalChannelId}>\n`
+            + `3️⃣ Type the athlete’s **exact name** (spelling matters)\n\n`
+            + '⏱️ You have **2 hours**. Only the first correct answer counts.',
         )
         .addFields(
             { name: '📍 Nationality', value: athlete.main_nationality || 'N/A', inline: true },
             { name: '🏆 Sport', value: athlete.occupation || 'N/A', inline: true },
             { name: '🗂️ Category', value: athlete.main_category || 'N/A', inline: true },
-            { name: '💡 Scouting Hint', value: `The name starts with the letter: **${athlete.name.charAt(0).toUpperCase()}**` }
+            {
+                name: '💡 Hint',
+                value: `Name starts with **${athlete.name.charAt(0).toUpperCase()}**`,
+            },
         )
         .setColor('#a855f7')
         .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png')
-        .setFooter({ text: 'Tournament Points and Cards are at stake!' });
+        .setFooter({ text: 'Peaxel · Scout · Collect · Compete' });
 }
 
 function buildWinEmbed(winnerId, athlete, ticketChannelId) {
     const ticketMention = ticketChannelId ? `<#${ticketChannelId}>` : 'the support ticket channel';
     return new EmbedBuilder()
-        .setTitle('🏆 WE HAVE A WINNER!')
+        .setTitle('🏆 Scout Quiz won')
         .setDescription(
-            `Congratulations <@${winnerId}>! You found the correct athlete: **${athlete.name.toUpperCase()}**.\n\n` +
-            `📩 To claim your reward, please open a ticket: ${ticketMention}`
+            `<@${winnerId}> nailed it — the athlete was **${athlete.name}**.\n\n`
+            + `**Reward:** Free Athlete Card (+ Hub XP)\n`
+            + `**Claim:** open a ticket in ${ticketMention} with a screenshot of this win.`,
         )
         .setColor('#2ECC71')
-        .setThumbnail(athlete.talent_profile_image_url || null);
+        .setThumbnail(athlete.talent_profile_image_url || null)
+        .setFooter({ text: 'Peaxel · Scout Quiz' });
 }
 
 /**
@@ -80,8 +84,8 @@ export async function runScoutQuiz(client, options = {}) {
     }
 
     const pingContent = options.pingEveryone !== false
-        ? '✨ **Weekly Scout Quiz is LIVE!** @everyone'
-        : '✨ **Scout Quiz is LIVE!**';
+        ? '@everyone — **Scout Quiz** is open for 2 hours. First correct name wins a free card 👇'
+        : '**Scout Quiz** is open for 2 hours. First correct name wins a free card 👇';
 
     await announceChannel.send({ content: pingContent, embeds: [buildQuizEmbed(athlete, generalChannelId)] });
 
@@ -94,20 +98,26 @@ export async function runScoutQuiz(client, options = {}) {
 
     collector.on('collect', async (m) => {
         const { handleChallengeQuizParticipation } = await import('../handlers/challengeTracker.js');
+        const { addHubXp, grantPendingCard, XP_REWARDS } = await import('../web/services/hubXpService.js');
         handleChallengeQuizParticipation(m.author.id, m.author.username, client);
+        addHubXp(m.author.id, XP_REWARDS.quiz_win, 'quiz:win', { username: m.author.username });
+        grantPendingCard(m.author.id, 'quiz_win', { tier: 'rare', username: m.author.username });
 
         await announceChannel.send({
-            content: `🎊 Congratulations <@${m.author.id}>!`,
+            content: `🎊 <@${m.author.id}> wins the Scout Quiz!`,
             embeds: [buildWinEmbed(m.author.id, athlete, ticketChannelId)],
         });
-        await m.reply(`🏆 **Correct!** You won the Scout Quiz! Check <#${announceChannelId}> for details.`);
+        await m.reply(`✅ Correct! Claim details are in <#${announceChannelId}>.`);
         if (options.onWinner) await options.onWinner(m.author, athlete);
     });
 
     collector.on('end', (collected, reason) => {
         endQuizWindow();
         if (reason === 'time' && collected.size === 0) {
-            announceChannel.send(`⏰ **Quiz Ended!** No one found the answer in time. It was **${athlete.name.toUpperCase()}**.`);
+            announceChannel.send(
+                `⏰ **Scout Quiz closed** — no correct answer in time.\n`
+                + `The athlete was **${athlete.name}**. Next quiz: Tuesday 19:00 (Paris).`,
+            );
         }
     });
 

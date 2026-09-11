@@ -220,6 +220,39 @@
     transition: transform 0.15s, box-shadow 0.2s;
 }
 
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.hero-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.hero-links a {
+    color: var(--peaxel-cyan);
+    text-decoration: none;
+}
+
+.hero-links a:hover {
+    text-decoration: underline;
+}
+
+.hero-links-sep {
+    color: var(--text-dim);
+    opacity: 0.6;
+}
+
 .btn-glow:hover {
     box-shadow: 0 8px 36px rgba(88, 101, 242, 0.55);
     transform: translateY(-2px);

@@ -6,6 +6,7 @@ import { getNextScheduledRun } from '../../utils/activityTracker.js';
 import { getFeedbackStats, hasAlreadySubmitted } from '../../utils/feedbackStore.js';
 import { fetchMemberProfile } from './memberProfileService.js';
 import { getChallengeState, syncExternalTasks, getTicketUrl } from './weeklyChallengeService.js';
+import { getHubProfile, getUserWeekRank, getWeeklyLeaderboard, XP_REWARDS } from './hubXpService.js';
 import { hasGwReminder } from './gwReminderService.js';
 import { getCurrentDayName } from '../../utils/week.js';
 import { getChannel } from '../../utils/configManager.js';
@@ -38,6 +39,13 @@ export async function gatherAppDashboard(client, locale, discordId, discordUser)
     syncExternalTasks(discordId, gw.gameweek);
     const challenge = getChallengeState(discordId, gw.gameweek);
     challenge.ticketUrl = getTicketUrl();
+    const hub = getHubProfile(discordId);
+    const hubRank = getUserWeekRank(discordId);
+    const leaderboard = getWeeklyLeaderboard(10).map((row) => ({
+        ...row,
+        isYou: row.discordId === String(discordId),
+        displayName: row.username || (row.discordId === String(discordId) ? discordUser.username : `Manager ${row.rank}`),
+    }));
     const announceChannelId = getChannel('announce');
     const feedbackChannelId = getChannel('feedback');
 
@@ -66,6 +74,26 @@ export async function gatherAppDashboard(client, locale, discordId, discordUser)
             channelUrl: discordChannelUrl(feedbackChannelId),
         },
         challenge,
+        hub: {
+            level: hub.level,
+            title: hub.title,
+            xpIntoLevel: hub.xpIntoLevel,
+            xpToNext: hub.xpToNext,
+            progressPct: hub.progressPct,
+            xpTotal: hub.xpTotal,
+            xpWeek: hub.xpWeek,
+            rankWeek: hubRank.rank,
+            dailyStreak: hub.dailyStreak || 0,
+            claimedDailyToday: hub.claimedDailyToday,
+            pendingCards: hub.pendingCards || [],
+            pendingCount: (hub.pendingCards || []).length,
+            ticketUrl: getTicketUrl(),
+            xpRewards: {
+                task: XP_REWARDS.challenge_task,
+                complete: XP_REWARDS.challenge_complete,
+            },
+        },
+        leaderboard,
         reminder: {
             enabled: hasGwReminder(discordId),
         },

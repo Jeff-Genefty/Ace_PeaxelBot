@@ -7,6 +7,7 @@ import { getTicketChannelId } from '../../utils/configManager.js';
 import { addLiveLog } from './liveLogService.js';
 import { hasAlreadySubmitted } from '../../utils/feedbackStore.js';
 import { getGiveawayState } from './giveawayService.js';
+import { addHubXp, grantPendingCard, XP_REWARDS } from './hubXpService.js';
 
 const CHALLENGES_FILE = join(resolve('./data'), 'weekly_challenges.json');
 const PROGRESS_FILE = join(resolve('./data'), 'challenge_progress.json');
@@ -16,6 +17,7 @@ export const CHALLENGE_LOG_CHANNEL_ID = process.env.CHALLENGE_LOG_CHANNEL_ID || 
 /** Défis auto-vérifiables uniquement */
 export const CHALLENGE_TASK_DEFS = {
     messages: { threshold: 2, metric: 'messages' },
+    daily: { threshold: 3, metric: 'daily' },
     react: { metric: 'reacted' },
     giveaway: { external: 'giveaway' },
     feedback: { external: 'feedback' },
@@ -172,10 +174,21 @@ export function markTaskComplete(discordId, gameweek, taskId, client, meta = {})
 
     if (justCompleted && !meta.silent) {
         addLiveLog('CHALLENGE', `${meta.username || discordId} completed task ${taskId} · GW${gameweek}`);
+        addHubXp(discordId, XP_REWARDS.challenge_task, `challenge:${taskId}`, {
+            username: meta.username,
+            silent: meta.silent,
+        });
     }
 
-    if (justCompleted && allDone && client) {
-        notifyQuestComplete(client, discordId, meta.username || discordId, gameweek, set.tasks).catch(() => {});
+    if (justCompleted && allDone) {
+        addHubXp(discordId, XP_REWARDS.challenge_complete, 'challenge:complete', {
+            username: meta.username,
+            silent: meta.silent,
+        });
+        grantPendingCard(discordId, 'weekly_quest', { gameweek, tier: 'common' });
+        if (client) {
+            notifyQuestComplete(client, discordId, meta.username || discordId, gameweek, set.tasks).catch(() => {});
+        }
     }
 
     return { justCompleted, allDone };

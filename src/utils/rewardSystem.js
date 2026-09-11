@@ -71,59 +71,29 @@ async function triggerAceRecognition(message) {
     saveRewardDate(user.id);
 
     const variations = [
-        `Your tactical analysis is spot on! 🏟️`,
-        `I love the energy you're bringing to the stadium today! 🚀`,
-        `Your passion for the Peaxel ecosystem deserves a reward. 🏆`,
+        'sharp takes in chat — that’s how Managers climb.',
+        'love the energy you’re bringing to the community today.',
+        'active managers fuel Peaxel — this one’s on Ace.',
     ];
 
     const embed = new EmbedBuilder()
-        .setTitle(`👨‍🏫 COACH ACE IS WATCHING...`)
+        .setTitle('🃏 Ace reward — Free Athlete Card')
         .setDescription(
-            `Hey <@${user.id}>, ${variations[Math.floor(Math.random() * variations.length)]}\n\n` +
-            `I'm granting you a **Free Athlete Card 🃏**!`
+            `Hey <@${user.id}>, ${variations[Math.floor(Math.random() * variations.length)]}\n\n`
+            + 'You’ve earned a **Free Athlete Card** for your roster on [game.peaxel.me](https://game.peaxel.me).',
         )
         .addFields({
-            name: '📩 HOW TO CLAIM',
-            value: `Open a ticket in ${ticketMention} and provide a screenshot of this message!`,
+            name: '📩 How to claim',
+            value: `Open a ticket in ${ticketMention} and attach a screenshot of this message.`,
         })
         .setColor('#a855f7')
         .setThumbnail('attachment://unnamed.png')
         .setTimestamp()
-        .setFooter({ text: 'Peaxel Loyalty Reward • Play Fair, Win Big!' });
+        .setFooter({ text: 'Peaxel · Chat reward · Fair play only' });
 
     await message.reply({
-        content: `⚡ **Congratulations Manager!**`,
+        content: `⚡ <@${user.id}> — Ace just dropped a free card for you.`,
         embeds: [embed],
         files: [file],
     });
-}
-
-export async function sendAceMotivation(client) {
-    const channelId = getChannel('welcome');
-    if (!channelId) return;
-
-    const channel = await client.channels.fetch(channelId).catch(() => null);
-    if (!channel) return;
-
-    if (Math.random() > 0.10) return;
-
-    const imagePath = resolve(process.cwd(), './assets/unnamed.png');
-    const file = new AttachmentBuilder(imagePath);
-
-    const motivations = [
-        "🏟️ **The stadium feels a bit quiet!** Who's ready for the next Gameweek? I'm scouting for the most active managers... rewards drop when you least expect them! 👀",
-        "🔥 **Managers, is your strategy locked in?** Share your gems and tactical tips! The most passionate among you might just get a surprise gift from me. 🎁",
-        "📢 **Scout Alert!** Free Athlete Cards are in play for active managers. But remember: spamming to force your luck will lead to disqualification. Stay natural, stay sharp. 🚫",
-        "✨ **Coach Ace in the building...** I love seeing managers helping each other out. Keep the chat alive, and the rewards will keep dropping! 🃏",
-        "🧠 **Knowledge is power.** Who's tracking the latest athlete performances? Active discussion is the key to victory, and victory leads to prizes! 🏆",
-    ];
-
-    const embed = new EmbedBuilder()
-        .setTitle("👨‍🏫 COACH ACE'S BRIEFING")
-        .setDescription(motivations[Math.floor(Math.random() * motivations.length)])
-        .setColor('#a855f7')
-        .setThumbnail('attachment://unnamed.png')
-        .setFooter({ text: 'Peaxel • Fair Play & Activity' });
-
-    await channel.send({ embeds: [embed], files: [file] });
 }

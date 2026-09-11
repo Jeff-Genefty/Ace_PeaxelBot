@@ -13,13 +13,33 @@ function formatPhaseLabel(t, gw) {
     return t(`gw.phase.${gw.phase}`);
 }
 
-export function renderAppProfile({ user, profile, t }) {
+export function renderAppProfile({ user, profile, dashboard, t }) {
+    const hub = dashboard?.hub;
+    let xpBlock = '';
+    if (hub) {
+        const rankLabel = hub.rankWeek
+            ? t('app.hubRankWeek', { rank: hub.rankWeek })
+            : t('app.hubRankNone');
+        xpBlock = `
+        <div class="hub-xp">
+            <div class="hub-xp-head">
+                <span class="hub-xp-level">${escapeHtml(t('app.hubLevel', { n: hub.level, title: hub.title }))}</span>
+                <span class="hub-xp-rank">${escapeHtml(rankLabel)}</span>
+            </div>
+            <div class="hub-xp-bar" role="progressbar" aria-valuenow="${hub.progressPct}" aria-valuemin="0" aria-valuemax="100">
+                <div class="hub-xp-bar-fill" style="width:${hub.progressPct}%"></div>
+            </div>
+            <p class="hub-xp-meta">${hub.xpIntoLevel} / ${hub.xpToNext} XP · ${t('app.hubXpWeek', { xp: hub.xpWeek })} · 🔥 ${hub.dailyStreak}</p>
+        </div>`;
+    }
+
     return `
     <header class="app-profile">
         <img class="app-profile-avatar" src="${escapeHtml(user.avatarUrl)}" alt="" width="48" height="48">
         <div class="app-profile-meta">
             <h1 class="app-profile-name">${escapeHtml(user.username)}</h1>
             <div class="app-profile-roles">${roleBadges(profile.roles)}</div>
+            ${xpBlock}
         </div>
     </header>`;
 }
@@ -134,10 +154,12 @@ export function renderAppFeedbackCard({ dashboard, t }) {
 }
 
 export function renderAppChallengeCard({ dashboard, t, locale, user }) {
-    const { challenge, gameweek } = dashboard;
+    const { challenge, gameweek, hub } = dashboard;
     const { set, completedTasks, taskProgress, allDone, ticketUrl } = challenge;
     const progress = set.tasks.length ? Math.round((completedTasks.length / set.tasks.length) * 100) : 0;
     const stampDate = new Date().toLocaleString(locale === 'fr' ? 'fr-FR' : 'en-GB', { timeZone: 'Europe/Paris' });
+    const XP_TASK = hub?.xpRewards?.task ?? 25;
+    const XP_COMPLETE = hub?.xpRewards?.complete ?? 100;
 
     const taskRows = taskProgress.map(({ taskId, done, detail }) => {
         const icon = done ? '✓' : '○';
@@ -145,10 +167,12 @@ export function renderAppChallengeCard({ dashboard, t, locale, user }) {
         if (detail && !done) {
             meta = ` <span class="challenge-task-meta">${detail.current}/${detail.target}</span>`;
         }
+        const xpBadge = `<span class="challenge-xp-badge">+${XP_TASK} XP</span>`;
         return `
         <div class="challenge-task${done ? ' is-done' : ''}">
             <span class="challenge-task-icon" aria-hidden="true">${icon}</span>
-            <span>${escapeHtml(t(`app.challenge.tasks.${taskId}`))}${meta}</span>
+            <span class="challenge-task-label">${escapeHtml(t(`app.challenge.tasks.${taskId}`))}${meta}</span>
+            ${xpBadge}
         </div>`;
     }).join('');
 
@@ -164,7 +188,7 @@ export function renderAppChallengeCard({ dashboard, t, locale, user }) {
     if (allDone) {
         const url = ticketUrl || 'https://discord.gg/PNyAqI8hio';
         doneBlock = `
-        <p class="app-status-ok">✓ ${t('app.challengeAllDone')}</p>
+        <p class="app-status-ok">✓ ${t('app.challengeAllDone')} · +${XP_COMPLETE} XP</p>
         <p class="app-card-desc">${t('app.challengeTicketHint')}</p>
         <a href="${escapeHtml(url)}" target="_blank" rel="noopener" class="btn btn-discord btn-sm">${t('app.challengeOpenTicket')}</a>`;
     }
@@ -186,11 +210,70 @@ export function renderAppChallengeCard({ dashboard, t, locale, user }) {
     </section>`;
 }
 
-export function renderAppComingSoonCard({ t }) {
+function reasonLabel(t, reason) {
+    const key = `app.rewardReason.${reason}`;
+    const label = t(key);
+    return label === key ? reason : label;
+}
+
+export function renderAppLeaderboardCard({ dashboard, t }) {
+    const rows = dashboard.leaderboard || [];
+    const list = rows.length
+        ? rows.map((r) => `
+            <li class="hub-lb-row${r.isYou ? ' is-you' : ''}">
+                <span class="hub-lb-rank">#${r.rank}</span>
+                <span class="hub-lb-name">${escapeHtml(r.displayName)}${r.isYou ? ` <em>${t('app.hubYou')}</em>` : ''}</span>
+                <span class="hub-lb-xp">${r.xpWeek} XP</span>
+                <span class="hub-lb-lvl">Lv.${r.level}</span>
+            </li>`).join('')
+        : `<li class="hub-lb-empty">${t('app.hubLeaderboardEmpty')}</li>`;
+
     return `
-    <section class="app-card app-coming-soon-card">
-        <div class="coming-soon-visual" aria-hidden="true">👁️</div>
-        <p class="coming-soon-label">${escapeHtml(t('app.comingSoonTitle'))}</p>
+    <section class="app-card app-leaderboard-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title">🏆 ${t('app.hubLeaderboard')}</h2>
+            <span class="app-card-kicker">GW ${dashboard.gameweek}</span>
+        </div>
+        <p class="app-card-desc">${t('app.hubLeaderboardDesc')}</p>
+        <ol class="hub-lb-list">${list}</ol>
+    </section>`;
+}
+
+export function renderAppRewardsCard({ dashboard, t, csrf }) {
+    const { hub } = dashboard;
+    const pending = hub.pendingCards || [];
+    const ticketUrl = hub.ticketUrl || 'https://discord.gg/PNyAqI8hio';
+
+    if (!pending.length) {
+        return `
+        <section class="app-card app-rewards-card">
+            <h2 class="app-card-title">🎁 ${t('app.hubCoffreTitle')}</h2>
+            <p class="app-card-desc">${t('app.hubCoffreEmpty')}</p>
+        </section>`;
+    }
+
+    const items = pending.map((card) => `
+        <li class="hub-reward-item">
+            <div class="hub-reward-meta">
+                <strong>${escapeHtml(reasonLabel(t, card.reason))}</strong>
+                <span class="hub-reward-tier tier-${escapeHtml(card.tier || 'common')}">${escapeHtml((card.tier || 'common').toUpperCase())}</span>
+            </div>
+            <form action="/app/rewards/claim" method="POST" class="hub-reward-form">
+                ${csrf}
+                <input type="hidden" name="cardId" value="${escapeHtml(card.id)}">
+                <button type="submit" class="btn btn-primary btn-sm">${t('app.hubClaimCta')}</button>
+            </form>
+        </li>`).join('');
+
+    return `
+    <section class="app-card app-rewards-card has-pending">
+        <div class="app-card-head">
+            <h2 class="app-card-title">🎁 ${t('app.hubCoffreTitle')}</h2>
+            <span class="app-card-kicker hub-reward-badge">${pending.length}</span>
+        </div>
+        <p class="app-card-desc">${t('app.hubCoffreDesc')}</p>
+        <ul class="hub-reward-list">${items}</ul>
+        <p class="app-card-meta">${t('app.hubClaimHint')} · <a href="${escapeHtml(ticketUrl)}" target="_blank" rel="noopener">${t('app.challengeOpenTicket')}</a></p>
     </section>`;
 }
 
@@ -211,7 +294,7 @@ export function renderAppReminderCard({ dashboard, t, csrf }) {
 export function renderAppDashboard({ dashboard, t, csrf, locale, user }) {
     return `
     <div class="app-dashboard">
-        ${renderAppProfile({ user, profile: dashboard.profile, t })}
+        ${renderAppProfile({ user, profile: dashboard.profile, dashboard, t })}
         ${renderAppGwCard({ dashboard, t, locale })}
         <div class="app-grid">
             ${renderAppGiveawayCard({ dashboard, t })}
@@ -220,8 +303,9 @@ export function renderAppDashboard({ dashboard, t, csrf, locale, user }) {
             ${renderAppFeedbackCard({ dashboard, t })}
         </div>
         ${renderAppChallengeCard({ dashboard, t, csrf, locale, user })}
+        ${renderAppRewardsCard({ dashboard, t, csrf })}
         <div class="app-grid app-grid-split">
-            ${renderAppComingSoonCard({ t })}
+            ${renderAppLeaderboardCard({ dashboard, t })}
             ${renderAppReminderCard({ dashboard, t, csrf })}
         </div>
     </div>`;

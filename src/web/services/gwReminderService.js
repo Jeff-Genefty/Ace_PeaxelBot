@@ -49,8 +49,11 @@ export async function sendGwDeadlineReminders(client) {
     let sent = 0;
     let failed = 0;
 
-    const text = `⏰ **Gameweek ${gw}** — les lineups ferment dans ~2h (jeudi 23:59 Paris).\n`
-        + `⏰ **Gameweek ${gw}** — lineups close in ~2 hours (Thursday 23:59 Paris).`;
+    const text =
+        `⏰ **Gameweek ${gw} — ~2 hours left to lock your lineup**\n\n`
+        + `Deadline: **Thursday 23:59 (Paris)**.\n`
+        + `Update your roster now → https://game.peaxel.me\n\n`
+        + `_You’re getting this because reminders are enabled on the Peaxel Hub._`;
 
     for (const userId of userIds) {
         try {

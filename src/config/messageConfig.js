@@ -9,49 +9,60 @@ const CONFIG_DIR = join(__dirname, '../../data');
 const CONFIG_FILE = join(CONFIG_DIR, 'message-config.json');
 
 /**
- * Default configuration for Opening and Closing messages
+ * Default Opening / Closing embeds.
+ * Placeholders: {WEEK_NUMBER}, {ROLE_MENTION}
  */
 const DEFAULT_CONFIG = {
   opening: {
-    title: "🚀 ACE NOTIFICATION | LINEUP IS NOW OPEN FOR WEEK {WEEK_NUMBER}",
-    description: "Hello <@&1369976254685642925>, Ace here! The gates are open and the scouting season has officially begun. 🏟️\n\nIt’s time to step into your role as an **Athlete Manager** and build your winning squad! 🔥\n\n**Action Plan:**\n🔹 **Scout:** Look through your cards and pick your top-performing athletes.\n🔹 **Strategize:** Build a lineup to dominate the leaderboard.\n🔹 **Earn:** Compete for XP and exclusive rewards.\n\n*Good luck, Managers! Let's see those dream teams.* 🌶️",
-    imageName: "opening-banner.png",
-    color: "#6366F1",
-    footerText: "Peaxel • Weekly Game Challenge",
-    playUrl: "https://game.peaxel.me/",
-    leaderboardUrl: "https://peaxel.me/leaderboard",
-    playButtonLabel: "🎮 Play Now",
-    leaderboardButtonLabel: "📊 Leaderboard",
+    title: '🏟️ Gameweek {WEEK_NUMBER} is open — build your lineup',
+    description:
+      'Hey {ROLE_MENTION} — **Ace** here.\n\n'
+      + '**Gameweek {WEEK_NUMBER}** just opened on [game.peaxel.me](https://game.peaxel.me). '
+      + 'Scout your cards, set your lineup, and compete for XP, leaderboard spots, and real rewards.\n\n'
+      + '**What to do now**\n'
+      + '1️⃣ Open the game and pick your athletes for GW {WEEK_NUMBER}\n'
+      + '2️⃣ Lock a strong lineup before **Thursday 23:59 (Paris)**\n'
+      + '3️⃣ Stay active on Discord — Hub XP, `/daily`, and weekly challenges keep stacking\n\n'
+      + 'Play free. Compete. Collect cards. Let’s go, Managers.',
+    imageName: 'opening-banner.png',
+    color: '#6366F1',
+    footerText: 'Peaxel · Fantasy action sports · game.peaxel.me',
+    playUrl: 'https://game.peaxel.me/',
+    leaderboardUrl: 'https://peaxel.me/leaderboard',
+    playButtonLabel: '🎮 Play on Peaxel',
+    leaderboardButtonLabel: '📊 Leaderboard',
     showPlayButton: true,
     showLeaderboardButton: true,
-    showFeedbackButton: true // Activé par défaut ici
+    showFeedbackButton: true,
   },
   closing: {
-    title: "⚠️ ACE FINAL WARNING | LINEUP CLOSING FOR WEEK {WEEK_NUMBER} ⏱️",
-    description: "Hello <@&1369976254685642925>, this is a final call from **Ace**! The clock is ticking and the locker room doors are about to close. You have limited time left to finalize your roster before the **Lineup LOCKS** for the tournament.\n\n🛠️ **Last-Minute Check:**\n1️⃣ Are your best **Rising Stars** in the starting positions?\n2️⃣ Have you optimized your team for maximum points?\n3️⃣ Did you remember to save your changes?\n\nOnce the deadline hits, your team is set in stone. Don't miss out on the prizes and glory! \n\n🏆 *The competition is about to heat up. May the best Manager win!* 🔥",
-    imageName: "closing-banner.png",
-    color: "#EF4444",
-    footerText: "Peaxel • Last Chance to Join",
-    playUrl: "https://game.peaxel.me/",
-    leaderboardUrl: "https://peaxel.me/leaderboard",
-    playButtonLabel: "🎮 Play Now",
-    leaderboardButtonLabel: "📊 Leaderboard",
+    title: '⏰ ~5 hours left — lock your Gameweek {WEEK_NUMBER} lineup',
+    description:
+      'Hey {ROLE_MENTION} — **Ace** with a final call.\n\n'
+      + 'Lineups for **Gameweek {WEEK_NUMBER}** close tonight at **23:59 (Paris)**. '
+      + 'That is about **5 hours** from this message — after that, your roster is locked for scoring.\n\n'
+      + '**Quick checklist**\n'
+      + '✅ Best athletes in the starting lineup?\n'
+      + '✅ Captain / strategy optimized?\n'
+      + '✅ Changes saved on [game.peaxel.me](https://game.peaxel.me)?\n\n'
+      + 'Miss the deadline and you sit this GW out. Don’t leave points on the table.',
+    imageName: 'closing-banner.png',
+    color: '#EF4444',
+    footerText: 'Peaxel · Lineup deadline · Thursday 23:59 Paris',
+    playUrl: 'https://game.peaxel.me/',
+    leaderboardUrl: 'https://peaxel.me/leaderboard',
+    playButtonLabel: '🎮 Lock my lineup',
+    leaderboardButtonLabel: '📊 Leaderboard',
     showPlayButton: true,
     showLeaderboardButton: true,
-    showFeedbackButton: true // Activé par défaut ici
-  }
+    showFeedbackButton: false,
+  },
 };
 
-/**
- * Ensures the data directory exists
- */
 function ensureDataDir() {
   if (!existsSync(CONFIG_DIR)) mkdirSync(CONFIG_DIR, { recursive: true });
 }
 
-/**
- * Loads configuration from JSON file or returns defaults
- */
 export function loadMessageConfig() {
   try {
     if (existsSync(CONFIG_FILE)) {
@@ -59,22 +70,22 @@ export function loadMessageConfig() {
       const parsed = JSON.parse(data);
       return {
         opening: { ...DEFAULT_CONFIG.opening, ...parsed.opening },
-        closing: { ...DEFAULT_CONFIG.closing, ...parsed.closing }
+        closing: { ...DEFAULT_CONFIG.closing, ...parsed.closing },
       };
     }
   } catch (error) {
     console.error('[Peaxel Config] Error loading config:', error.message);
   }
-  return { ...DEFAULT_CONFIG };
+  return {
+    opening: { ...DEFAULT_CONFIG.opening },
+    closing: { ...DEFAULT_CONFIG.closing },
+  };
 }
 
-/**
- * Saves configuration to JSON file
- */
 export function saveMessageConfig(config) {
   try {
     ensureDataDir();
-    writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+    writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
     return true;
   } catch (error) {
     console.error('[Peaxel Config] Error saving config:', error.message);
@@ -82,21 +93,14 @@ export function saveMessageConfig(config) {
   }
 }
 
-/**
- * Updates a specific section (opening/closing) of the configuration
- */
 export function updateMessageConfig(type, updates) {
   const current = loadMessageConfig();
   if (!current[type]) current[type] = { ...DEFAULT_CONFIG[type] };
-
   current[type] = { ...current[type], ...updates };
   saveMessageConfig(current);
   return current[type];
 }
 
-/**
- * Resets a specific section to factory defaults
- */
 export function resetMessageConfig(type) {
   const current = loadMessageConfig();
   current[type] = { ...DEFAULT_CONFIG[type] };
@@ -104,31 +108,24 @@ export function resetMessageConfig(type) {
   return current[type];
 }
 
-/**
- * Helper: Parse Hex color to Integer for Discord Embeds
- */
 export function parseColor(hexColor) {
   if (!hexColor) return 0xa855f7;
   const hex = hexColor.replace('#', '');
   return parseInt(hex, 16);
 }
 
-// Helpers for string replacement
 export function getFormattedTitle(weekNumber, type = 'opening') {
   const config = loadMessageConfig()[type];
-  return config.title.replace(/{WEEK_NUMBER}/g, weekNumber);
+  return config.title.replace(/{WEEK_NUMBER}/g, String(weekNumber));
 }
 
-export function getFormattedDescription(weekNumber, type = 'opening') {
+export function getFormattedDescription(weekNumber, type = 'opening', roleMention = '') {
   const config = loadMessageConfig()[type];
-  return config.description.replace(/{WEEK_NUMBER}/g, weekNumber);
+  return config.description
+    .replace(/{WEEK_NUMBER}/g, String(weekNumber))
+    .replace(/{ROLE_MENTION}/g, roleMention || 'Managers');
 }
 
-/**
- * Gets the configured image filename for a specific type
- * @param {string} type - 'opening' or 'closing'
- * @returns {string}
- */
 export function getImageName(type) {
   const config = loadMessageConfig();
   return type === 'closing' ? config.closing.imageName : config.opening.imageName;

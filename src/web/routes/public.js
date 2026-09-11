@@ -1,7 +1,7 @@
 import express from 'express';
 import { pageShell, escapeHtml } from '../utils/render.js';
 import { requireDiscordUser } from '../middleware/auth.js';
-import { publicNav, peaxelFooter } from '../utils/branding.js';
+import { publicNav, peaxelFooter, PEAXEL_LINKS } from '../utils/branding.js';
 import {
     createOAuthState,
     validateOAuthState,
@@ -17,6 +17,8 @@ import { renderHomeBackground } from '../utils/homeBackground.js';
 import { renderGwTicker, renderGiveawayStrip } from '../utils/widgets.js';
 import { renderAppDashboard } from '../utils/appWidgets.js';
 import { toggleGwReminder } from '../services/gwReminderService.js';
+import { claimPendingCard, notifyCardClaim } from '../services/hubXpService.js';
+import { getTicketUrl } from '../services/weeklyChallengeService.js';
 import { csrfInput, validateCsrf, initSessionCsrf } from '../../utils/csrf.js';
 
 const HOME_CSS = '<link rel="stylesheet" href="/css/home.css">';
@@ -81,6 +83,12 @@ router.get('/', async (req, res) => {
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.664-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
                     ${t('home.discordLogin')}
                 </a>`}
+                <a href="${PEAXEL_LINKS.game}" class="btn btn-primary btn-glow" target="_blank" rel="noopener noreferrer">${t('home.ctaPlay')}</a>
+            </div>
+            <div class="hero-links">
+                <a href="${PEAXEL_LINKS.docs}" target="_blank" rel="noopener noreferrer">${t('home.ctaDocs')}</a>
+                <span class="hero-links-sep" aria-hidden="true">·</span>
+                <a href="${PEAXEL_LINKS.help}" target="_blank" rel="noopener noreferrer">${t('home.ctaHelp')}</a>
             </div>
         </section>
         <section class="features features-elevated">
@@ -153,12 +161,21 @@ router.get('/app', requireDiscordUser, async (req, res) => {
     const gw = dashboard.gameweekStatus;
     const csrf = csrfInput(req.session);
 
+    let flash = '';
+    if (req.query.claimed === '1') {
+        flash = `<div class="alert alert-info">${t('app.hubClaimSuccess')} <a href="${escapeHtml(req.query.ticket || dashboard.hub.ticketUrl)}" target="_blank" rel="noopener">${t('app.challengeOpenTicket')}</a></div>`;
+    }
+    if (req.query.error === 'claim') {
+        flash = `<div class="alert alert-error">${t('app.hubClaimError')}</div>`;
+    }
+
     const body = `
     <div class="landing landing-app landing-home">
         ${renderGwTicker({ t, gw })}
         ${renderHomeBackground(getFeaturedCards(4))}
         ${publicNav({ user: { username: escapeHtml(user.username), avatarUrl: user.avatarUrl }, t, locale, returnPath: '/app' })}
         <div class="app-layout app-layout-live">
+            ${flash}
             ${renderGiveawayStrip({ t, giveaway: dashboard.giveaway })}
             ${renderAppDashboard({ dashboard, t, csrf, locale, user })}
         </div>
@@ -177,6 +194,23 @@ router.get('/app', requireDiscordUser, async (req, res) => {
 router.post('/app/reminders/toggle', requireDiscordUser, validateCsrf, (req, res) => {
     toggleGwReminder(req.session.discordUser.id);
     res.redirect('/app');
+});
+
+router.post('/app/rewards/claim', requireDiscordUser, validateCsrf, async (req, res) => {
+    const user = req.session.discordUser;
+    const cardId = req.body.cardId;
+    if (!cardId) return res.redirect('/app?error=claim');
+
+    const result = claimPendingCard(user.id, cardId, { username: user.username });
+    if (!result.ok) return res.redirect('/app?error=claim');
+
+    const client = req.app.get('discordClient');
+    if (client?.isReady?.()) {
+        await notifyCardClaim(client, user.id, user.username, result.card).catch(() => {});
+    }
+
+    const ticketUrl = getTicketUrl();
+    res.redirect(`/app?claimed=1&ticket=${encodeURIComponent(ticketUrl)}`);
 });
 
 export default router;

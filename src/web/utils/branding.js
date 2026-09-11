@@ -2,6 +2,27 @@ import { langSwitcher } from '../i18n/index.js';
 
 const LOGO_SRC = '/img/peaxel-mark.svg';
 
+/** Liens officiels Peaxel (écosystème) */
+export const PEAXEL_LINKS = {
+    site: 'https://peaxel.me',
+    game: 'https://game.peaxel.me',
+    docs: 'https://docs.peaxel.me',
+    help: 'https://ace.peaxel.me',
+    discord: 'https://discord.gg/PNyAqI8hio',
+};
+
+function externalLink(href, label) {
+    return `<a href="${href}" class="nav-link" target="_blank" rel="noopener noreferrer">${label}</a>`;
+}
+
+export function peaxelExternalNav({ t }) {
+    return `
+        ${externalLink(PEAXEL_LINKS.game, t('nav.play'))}
+        ${externalLink(PEAXEL_LINKS.docs, t('nav.docs'))}
+        ${externalLink(PEAXEL_LINKS.help, t('nav.help'))}
+    `;
+}
+
 export function peaxelLogo({ href = '/', size = 'md', showText = true, subtitle = '', t }) {
     const sizes = { sm: 28, md: 36, lg: 56 };
     const px = sizes[size] || sizes.md;
@@ -25,7 +46,11 @@ export function peaxelFooter({ t, locale, returnPath = '/' }) {
         <div class="footer-inner">
             ${peaxelLogo({ href: '/', size: 'sm', subtitle: t('footer.hub'), t })}
             <nav class="footer-links" aria-label="Peaxel">
-                <a href="https://discord.gg/PNyAqI8hio" target="_blank" rel="noopener">${t('footer.discord')}</a>
+                <a href="${PEAXEL_LINKS.game}" target="_blank" rel="noopener noreferrer">${t('footer.play')}</a>
+                <a href="${PEAXEL_LINKS.docs}" target="_blank" rel="noopener noreferrer">${t('footer.docs')}</a>
+                <a href="${PEAXEL_LINKS.help}" target="_blank" rel="noopener noreferrer">${t('footer.help')}</a>
+                <a href="${PEAXEL_LINKS.discord}" target="_blank" rel="noopener noreferrer">${t('footer.discord')}</a>
+                <a href="${PEAXEL_LINKS.site}" target="_blank" rel="noopener noreferrer">${t('footer.website')}</a>
             </nav>
             <p class="footer-copy">&copy; ${t('footer.copy')}</p>
             <p class="footer-genefty">${t('footer.geneftyPrefix')} <a href="https://genefty.com" target="_blank" rel="noopener noreferrer">${t('footer.geneftyName')}</a></p>
@@ -50,6 +75,9 @@ export function publicNav({ user = null, t, locale, returnPath = '/' } = {}) {
             <span></span><span></span><span></span>
         </button>
         <div class="nav-actions" data-nav-menu>
+            <div class="nav-links">
+                ${peaxelExternalNav({ t })}
+            </div>
             ${langSwitcher(returnPath, locale, t)}
             ${userBlock}
         </div>

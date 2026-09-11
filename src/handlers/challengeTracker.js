@@ -4,6 +4,7 @@ import {
     incrementChallengeMetric,
     markTaskComplete,
 } from '../web/services/weeklyChallengeService.js';
+import { tryAwardMessageXp, addHubXp, XP_REWARDS } from '../web/services/hubXpService.js';
 import { isQuizActiveInChannel } from '../utils/scoutQuizRunner.js';
 
 function guildOk(guildId) {
@@ -21,9 +22,10 @@ export function handleChallengeMessage(message) {
     const userId = message.author.id;
     const gw = getCurrentWeekNumber();
     const welcomeId = getChannel('welcome');
-    const spotlightId = getChannel('spotlight');
-    const announceId = getChannel('announce');
     const ch = channelId(message.channel);
+
+    // Hub XP messages — 15–25 XP, max 1 / 60 s (anti-farm)
+    tryAwardMessageXp(userId, { username: message.author.username });
 
     incrementChallengeMetric(userId, gw, 'messages', message.client, {
         username: message.author.username,
@@ -36,9 +38,7 @@ export function handleChallengeMessage(message) {
         }
     }
 
-    if (ch === spotlightId) {
-        markTaskComplete(userId, gw, 'spotlight', message.client, { username: message.author.username });
-    }
+    // Spotlight = salon lecture seule → validé via réactions (voir handleChallengeReaction)
 
     if (ch === welcomeId && message.attachments.size > 0) {
         markTaskComplete(userId, gw, 'share', message.client, { username: message.author.username });
@@ -47,13 +47,9 @@ export function handleChallengeMessage(message) {
     if (isQuizActiveInChannel(ch)) {
         markTaskComplete(userId, gw, 'quiz', message.client, { username: message.author.username });
     }
-
-    if (ch === announceId && message.author.id === message.client.user?.id) {
-        // tracked via reactions on announce messages
-    }
 }
 
-/** Réaction emoji — annonces GW ou toute réaction valide */
+/** Réaction emoji — annonces GW, spotlight, ou réaction générique */
 export function handleChallengeReaction(reaction, user) {
     if (user.bot) return;
     const message = reaction.message;
@@ -61,7 +57,14 @@ export function handleChallengeReaction(reaction, user) {
 
     const gw = getCurrentWeekNumber();
     const announceId = getChannel('announce');
+    const spotlightId = getChannel('spotlight');
     const ch = channelId(message.channel);
+
+    // Spotlight (souvent lecture seule) : 1 réaction = mission validée
+    if (ch === spotlightId) {
+        markTaskComplete(user.id, gw, 'spotlight', message.client, { username: user.username });
+        return;
+    }
 
     if (ch === announceId) {
         const content = (message.content || '') + (message.embeds?.[0]?.title || '') + (message.embeds?.[0]?.description || '');
@@ -79,12 +82,15 @@ export function handleChallengeReaction(reaction, user) {
 
 export function handleChallengeGiveawayJoin(userId, username, client) {
     markTaskComplete(userId, getCurrentWeekNumber(), 'giveaway', client, { username });
+    addHubXp(userId, XP_REWARDS.giveaway, 'giveaway', { username });
 }
 
 export function handleChallengeFeedback(userId, username, client) {
     markTaskComplete(userId, getCurrentWeekNumber(), 'feedback', client, { username });
+    addHubXp(userId, XP_REWARDS.feedback, 'feedback', { username });
 }
 
 export function handleChallengeQuizParticipation(userId, username, client) {
     markTaskComplete(userId, getCurrentWeekNumber(), 'quiz', client, { username });
+    addHubXp(userId, XP_REWARDS.quiz_join, 'quiz:join', { username });
 }

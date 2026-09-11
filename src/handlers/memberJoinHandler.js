@@ -5,6 +5,7 @@ import { getChannel } from '../utils/configManager.js';
 import { loadMessageConfig } from '../config/messageConfig.js';
 
 const logPrefix = '[Peaxel Welcome]';
+const WEB_BASE = () => process.env.WEB_BASE_URL || 'https://ace.peaxel.me';
 
 async function sendWelcomeMessage(member) {
     const welcomeChannelId = getChannel('welcome');
@@ -21,34 +22,36 @@ async function sendWelcomeMessage(member) {
     const playUrl = msgConfig.opening.playUrl || 'https://game.peaxel.me/';
     const zealyUrl = 'https://zealy.io/cw/peaxel-quest/questboard';
     const trustpilotUrl = 'https://www.trustpilot.com/review/peaxel.me';
+    const hubUrl = `${WEB_BASE()}/app`;
+    const freeCardsUrl = 'https://peaxel.me/win-freecards-on-peaxel';
 
     const imagePath = resolve(process.cwd(), 'assets', 'welcome-image.png');
 
     const embed = new EmbedBuilder()
-        .setTitle('🎙️ ACE NOTIFICATION | NEW MANAGER ON DECK')
+        .setTitle('👋 Welcome to Peaxel — Ace here')
         .setDescription(
-            `Welcome to the arena, <@${member.id}>! I'm **Ace**, your Peaxel guide.\n\n` +
-            `**Who are we?**\n` +
-            `Peaxel is the ultimate Fantasy Sport ecosystem where you manage real-life athletes and earn rewards. 🏆\n\n` +
-            `**🚀 YOUR NEXT STEPS:**\n\n` +
-            `1️⃣ **Claim your Free Cards:** [Register here](${playUrl}) to get your first athlete.\n` +
-            `2️⃣ **Get 5 FREE Cards:** Check our guide to expand your roster! 🎁\n` +
-            `3️⃣ **Join Zealy Quests:** Complete missions for XP. [Join here](${zealyUrl}).\n` +
-            `4️⃣ **Boost the Project:** Leave a review on [Trustpilot](${trustpilotUrl}) and claim **200 XP** on Zealy! ⭐\n\n` +
-            `*Ready to own the game? Let us know if you need help!* 🚀`
+            `Hey <@${member.id}> — glad you’re here.\n\n`
+            + '**Peaxel** is the free fantasy game where you scout real action-sports athletes, '
+            + 'build weekly lineups on [game.peaxel.me](https://game.peaxel.me), and compete for rewards.\n\n'
+            + '**Start in 4 steps**\n'
+            + `1️⃣ **Play free** — [create your account](${playUrl}) and claim your first card\n`
+            + `2️⃣ **Stack more free cards** — [see every free-card path](${freeCardsUrl})\n`
+            + `3️⃣ **Hub XP** — use \`/daily\` and join weekly Discord challenges ([open Hub](${hubUrl}))\n`
+            + `4️⃣ **Zealy quests** — [earn XP & cards](${zealyUrl}) · boost with a [Trustpilot review](${trustpilotUrl})\n\n`
+            + 'Need help? Ask in chat or check docs.peaxel.me.',
         )
-        .setColor('#00ff00')
+        .setColor('#22d3ee')
         .setTimestamp()
-        .setFooter({ text: 'Peaxel • Digital Sports Entertainment' });
+        .setFooter({ text: 'Peaxel · Collect · Compete · Win' });
 
     const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('Register & Get 1st Card').setStyle(ButtonStyle.Link).setURL(playUrl),
-        new ButtonBuilder().setLabel('Zealy Quests').setStyle(ButtonStyle.Link).setURL(zealyUrl),
-        new ButtonBuilder().setLabel('Review Us ⭐').setStyle(ButtonStyle.Link).setURL(trustpilotUrl)
+        new ButtonBuilder().setLabel('Play free').setStyle(ButtonStyle.Link).setURL(playUrl),
+        new ButtonBuilder().setLabel('Zealy quests').setStyle(ButtonStyle.Link).setURL(zealyUrl),
+        new ButtonBuilder().setLabel('Open Hub').setStyle(ButtonStyle.Link).setURL(hubUrl),
     );
 
     const options = {
-        content: `Welcome <@${member.id}>! Check your roadmap below. 👇`,
+        content: `Welcome <@${member.id}> — your Peaxel roadmap is below 👇`,
         embeds: [embed],
         components: [buttons],
     };
@@ -65,8 +68,6 @@ async function sendWelcomeMessage(member) {
 
 /**
  * Handler unique pour les nouveaux membres : analytics + message de bienvenue.
- * @param {import('discord.js').GuildMember} member
- * @param {(member: import('discord.js').GuildMember) => void} [onArrival] — callback analytics
  */
 export async function handleGuildMemberAdd(member, onArrival) {
     try {
@@ -82,9 +83,6 @@ export async function handleGuildMemberAdd(member, onArrival) {
     }
 }
 
-/**
- * Enregistre le listener GuildMemberAdd centralisé.
- */
 export function registerMemberJoinHandler(client, onArrival) {
     client.on('guildMemberAdd', (member) => handleGuildMemberAdd(member, onArrival));
 }

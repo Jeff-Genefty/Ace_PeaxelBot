@@ -131,6 +131,54 @@
     gap: 0.35rem;
 }
 
+.app-profile-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.hub-xp {
+    margin-top: 0.75rem;
+}
+
+.hub-xp-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+}
+
+.hub-xp-level {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--peaxel-cyan, #22d3ee);
+}
+
+.hub-xp-rank {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.hub-xp-bar {
+    height: 0.45rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.hub-xp-bar-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #22d3ee, #a855f7);
+    transition: width 0.4s ease;
+}
+
+.hub-xp-meta {
+    margin: 0.35rem 0 0;
+    font-size: 0.72rem;
+    color: var(--text-dim, var(--text-muted));
+}
+
 .role-badge {
     display: inline-block;
     padding: 0.2rem 0.55rem;
@@ -303,6 +351,19 @@
     transition: border-color 0.2s, background 0.2s;
 }
 
+.challenge-task-label {
+    flex: 1;
+    min-width: 0;
+}
+
+.challenge-xp-badge {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--peaxel-cyan, #22d3ee);
+    opacity: 0.85;
+}
+
 .challenge-task-icon {
     flex-shrink: 0;
     width: 1.1rem;
@@ -371,32 +432,109 @@
     gap: 0.5rem;
 }
 
-.app-coming-soon-card {
+.app-leaderboard-card .hub-lb-list,
+.hub-reward-list {
+    list-style: none;
+    margin: 0.75rem 0 0;
+    padding: 0;
+}
+
+.hub-lb-list {
     display: flex;
     flex-direction: column;
+    gap: 0.35rem;
+}
+
+.hub-lb-row {
+    display: grid;
+    grid-template-columns: 2.2rem 1fr auto auto;
+    gap: 0.5rem;
     align-items: center;
-    justify-content: center;
-    min-height: 9rem;
-    text-align: center;
-    border-color: rgba(168, 85, 247, 0.25);
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.06), rgba(34, 211, 238, 0.04));
-}
-
-.coming-soon-visual {
-    font-size: 2.25rem;
-    line-height: 1;
-    margin-bottom: 0.65rem;
-    opacity: 0.85;
-}
-
-.coming-soon-label {
-    margin: 0;
+    padding: 0.45rem 0.55rem;
+    border-radius: var(--radius);
     font-size: 0.8rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    border: 1px solid transparent;
+}
+
+.hub-lb-row.is-you {
+    border-color: rgba(34, 211, 238, 0.35);
+    background: rgba(34, 211, 238, 0.08);
+}
+
+.hub-lb-rank {
+    font-weight: 800;
     color: var(--text-muted);
 }
+
+.hub-lb-name em {
+    font-style: normal;
+    font-size: 0.7rem;
+    color: var(--peaxel-cyan);
+}
+
+.hub-lb-xp {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.hub-lb-lvl {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.hub-lb-empty {
+    padding: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.app-rewards-card.has-pending {
+    border-color: rgba(168, 85, 247, 0.35);
+}
+
+.hub-reward-badge {
+    background: rgba(168, 85, 247, 0.25);
+    color: #e9d5ff;
+    min-width: 1.5rem;
+    text-align: center;
+    border-radius: 999px;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.75rem;
+}
+
+.hub-reward-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.hub-reward-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.hub-reward-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.hub-reward-tier {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    width: fit-content;
+}
+
+.hub-reward-tier.tier-common { color: #94a3b8; }
+.hub-reward-tier.tier-rare { color: #38bdf8; }
+.hub-reward-tier.tier-epic { color: #c084fc; }
 
 .live-feed-item {
     display: grid;

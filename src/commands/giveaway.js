@@ -10,29 +10,31 @@ export async function execute(interaction) {
     openGiveaway('manual');
 
     const embed = new EmbedBuilder()
-        .setTitle('🎟️ PEAXEL GIVEAWAY EVENT')
+        .setTitle('🎟️ Peaxel Giveaway — win an Athlete Card')
         .setDescription(
-            'Participate to win a **Random Athlete Card** for your roster!\n\n'
-            + '**How to enter:**\n'
-            + 'Click the button below to register your entry. The winner will be drawn and announced by the administration once the event closes!',
+            'Enter for a chance to win an **Athlete Card** for your roster on [game.peaxel.me](https://game.peaxel.me).\n\n'
+            + '**How to enter**\n'
+            + 'Click **Enter giveaway** below (one entry per manager). '
+            + 'The winner is drawn when the event closes — claim via ticket.\n\n'
+            + 'Joining also grants **Hub XP**.',
         )
-        .addFields({ name: 'Status', value: '🟢 Open / Joinable', inline: true })
+        .addFields({ name: 'Status', value: '🟢 Open', inline: true })
         .setColor('#a855f7')
-        .setFooter({ text: 'May the luck be with you, Managers!' })
+        .setFooter({ text: 'Peaxel · Free cards · Collect · Compete' })
         .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('join_giveaway')
-            .setLabel('Enter Draw')
+            .setLabel('Enter giveaway')
             .setEmoji('🎟️')
             .setStyle(ButtonStyle.Primary),
     );
 
-    await interaction.reply({ content: '✅ Giveaway broadcast initialized.', flags: [MessageFlags.Ephemeral] });
+    await interaction.reply({ content: '✅ Giveaway launched.', flags: [MessageFlags.Ephemeral] });
 
     await interaction.channel.send({
-        content: '@everyone 📢 **New Giveaway Alert!** A new opportunity to upgrade your roster has appeared. Check the details below! 👇',
+        content: '@everyone — New Peaxel giveaway is open. Enter in one click 👇',
         embeds: [embed],
         components: [row],
     });

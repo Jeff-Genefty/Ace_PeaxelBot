@@ -15,7 +15,7 @@ This bot automates community engagement through scheduled announcements, athlete
 - **Wednesdays (16:00 – Paris)**: **Athlete Spotlight** — Featured talent showcase from the ecosystem.
 - **Thursdays (18:59 – Paris)**: Closing reminder — 5 hours before the **23:59** lineup deadline.
 - **Weekends (Sat 10:00 – Sun 20:00)**: **Automated Giveaway** — Saturday launch and Sunday draw.
-- **Hourly**: Coach Ace motivation messages (10% chance per hour).
+- **Daily (09:00 – Paris)**: **Daily Connect** reminder — claim Hub XP with `/daily`.
 
 ### 🤖 Smart Interactions
 - **Help Center (`/help`)**: Interactive FAQ redirecting to official docs and Ace AI support.
