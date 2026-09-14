@@ -112,7 +112,7 @@ a:hover { opacity: 0.9; }
     width: 100%;
     min-height: var(--nav-h);
     position: relative;
-    z-index: 300;
+    z-index: 1100;
 }
 
 .nav-toggle {
@@ -774,22 +774,38 @@ body.nav-open { overflow: hidden; }
 }
 
 @media (max-width: 768px) {
-    .nav-toggle { display: flex; }
+    .nav-toggle {
+        display: flex;
+        position: relative;
+        z-index: 1100;
+    }
+
+    .landing-nav > .logo-link {
+        position: relative;
+        z-index: 1100;
+    }
 
     .nav-actions {
         display: none;
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        max-width: none;
+        margin: 0;
         flex-direction: column;
         align-items: stretch;
-        background: #0a0a0a;
-        background: var(--bg-elevated);
-        border-bottom: 1px solid var(--border);
-        padding: 1rem;
-        box-shadow: var(--shadow);
-        z-index: 400;
+        justify-content: flex-start;
+        gap: 1rem;
+        /* Fond 100 % opaque — masque tout le hero */
+        background: #000000;
+        border-bottom: none;
+        padding: calc(44px + var(--nav-h) + 0.5rem) 1.25rem calc(2rem + var(--safe-bottom));
+        box-shadow: none;
+        z-index: 1050;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
     .nav-actions.is-open { display: flex; }
     .nav-links {
@@ -797,15 +813,33 @@ body.nav-open { overflow: hidden; }
         align-items: stretch;
         width: 100%;
         gap: 0;
-        padding-bottom: 0.5rem;
+        padding-bottom: 0.75rem;
         border-bottom: 1px solid var(--border);
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
     }
     .nav-links .nav-link {
-        padding: 0.75rem 0.5rem;
+        padding: 0.9rem 0.5rem;
+        font-size: 1.05rem;
+        color: var(--text);
     }
     .nav-user { flex-direction: column; align-items: stretch; }
-    .nav-user .btn { width: 100%; justify-content: center; }
+    .nav-user .btn,
+    .nav-actions > .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .nav-actions .lang-switch {
+        justify-content: flex-start;
+        margin: 0.25rem 0;
+    }
+
+    body.nav-open .home-bg,
+    body.nav-open .hero,
+    body.nav-open .features,
+    body.nav-open .giveaway-strip,
+    body.nav-open .site-footer {
+        visibility: hidden;
+    }
 
     .gw-ticker-run {
         font-size: 0.82rem;
