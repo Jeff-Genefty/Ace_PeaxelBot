@@ -38,6 +38,45 @@ export default {
         feature3Title: 'Community pulse',
         feature3Desc: 'Track server energy and the Gameweek calendar.',
         liveGw: 'Live Gameweek',
+        ctaFaq: 'FAQ',
+        faqTitle: 'Hub FAQ',
+        faqSubtitle: 'How the Peaxel Community Hub works — XP, daily, challenges, cards and weekly ranking.',
+    },
+    faq: {
+        items: [
+            {
+                q: 'What is the Peaxel Hub?',
+                a: 'The Community Hub tracks your Discord activity: Hub XP, levels, weekly challenges, a card vault and a Gameweek leaderboard. Sign in on this site to open /app, or use /daily and /rank on Discord.',
+            },
+            {
+                q: 'How do I earn Hub XP?',
+                a: 'Messages grant 15–25 XP (1 every 60s). /daily gives +40 XP. Weekly challenge tasks give +25 each (+100 when all done). Feedback, quiz join/win, giveaways and finishing #1 of the week also add XP.',
+            },
+            {
+                q: 'How does /daily work?',
+                a: 'Send at least one message on the Discord server the same day (Europe/Paris), then run /daily. Keep your streak for milestone bonuses on days 7, 14 and 30 (extra XP + Athlete Card).',
+            },
+            {
+                q: 'What are weekly challenges?',
+                a: 'Every Monday you get 3 rotating missions plus a fixed “send 10 messages” quest. The bot auto-validates Discord actions. Completing everything grants +100 XP and a pending card in your vault.',
+            },
+            {
+                q: 'How do I get and claim Athlete Cards?',
+                a: 'Cards come from finishing the weekly quest, streak milestones, winning the Scout Quiz, or ranking #1 weekly. Claim them in /app → Card vault, then open a Discord ticket so staff can deliver the card.',
+            },
+            {
+                q: 'Do I get a card when I level up?',
+                a: 'No. Level ups unlock titles on the Hub Pass only. Cards are reserved for quests, streaks, quiz wins and the weekly champion.',
+            },
+            {
+                q: 'How does the weekly leaderboard work?',
+                a: 'It ranks XP earned this Gameweek (not lifetime XP). Top 10 is visible on /app. #1 wins +150 XP and an Athlete Card every Sunday evening.',
+            },
+            {
+                q: 'Where can I get more help?',
+                a: 'Run /help on Discord for Hub mechanics, /how-to-play for game rules, or chat with Ace AI. Docs: docs.peaxel.me.',
+            },
+        ],
     },
     gw: {
         liveTitle: 'Gameweek {n}',
@@ -151,6 +190,7 @@ export default {
         play: 'Play',
         docs: 'Docs',
         help: 'Help',
+        faq: 'FAQ',
         website: 'peaxel.me',
         copy: 'Peaxel. Collect. Compete. Win.',
         hub: 'Community Hub',

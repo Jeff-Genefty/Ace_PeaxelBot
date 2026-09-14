@@ -38,6 +38,45 @@ export default {
         feature3Title: 'Activité communautaire',
         feature3Desc: 'Suis l\'énergie du serveur et le calendrier Gameweek.',
         liveGw: 'Gameweek live',
+        ctaFaq: 'FAQ',
+        faqTitle: 'FAQ du Hub',
+        faqSubtitle: 'Comment fonctionne le Community Hub Peaxel — XP, daily, défis, cartes et classement hebdo.',
+    },
+    faq: {
+        items: [
+            {
+                q: 'C’est quoi le Hub Peaxel ?',
+                a: 'Le Community Hub suit ton activité Discord : XP Hub, niveaux, défis hebdo, coffre de cartes et classement Gameweek. Connecte-toi ici pour ouvrir /app, ou utilise /daily et /rank sur Discord.',
+            },
+            {
+                q: 'Comment gagner de l’XP Hub ?',
+                a: 'Les messages donnent 15–25 XP (1 toutes les 60 s). /daily donne +40 XP. Chaque tâche de défi hebdo : +25 (+100 si tout est fini). Feedback, quiz, giveaways et la 1re place de la semaine rapportent aussi de l’XP.',
+            },
+            {
+                q: 'Comment marche /daily ?',
+                a: 'Envoie au moins un message sur le serveur Discord le même jour (fuseau Europe/Paris), puis lance /daily. Garde ton streak pour les bonus des jours 7, 14 et 30 (XP + carte Athlete).',
+            },
+            {
+                q: 'Que sont les défis hebdomadaires ?',
+                a: 'Chaque lundi : 3 missions tournantes + une quête fixe « écrire 10 messages ». Le bot valide tes actions Discord. Tout terminer donne +100 XP et une carte en attente dans le coffre.',
+            },
+            {
+                q: 'Comment obtenir et claim une carte ?',
+                a: 'Cartes via quête hebdo, jalons de streak, victoire au Scout Quiz ou #1 XP de la semaine. Claim dans /app → Coffre, puis ouvre un ticket Discord pour la remise par le staff.',
+            },
+            {
+                q: 'Est-ce qu’un level up donne une carte ?',
+                a: 'Non. Les level ups débloquent seulement les titres du Hub Pass. Les cartes viennent des quêtes, streaks, quiz et du champion hebdo.',
+            },
+            {
+                q: 'Comment marche le classement de la semaine ?',
+                a: 'Il classe l’XP gagnée pendant la Gameweek (pas le total à vie). Top 10 visible sur /app. Le #1 gagne +150 XP et une carte Athlete chaque dimanche soir.',
+            },
+            {
+                q: 'Où trouver plus d’aide ?',
+                a: 'Sur Discord : /help pour le Hub, /how-to-play pour les règles du jeu, ou Ace AI. Docs : docs.peaxel.me.',
+            },
+        ],
     },
     gw: {
         liveTitle: 'Gameweek {n}',
@@ -151,6 +190,7 @@ export default {
         play: 'Jouer',
         docs: 'Docs',
         help: 'Aide',
+        faq: 'FAQ',
         website: 'peaxel.me',
         copy: 'Peaxel. Collect. Compete. Win.',
         hub: 'Community Hub',

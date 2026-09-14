@@ -47,6 +47,7 @@ export function peaxelFooter({ t, locale, returnPath = '/' }) {
         <div class="footer-inner">
             ${peaxelLogo({ href: '/', size: 'sm', subtitle: t('footer.hub'), t })}
             <nav class="footer-links" aria-label="Peaxel">
+                <a href="/#faq">${t('footer.faq')}</a>
                 <a href="${PEAXEL_LINKS.game}" target="_blank" rel="noopener noreferrer">${t('footer.play')}</a>
                 <a href="${PEAXEL_LINKS.docs}" target="_blank" rel="noopener noreferrer">${t('footer.docs')}</a>
                 <a href="${PEAXEL_LINKS.help}" target="_blank" rel="noopener noreferrer">${t('footer.help')}</a>

@@ -20,6 +20,8 @@ import { toggleGwReminder } from '../services/gwReminderService.js';
 import { claimPendingCard, notifyCardClaim } from '../services/hubXpService.js';
 import { getTicketUrl } from '../services/weeklyChallengeService.js';
 import { csrfInput, validateCsrf, initSessionCsrf } from '../../utils/csrf.js';
+import en from '../i18n/en.js';
+import fr from '../i18n/fr.js';
 
 const HOME_CSS = '<link rel="stylesheet" href="/css/home.css">';
 const APP_CSS = '<link rel="stylesheet" href="/css/app.css">';
@@ -28,6 +30,28 @@ const APP_JS = '<script src="/js/app.js" defer></script>';
 const SHARED_JS = '<script src="/js/countdown.js" defer></script>';
 
 const router = express.Router();
+
+function faqDictionary(locale) {
+    return locale === 'fr' ? fr : en;
+}
+
+function renderLandingFaq(locale, t) {
+    const items = faqDictionary(locale).faq?.items || en.faq.items;
+    const rows = items.map((item, i) => `
+        <details class="faq-item"${i === 0 ? ' open' : ''}>
+            <summary class="faq-q">${escapeHtml(item.q)}</summary>
+            <p class="faq-a">${escapeHtml(item.a)}</p>
+        </details>`).join('');
+
+    return `
+        <section class="faq-section" id="faq" aria-labelledby="faq-heading">
+            <h2 id="faq-heading" class="faq-title">${t('home.faqTitle')}</h2>
+            <p class="faq-subtitle">${t('home.faqSubtitle')}</p>
+            <div class="faq-list">
+                ${rows}
+            </div>
+        </section>`;
+}
 
 function shellOpts(req, extra = {}) {
     const base = process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
@@ -86,6 +110,8 @@ router.get('/', async (req, res) => {
                 <a href="${PEAXEL_LINKS.game}" class="btn btn-primary btn-glow" target="_blank" rel="noopener noreferrer">${t('home.ctaPlay')}</a>
             </div>
             <div class="hero-links">
+                <a href="#faq">${t('home.ctaFaq')}</a>
+                <span class="hero-links-sep" aria-hidden="true">·</span>
                 <a href="${PEAXEL_LINKS.docs}" target="_blank" rel="noopener noreferrer">${t('home.ctaDocs')}</a>
                 <span class="hero-links-sep" aria-hidden="true">·</span>
                 <a href="${PEAXEL_LINKS.help}" target="_blank" rel="noopener noreferrer">${t('home.ctaHelp')}</a>
@@ -108,6 +134,7 @@ router.get('/', async (req, res) => {
                 <p>${t('home.feature3Desc')}</p>
             </div>
         </section>
+        ${renderLandingFaq(locale, t)}
         ${peaxelFooter({ t, locale, returnPath: '/' })}
     </div>`;
 
