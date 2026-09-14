@@ -9,7 +9,7 @@ import { getParisDate, getCurrentWeekNumber } from '../utils/week.js';
 import { addLiveLog } from '../web/services/liveLogService.js';
 import { applyHubFooter } from './hubFooter.js';
 
-const WEB_BASE = () => process.env.WEB_BASE_URL || 'https://ace.peaxel.me';
+const WEB_BASE = () => process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
 
 /**
  * Message quotidien Daily Connect — invite à /daily.

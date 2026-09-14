@@ -30,11 +30,11 @@ const SHARED_JS = '<script src="/js/countdown.js" defer></script>';
 const router = express.Router();
 
 function shellOpts(req, extra = {}) {
-    const base = process.env.WEB_BASE_URL || '';
+    const base = process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
     return {
         locale: req.locale,
         description: req.t('meta.siteDescription'),
-        ogUrl: base ? `${base}${req.originalUrl.split('?')[0]}` : '',
+        ogUrl: `${base}${req.originalUrl.split('?')[0]}`,
         ...extra,
     };
 }

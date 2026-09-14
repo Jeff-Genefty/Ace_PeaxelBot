@@ -7,7 +7,8 @@
 > - Jeu → [game.peaxel.me](https://game.peaxel.me)
 > - Documentation → [docs.peaxel.me](https://docs.peaxel.me)
 > - Support IA (Ace) → [ace.peaxel.me](https://ace.peaxel.me)
-> - Discord → [discord.gg/PNyAqI8hio](https://discord.gg/PNyAqI8hio)
+> - Discord → [discord.com/invite/p2K6kquXHU](https://discord.com/invite/p2K6kquXHU)
+> - Hub communautaire → [peaxel.genefty.com](https://peaxel.genefty.com)
 > - Zealy → [zealy.io/cw/peaxel-quest](https://zealy.io/cw/peaxel-quest/questboard)
 > - X → [@Peaxel8888](https://x.com/Peaxel8888)
 >
@@ -504,7 +505,7 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 |-------|-------------|------------|-----------|----------|---------|
 | **peaxel.me** | Landing, SEO, email | win-freecards guide | Blog, leaderboard | Témoignages | → game.peaxel.me |
 | **game.peaxel.me** | `?talent=` athlètes | Inscription, 1ère GW | GW, marché, CashWallet | Referral, partage lineup | — |
-| **Discord** | Discovery, giveaways | Welcome, `/how-to-play` | Quiz, GW cycle, drops | UGC, MVP | discord.gg/PNyAqI8hio |
+| **Discord** | Discovery, giveaways | Welcome, `/how-to-play` | Quiz, GW cycle, drops | UGC, MVP | discord.com/invite/p2K6kquXHU |
 | **Zealy** | Quêtes invite | 1ère GW, Trustpilot | Quêtes hebdo | Leaderboard mensuel | cw/peaxel-quest |
 | **X** | Predictions, threads | Lien signup | Résultats live | RT concours | @Peaxel8888 |
 | **Docs** | SEO long tail | Playbook complet | Référence scoring | — | docs.peaxel.me |

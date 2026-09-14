@@ -8,7 +8,8 @@ export const PEAXEL_LINKS = {
     game: 'https://game.peaxel.me',
     docs: 'https://docs.peaxel.me',
     help: 'https://ace.peaxel.me',
-    discord: 'https://discord.gg/PNyAqI8hio',
+    discord: 'https://discord.com/invite/p2K6kquXHU',
+    hub: 'https://peaxel.genefty.com',
 };
 
 function externalLink(href, label) {

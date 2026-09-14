@@ -3,16 +3,24 @@
 .landing-home {
     position: relative;
     isolation: isolate;
-    overflow: hidden;
     background: #000;
 }
 
-.landing-home .landing-nav,
+.landing-home .landing-nav {
+    position: relative;
+    z-index: 300;
+}
+
 .landing-home .hero,
 .landing-home .features,
 .landing-home .site-footer {
     position: relative;
     z-index: 10;
+}
+
+.landing-home .gw-ticker {
+    position: sticky;
+    z-index: 250;
 }
 
 .landing-home .site-footer {

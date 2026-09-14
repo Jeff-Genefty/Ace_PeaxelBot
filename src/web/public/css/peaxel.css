@@ -112,7 +112,7 @@ a:hover { opacity: 0.9; }
     width: 100%;
     min-height: var(--nav-h);
     position: relative;
-    z-index: 50;
+    z-index: 300;
 }
 
 .nav-toggle {
@@ -694,13 +694,18 @@ body.nav-open { overflow: hidden; }
 .gw-ticker {
     position: sticky;
     top: 0;
-    z-index: 200;
+    z-index: 250;
     width: 100%;
     min-height: 44px;
-    background: linear-gradient(90deg, #0c4a6e 0%, #5b21b6 50%, #0c4a6e 100%);
+    /* Fond opaque (fallback Safari mobile sticky) + dégradé */
+    background-color: #1e1b4b;
+    background-image: linear-gradient(90deg, #0c4a6e 0%, #5b21b6 50%, #0c4a6e 100%);
     border-bottom: 2px solid rgba(103, 249, 255, 0.45);
     box-shadow: 0 4px 24px rgba(34, 211, 238, 0.2);
     overflow: hidden;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    isolation: isolate;
 }
 
 .gw-ticker-viewport {
@@ -709,6 +714,7 @@ body.nav-open { overflow: hidden; }
     height: 44px;
     display: flex;
     align-items: center;
+    position: relative;
 }
 
 .gw-ticker-track {
@@ -717,9 +723,10 @@ body.nav-open { overflow: hidden; }
     flex-wrap: nowrap;
     align-items: center;
     width: max-content;
-    min-width: 100%;
     animation: gw-ticker-scroll 32s linear infinite;
     will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 .gw-ticker-run {
@@ -757,8 +764,8 @@ body.nav-open { overflow: hidden; }
 }
 
 @keyframes gw-ticker-scroll {
-    0% { transform: translateX(-50%); }
-    100% { transform: translateX(0); }
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(-50%, 0, 0); }
 }
 
 /* ─── Responsive breakpoints ─── */
@@ -777,10 +784,12 @@ body.nav-open { overflow: hidden; }
         right: 0;
         flex-direction: column;
         align-items: stretch;
+        background: #0a0a0a;
         background: var(--bg-elevated);
         border-bottom: 1px solid var(--border);
         padding: 1rem;
         box-shadow: var(--shadow);
+        z-index: 400;
     }
     .nav-actions.is-open { display: flex; }
     .nav-links {
@@ -797,6 +806,15 @@ body.nav-open { overflow: hidden; }
     }
     .nav-user { flex-direction: column; align-items: stretch; }
     .nav-user .btn { width: 100%; justify-content: center; }
+
+    .gw-ticker-run {
+        font-size: 0.82rem;
+        gap: 1.1rem;
+        padding: 0 2rem;
+    }
+    .gw-ticker-track {
+        animation-duration: 24s;
+    }
 
     .admin-body { flex-direction: column; }
     .admin-sidebar {
@@ -849,9 +867,8 @@ body.nav-open { overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    /* Conserver le défilement du bandeau (sinon texte coupé / fond « vide ») */
     .gw-ticker-track {
-        animation: gw-ticker-scroll 45s linear infinite !important;
-        animation-duration: 45s !important;
+        animation: gw-ticker-scroll 48s linear infinite !important;
     }
-    .gw-ticker-run[aria-hidden="true"] { display: none; }
 }

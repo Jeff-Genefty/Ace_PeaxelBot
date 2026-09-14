@@ -5,7 +5,7 @@ import { getChannel } from '../utils/configManager.js';
 import { loadMessageConfig } from '../config/messageConfig.js';
 
 const logPrefix = '[Peaxel Welcome]';
-const WEB_BASE = () => process.env.WEB_BASE_URL || 'https://ace.peaxel.me';
+const WEB_BASE = () => process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
 
 async function sendWelcomeMessage(member) {
     const welcomeChannelId = getChannel('welcome');

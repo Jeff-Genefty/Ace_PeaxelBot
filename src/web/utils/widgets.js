@@ -1,4 +1,5 @@
 import { escapeHtml } from './render.js';
+import { PEAXEL_LINKS } from './branding.js';
 
 function buildTickerRun({ phaseLabel, title, desc, deadlinePrefix, loading }) {
     const sep = '<span class="gw-ticker-sep" aria-hidden="true">•</span>';
@@ -43,6 +44,6 @@ export function renderGiveawayStrip({ t, giveaway }) {
             <strong>${t('giveaway.liveTitle')}</strong>
             <p>${t('giveaway.liveDesc', { count: giveaway.participantCount })}</p>
         </div>
-        <a href="https://discord.gg/PNyAqI8hio" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">${t('giveaway.joinDiscord')}</a>
+        <a href="${PEAXEL_LINKS.discord}" class="btn btn-ghost btn-sm" target="_blank" rel="noopener">${t('giveaway.joinDiscord')}</a>
     </aside>`;
 }

@@ -8,6 +8,7 @@ import { addLiveLog } from './liveLogService.js';
 import { hasAlreadySubmitted } from '../../utils/feedbackStore.js';
 import { getGiveawayState } from './giveawayService.js';
 import { addHubXp, grantPendingCard, XP_REWARDS } from './hubXpService.js';
+import { PEAXEL_LINKS } from '../utils/branding.js';
 
 const CHALLENGES_FILE = join(resolve('./data'), 'weekly_challenges.json');
 const PROGRESS_FILE = join(resolve('./data'), 'challenge_progress.json');
@@ -265,5 +266,5 @@ export function getTicketUrl() {
     const guildId = process.env.DISCORD_GUILD_ID;
     const ticketId = getTicketChannelId();
     if (guildId && ticketId) return `https://discord.com/channels/${guildId}/${ticketId}`;
-    return 'https://discord.gg/PNyAqI8hio';
+    return PEAXEL_LINKS.discord;
 }

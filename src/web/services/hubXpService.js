@@ -547,7 +547,7 @@ export async function announceWeeklyPodium(client, settlement) {
     const channel = await client.channels.fetch(channelId).catch(() => null);
     if (!channel?.isTextBased()) return { success: false, reason: 'CHANNEL_UNAVAILABLE' };
 
-    const hubBase = process.env.WEB_BASE_URL || 'https://ace.peaxel.me';
+    const hubBase = process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
     const lines = settlement.rewarded.map((r) =>
         `${r.emoji} <@${r.discordId}> — **${r.xpWeek} XP** this GW · bonus **+${r.bonusXp} XP** · **${r.cardTier}** card`,
     ).join('\n');

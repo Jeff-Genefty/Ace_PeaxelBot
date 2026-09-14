@@ -5,7 +5,10 @@ const DISCORD_API = 'https://discord.com/api/v10';
 export function getWebBaseUrl(req) {
     if (process.env.WEB_BASE_URL) return process.env.WEB_BASE_URL.replace(/\/$/, '');
     const proto = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    return `${proto}://${req.get('host')}`;
+    const host = req.get('host') || '';
+    // Prefer canonical hub domain when behind a temporary host (e.g. Railway)
+    if (host.includes('railway.app')) return 'https://peaxel.genefty.com';
+    return `${proto}://${host}`;
 }
 
 export function getDiscordRedirectUri(req) {

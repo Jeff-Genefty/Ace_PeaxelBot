@@ -1,4 +1,5 @@
 import { escapeHtml } from './render.js';
+import { PEAXEL_LINKS } from './branding.js';
 
 function roleBadges(roles) {
     if (!roles?.length) {
@@ -186,7 +187,7 @@ export function renderAppChallengeCard({ dashboard, t, locale, user }) {
 
     let doneBlock = '';
     if (allDone) {
-        const url = ticketUrl || 'https://discord.gg/PNyAqI8hio';
+        const url = ticketUrl || PEAXEL_LINKS.discord;
         doneBlock = `
         <p class="app-status-ok">✓ ${t('app.challengeAllDone')} · +${XP_COMPLETE} XP</p>
         <p class="app-card-desc">${t('app.challengeTicketHint')}</p>
@@ -242,7 +243,7 @@ export function renderAppLeaderboardCard({ dashboard, t }) {
 export function renderAppRewardsCard({ dashboard, t, csrf }) {
     const { hub } = dashboard;
     const pending = hub.pendingCards || [];
-    const ticketUrl = hub.ticketUrl || 'https://discord.gg/PNyAqI8hio';
+    const ticketUrl = hub.ticketUrl || PEAXEL_LINKS.discord;
 
     if (!pending.length) {
         return `

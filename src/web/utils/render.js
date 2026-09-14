@@ -23,7 +23,7 @@ export function pageShell({
 }) {
     const navScript = includeNav ? '<script src="/js/nav.js" defer></script>' : '';
     const htmlLang = locale === 'fr' ? 'fr' : 'en';
-    const baseUrl = process.env.WEB_BASE_URL || '';
+    const baseUrl = process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
     const canonical = ogUrl || baseUrl || '';
     const imageUrl = ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`;
 
