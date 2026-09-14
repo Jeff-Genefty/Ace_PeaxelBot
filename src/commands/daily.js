@@ -71,7 +71,7 @@ export default {
                 + `Level **${p.level}** · ${p.title}\n`
                 + `Progress: **${p.xpIntoLevel} / ${p.xpToNext} XP** (${p.progressPct}%)\n`
                 + (mileLines ? `\n${mileLines}\n` : '')
-                + (result.leveledUp ? `\n🎉 **Level up!** A card is waiting in your Hub chest.` : '')
+                + (result.leveledUp ? `\n🎉 **Level up!** You're now level **${result.level}**.` : '')
                 + `\n\nStreak milestones: **7 · 14 · 30** days\n`
                 + `_Tip: each day, write a server message before \`/daily\`._`,
             )

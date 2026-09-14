@@ -123,7 +123,7 @@ export default {
         hubLeaderboardEmpty: 'Pas encore d\'XP cette semaine — /daily et les défis comptent !',
         hubYou: '(toi)',
         hubCoffreTitle: 'Coffre de cartes',
-        hubCoffreEmpty: 'Aucune carte en attente. Termine la quête hebdo ou monte de niveau.',
+        hubCoffreEmpty: 'Aucune carte en attente. Termine la quête hebdo ou atteins un jalon de streak.',
         hubCoffreDesc: 'Réclame ta carte : un ticket Discord sera demandé pour la remise.',
         hubClaimCta: 'Réclamer',
         hubClaimHint: 'Après claim, ouvre un ticket avec capture de ton Hub',

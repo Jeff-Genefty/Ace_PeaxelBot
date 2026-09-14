@@ -123,7 +123,7 @@ export default {
         hubLeaderboardEmpty: 'No XP yet this week — /daily and challenges count!',
         hubYou: '(you)',
         hubCoffreTitle: 'Card vault',
-        hubCoffreEmpty: 'No pending cards. Finish the weekly quest or level up.',
+        hubCoffreEmpty: 'No pending cards. Finish the weekly quest or hit a streak milestone.',
         hubCoffreDesc: 'Claim your card — staff will deliver it via a Discord ticket.',
         hubClaimCta: 'Claim',
         hubClaimHint: 'After claiming, open a ticket with a Hub screenshot',

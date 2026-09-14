@@ -128,10 +128,6 @@ export function levelTitle(level) {
     return LEVEL_TITLES[LEVEL_TITLES.length - 1];
 }
 
-function tierForLevel(_level) {
-    return 'common';
-}
-
 function ensureWeekBucket(p) {
     const wk = weekKeyNow();
     if (!p.xpThisWeek || p.xpThisWeek.weekKey !== wk) {
@@ -183,22 +179,6 @@ function pushHistory(p, entry) {
     if (p.history.length > 50) p.history = p.history.slice(-50);
 }
 
-function maybeGrantLevelCards(p, oldLevel, newLevel) {
-    const granted = [];
-    for (let lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
-        const card = {
-            id: `lvl_${lvl}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-            reason: 'level_up',
-            level: lvl,
-            tier: tierForLevel(lvl),
-            createdAt: new Date().toISOString(),
-        };
-        p.pendingCards.push(card);
-        granted.push(card);
-    }
-    return granted;
-}
-
 /**
  * Ajoute de l'XP (sources hors message — pas de cooldown).
  * @returns {{ awarded: number, leveledUp: boolean, profile, cards: array }}
@@ -210,7 +190,6 @@ export function addHubXp(discordId, amount, source, meta = {}) {
     }
 
     let leveledUp = false;
-    let cards = [];
     let oldLevel = 0;
 
     const saved = saveProfile(discordId, (p) => {
@@ -224,7 +203,6 @@ export function addHubXp(discordId, amount, source, meta = {}) {
         p.level = next.level;
         if (next.level > oldLevel) {
             leveledUp = true;
-            cards = maybeGrantLevelCards(p, oldLevel, next.level);
             pushHistory(p, { type: 'level_up', from: oldLevel, to: next.level });
         }
         return p;
@@ -242,7 +220,7 @@ export function addHubXp(discordId, amount, source, meta = {}) {
         leveledUp,
         oldLevel,
         profile: getHubProfile(discordId),
-        cards,
+        cards: [],
     };
 }
 
@@ -346,7 +324,6 @@ export function tryAwardMessageXp(discordId, meta = {}) {
         const next = computeLevelProgress(p.xpTotal);
         p.level = next.level;
         if (next.level > oldLevel) {
-            maybeGrantLevelCards(p, oldLevel, next.level);
             pushHistory(p, { type: 'level_up', from: oldLevel, to: next.level });
         }
         return p;
@@ -428,7 +405,6 @@ export function claimDailyConnect(discordId, meta = {}) {
         const next = computeLevelProgress(p.xpTotal);
         p.level = next.level;
         if (next.level > oldLevel) {
-            maybeGrantLevelCards(p, oldLevel, next.level);
             pushHistory(p, { type: 'level_up', from: oldLevel, to: next.level });
         }
 
@@ -680,7 +656,7 @@ export function settleWeeklyPodium(weekKey = weekKeyNow()) {
             const next = computeLevelProgress(p.xpTotal);
             p.level = next.level;
             if (next.level > oldLevel) {
-                maybeGrantLevelCards(p, oldLevel, next.level);
+                pushHistory(p, { type: 'level_up', from: oldLevel, to: next.level });
             }
             granted = true;
             return p;
