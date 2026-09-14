@@ -18,6 +18,7 @@ export const CHALLENGE_LOG_CHANNEL_ID = process.env.CHALLENGE_LOG_CHANNEL_ID || 
 /** Défis auto-vérifiables uniquement */
 export const CHALLENGE_TASK_DEFS = {
     messages: { threshold: 2, metric: 'messages' },
+    messages_10: { threshold: 10, metric: 'messages' },
     daily: { threshold: 3, metric: 'daily' },
     react: { metric: 'reacted' },
     giveaway: { external: 'giveaway' },
@@ -29,7 +30,11 @@ export const CHALLENGE_TASK_DEFS = {
     gw_react: { metric: 'gwReact' },
 };
 
-export const CHALLENGE_TASK_POOL = Object.keys(CHALLENGE_TASK_DEFS);
+/** Quête fixe chaque semaine (en plus des 3 aléatoires) */
+export const FIXED_WEEKLY_TASK = 'messages_10';
+
+export const CHALLENGE_TASK_POOL = Object.keys(CHALLENGE_TASK_DEFS)
+    .filter((id) => id !== FIXED_WEEKLY_TASK);
 
 const TASKS_PER_WEEK = 3;
 
@@ -55,9 +60,15 @@ function pickTasks(gameweek, count = TASKS_PER_WEEK) {
     return picked;
 }
 
+function withFixedTask(tasks) {
+    const list = Array.isArray(tasks) ? [...tasks] : [];
+    if (!list.includes(FIXED_WEEKLY_TASK)) list.push(FIXED_WEEKLY_TASK);
+    return list;
+}
+
 export function generateWeeklyChallenges(gameweek = getCurrentWeekNumber()) {
     const key = String(gameweek);
-    const tasks = pickTasks(gameweek);
+    const tasks = withFixedTask(pickTasks(gameweek));
     const payload = {
         gameweek,
         weekKey: weekKeyFromParis(),
@@ -76,7 +87,18 @@ export function ensureWeeklyChallenges(gameweek = getCurrentWeekNumber()) {
     const all = readJson(CHALLENGES_FILE, {});
     const existing = all[key];
     const currentWeekKey = weekKeyFromParis();
-    if (existing && existing.weekKey === currentWeekKey) return existing;
+    if (existing && existing.weekKey === currentWeekKey) {
+        const tasks = withFixedTask(existing.tasks);
+        if (tasks.length !== existing.tasks.length) {
+            const patched = { ...existing, tasks };
+            updateJsonSync(CHALLENGES_FILE, {}, (data) => {
+                data[key] = patched;
+                return data;
+            });
+            return patched;
+        }
+        return existing;
+    }
     return generateWeeklyChallenges(gameweek);
 }
 
@@ -122,19 +144,35 @@ export function syncExternalTasks(discordId, gameweek = getCurrentWeekNumber()) 
 
 /**
  * Incrémente une métrique ; complète la tâche si seuil atteint.
+ * Complète aussi les autres tâches de la semaine partageant la même métrique.
  * @returns {{ completed: boolean, justCompleted: boolean }}
  */
 export function incrementChallengeMetric(discordId, gameweek, taskId, client, meta = {}) {
     const set = getWeeklyChallengeSet(gameweek);
-    if (!set.tasks.includes(taskId)) return { completed: false, justCompleted: false };
-
     const def = CHALLENGE_TASK_DEFS[taskId];
-    const progress = getUserProgressRaw(discordId, gameweek);
-    if (progress.completedTasks.includes(taskId)) {
-        return { completed: true, justCompleted: false };
+    if (!def) return { completed: false, justCompleted: false };
+
+    // Si la tâche ciblée n'est pas dans le set, on peut quand même bumper une métrique
+    // partagée (ex. messages → messages_10 toujours active).
+    const relatedTasks = set.tasks.filter((id) => {
+        const d = CHALLENGE_TASK_DEFS[id];
+        if (!d) return false;
+        if (id === taskId) return true;
+        if (def.metric && d.metric === def.metric) return true;
+        return false;
+    });
+    if (!relatedTasks.length && !set.tasks.includes(taskId)) {
+        return { completed: false, justCompleted: false };
     }
 
-    if (def?.threshold) {
+    const progress = getUserProgressRaw(discordId, gameweek);
+    if (set.tasks.includes(taskId) && progress.completedTasks.includes(taskId)) {
+        // Continuer pour d'éventuelles tâches sœurs non complétées
+        const siblingsPending = relatedTasks.some((id) => !progress.completedTasks.includes(id));
+        if (!siblingsPending) return { completed: true, justCompleted: false };
+    }
+
+    if (def?.threshold || relatedTasks.some((id) => CHALLENGE_TASK_DEFS[id]?.threshold)) {
         const key = def.metric || taskId;
         let count = 0;
         saveUserProgress(discordId, gameweek, (p) => {
@@ -142,13 +180,28 @@ export function incrementChallengeMetric(discordId, gameweek, taskId, client, me
             p.metrics[key] = count;
             return p;
         });
-        if (count >= def.threshold) {
-            const r = markTaskComplete(discordId, gameweek, taskId, client, meta);
-            return { completed: true, justCompleted: r.justCompleted, count };
+
+        let justCompleted = false;
+        let completed = false;
+        for (const id of relatedTasks.length ? relatedTasks : [taskId]) {
+            if (!set.tasks.includes(id)) continue;
+            const d = CHALLENGE_TASK_DEFS[id];
+            const threshold = d?.threshold || 1;
+            if (count >= threshold) {
+                const r = markTaskComplete(discordId, gameweek, id, client, meta);
+                if (r.justCompleted) justCompleted = true;
+                if (progress.completedTasks.includes(id) || r.justCompleted) completed = true;
+            }
         }
-        return { completed: false, justCompleted: false, count, threshold: def.threshold };
+        return {
+            completed: completed || (set.tasks.includes(taskId) && count >= (def.threshold || 1)),
+            justCompleted,
+            count,
+            threshold: def.threshold,
+        };
     }
 
+    if (!set.tasks.includes(taskId)) return { completed: false, justCompleted: false };
     const r = markTaskComplete(discordId, gameweek, taskId, client, meta);
     return { completed: true, justCompleted: r.justCompleted };
 }

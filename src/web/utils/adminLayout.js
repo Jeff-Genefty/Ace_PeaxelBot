@@ -8,6 +8,8 @@ export function adminSidebar(active, base = adminUrl(''), admin = null, { t, loc
     const navItems = [
         { path: '', key: 'admin.overview', icon: '◉' },
         { path: '/analytics', key: 'admin.analytics', icon: '▤', absolute: true },
+        { path: '/leaderboard', key: 'admin.leaderboard', icon: '▲', absolute: true },
+        { path: '/vault', key: 'admin.vault', icon: '▣', absolute: true },
         { path: '/feedbacks', key: 'admin.feedbacks', icon: '◈', absolute: true },
     ];
 

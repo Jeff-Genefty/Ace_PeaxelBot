@@ -4,7 +4,7 @@ import {
     incrementChallengeMetric,
     markTaskComplete,
 } from '../web/services/weeklyChallengeService.js';
-import { tryAwardMessageXp, addHubXp, XP_REWARDS } from '../web/services/hubXpService.js';
+import { tryAwardMessageXp, addHubXp, XP_REWARDS, recordServerMessage } from '../web/services/hubXpService.js';
 import { isQuizActiveInChannel } from '../utils/scoutQuizRunner.js';
 
 function guildOk(guildId) {
@@ -23,29 +23,29 @@ export function handleChallengeMessage(message) {
     const gw = getCurrentWeekNumber();
     const welcomeId = getChannel('welcome');
     const ch = channelId(message.channel);
+    const username = message.author.username;
 
-    // Hub XP messages — 15–25 XP, max 1 / 60 s (anti-farm)
-    tryAwardMessageXp(userId, { username: message.author.username });
+    // Requis pour /daily + XP messages
+    recordServerMessage(userId, { username });
+    tryAwardMessageXp(userId, { username });
 
-    incrementChallengeMetric(userId, gw, 'messages', message.client, {
-        username: message.author.username,
-    });
+    incrementChallengeMetric(userId, gw, 'messages', message.client, { username });
 
     if (ch === welcomeId && message.mentions.users.size > 0) {
         const mentionedOther = [...message.mentions.users.values()].some((u) => u.id !== userId && !u.bot);
         if (mentionedOther) {
-            markTaskComplete(userId, gw, 'welcome', message.client, { username: message.author.username });
+            markTaskComplete(userId, gw, 'welcome', message.client, { username });
         }
     }
 
     // Spotlight = salon lecture seule → validé via réactions (voir handleChallengeReaction)
 
     if (ch === welcomeId && message.attachments.size > 0) {
-        markTaskComplete(userId, gw, 'share', message.client, { username: message.author.username });
+        markTaskComplete(userId, gw, 'share', message.client, { username });
     }
 
     if (isQuizActiveInChannel(ch)) {
-        markTaskComplete(userId, gw, 'quiz', message.client, { username: message.author.username });
+        markTaskComplete(userId, gw, 'quiz', message.client, { username });
     }
 }
 

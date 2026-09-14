@@ -101,7 +101,7 @@ export async function runScoutQuiz(client, options = {}) {
         const { addHubXp, grantPendingCard, XP_REWARDS } = await import('../web/services/hubXpService.js');
         handleChallengeQuizParticipation(m.author.id, m.author.username, client);
         addHubXp(m.author.id, XP_REWARDS.quiz_win, 'quiz:win', { username: m.author.username });
-        grantPendingCard(m.author.id, 'quiz_win', { tier: 'rare', username: m.author.username });
+        grantPendingCard(m.author.id, 'quiz_win', { tier: 'common', username: m.author.username });
 
         await announceChannel.send({
             content: `🎊 <@${m.author.id}> wins the Scout Quiz!`,

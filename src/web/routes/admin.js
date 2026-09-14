@@ -304,6 +304,8 @@ router.get('/', requireAdmin, async (req, res) => {
 
 router.get('/analytics', requireAdmin, (_req, res) => res.redirect('/analytics'));
 router.get('/feedbacks', requireAdmin, (_req, res) => res.redirect('/feedbacks'));
+router.get('/leaderboard', requireAdmin, (_req, res) => res.redirect('/leaderboard'));
+router.get('/vault', requireAdmin, (_req, res) => res.redirect('/vault'));
 
 router.post('/mod-action', requireAdmin, validateCsrf, async (req, res) => {
     const { userId, reason, action, duration } = req.body;

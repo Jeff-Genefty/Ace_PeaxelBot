@@ -114,9 +114,9 @@ export function initScheduler(client) {
             openGiveaway('scheduler');
 
             const giveawayEmbed = new EmbedBuilder()
-                .setTitle('🎟️ Weekend Giveaway — win a Rare Athlete Card')
+                .setTitle('🎟️ Weekend Giveaway — win an Athlete Card')
                 .setDescription(
-                    'One lucky manager walks away with a **Rare Athlete Card** for their Peaxel roster.\n\n'
+                    'One lucky manager walks away with an **Athlete Card** for their Peaxel roster.\n\n'
                     + '**How it works**\n'
                     + '1️⃣ Click **Enter giveaway** below (one entry per person)\n'
                     + '2️⃣ Stay entered until Sunday 20:00 (Paris)\n'
@@ -163,9 +163,9 @@ cron.schedule('0 20 * * 0', async () => {
         const imageFile = new AttachmentBuilder('./assets/announce.png');
 
         const winEmbed = new EmbedBuilder()
-            .setTitle('🎊 Giveaway winner — Rare Athlete Card')
+            .setTitle('🎊 Giveaway winner — Athlete Card')
             .setDescription(
-                `Congrats <@${winnerId}> — you won this weekend’s **Rare Athlete Card**!\n\n`
+                `Congrats <@${winnerId}> — you won this weekend’s **Athlete Card**!\n\n`
                 + `**Claim your card**\n`
                 + `Open a ticket in ${ticketMention} and mention this giveaway so the team can deliver your reward.`,
             )
@@ -181,25 +181,40 @@ cron.schedule('0 20 * * 0', async () => {
             files: [imageFile],
         });
 
-        closeGiveaway();
+        let winnerTag = winnerId;
+        try {
+            const user = await client.users.fetch(winnerId);
+            winnerTag = user.username || user.tag || winnerId;
+        } catch { /* keep id */ }
+        closeGiveaway({ id: winnerId, tag: winnerTag });
     } catch (e) {
         console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message);
     }
     }, { scheduled: true, timezone });
 
-    // --- 8. WEEKLY CHALLENGES + PODIUM (Monday 00:05) ---
-    cron.schedule('5 0 * * 1', async () => {
+    // --- 7b. WEEKLY XP WINNER (Sunday 20:05) ---
+    cron.schedule('5 20 * * 0', async () => {
         try {
             const settlement = settleWeeklyPodium();
             if (settlement.rewarded.length) {
                 await announceWeeklyPodium(client, settlement);
-                addLiveLog('SYSTEM', `Weekly podium settled · ${settlement.weekKey} · ${settlement.rewarded.length} winners`);
+                addLiveLog('SYSTEM', `Weekly XP #1 settled · ${settlement.weekKey} · ${settlement.rewarded[0]?.discordId}`);
+            } else {
+                addLiveLog('SYSTEM', `Weekly XP #1 skipped · ${settlement.weekKey} · empty board`);
             }
+        } catch (e) {
+            console.error(`${logPrefix} [Weekly XP Winner] Error:`, e.message);
+        }
+    }, { scheduled: true, timezone });
+
+    // --- 8. WEEKLY CHALLENGES (Monday 00:05) ---
+    cron.schedule('5 0 * * 1', async () => {
+        try {
             const gw = getCurrentWeekNumber();
             generateWeeklyChallenges(gw);
             addLiveLog('SYSTEM', `Weekly challenges generated · GW ${gw}`);
         } catch (e) {
-            console.error(`${logPrefix} [Weekly Challenges/Podium] Error:`, e.message);
+            console.error(`${logPrefix} [Weekly Challenges] Error:`, e.message);
         }
     }, { scheduled: true, timezone });
 

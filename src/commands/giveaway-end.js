@@ -44,5 +44,10 @@ export async function execute(interaction) {
         embeds: [endEmbed],
     });
 
-    closeGiveaway();
+    let winnerTag = winnerId;
+    try {
+        const user = await interaction.client.users.fetch(winnerId);
+        winnerTag = user.username || user.tag || winnerId;
+    } catch { /* keep id */ }
+    closeGiveaway({ id: winnerId, tag: winnerTag });
 }

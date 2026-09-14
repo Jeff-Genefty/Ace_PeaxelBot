@@ -137,8 +137,13 @@ describe('hubXpService', () => {
         wipeHubUser(testId);
     });
 
-    it('allows daily connect once per Paris day', () => {
+    it('allows daily connect once per Paris day after a server message', async () => {
         wipeHubUser(testId);
+        const { recordServerMessage } = await import('../src/web/services/hubXpService.js');
+        const blocked = claimDailyConnect(testId, { silent: true });
+        assert.equal(blocked.ok, false);
+        assert.equal(blocked.reason, 'need_message');
+        recordServerMessage(testId, { silent: true });
         const first = claimDailyConnect(testId, { silent: true });
         assert.equal(first.ok, true);
         assert.equal(first.awarded, 40);
@@ -166,7 +171,8 @@ describe('hubXpService', () => {
     it('exposes streak milestones and weekly podium config', async () => {
         const { STREAK_MILESTONES, WEEKLY_PODIUM, weekKeyDaysAgo } = await import('../src/web/services/hubXpService.js');
         assert.equal(STREAK_MILESTONES[7].xp, 100);
-        assert.equal(STREAK_MILESTONES[30].cardTier, 'epic');
+        assert.equal(STREAK_MILESTONES[30].cardTier, 'common');
+        assert.equal(WEEKLY_PODIUM.length, 1);
         assert.equal(WEEKLY_PODIUM[0].rank, 1);
         assert.ok(weekKeyDaysAgo(1).includes('-W'));
     });

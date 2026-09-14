@@ -43,10 +43,11 @@ export async function sendDailyConnectMessage(client) {
             + '• Earn **+40 Hub XP**\n'
             + '• Keep your **streak** (milestones at 7 · 14 · 30 days)\n'
             + '• Progress weekly Hub challenges when Daily is one of the missions\n\n'
+            + '⚠️ **Requirement:** send **at least one message** on this Discord server today, then run `/daily`.\n\n'
             + `Track your level & ranking on the [Peaxel Hub](${WEB_BASE()}/app).\n`
             + 'Still need a lineup? → [game.peaxel.me](https://game.peaxel.me)',
         )
-        .setFooter({ text: 'Peaxel Hub · 1 claim / day · Europe/Paris' })
+        .setFooter({ text: 'Peaxel Hub · message + /daily · Europe/Paris' })
         .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(

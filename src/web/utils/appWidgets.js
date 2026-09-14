@@ -31,6 +31,7 @@ export function renderAppProfile({ user, profile, dashboard, t }) {
                 <div class="hub-xp-bar-fill" style="width:${hub.progressPct}%"></div>
             </div>
             <p class="hub-xp-meta">${hub.xpIntoLevel} / ${hub.xpToNext} XP · ${t('app.hubXpWeek', { xp: hub.xpWeek })} · 🔥 ${hub.dailyStreak}</p>
+            <p class="hub-xp-daily-hint">${t('app.hubDailyHint')}</p>
         </div>`;
     }
 
@@ -69,10 +70,17 @@ export function renderAppGwCard({ dashboard, t, locale }) {
 export function renderAppGiveawayCard({ dashboard, t }) {
     const { giveaway } = dashboard;
     if (giveaway.status !== 'open') {
+        const winner = giveaway.lastWinnerId
+            ? (giveaway.lastWinnerTag ? `@${giveaway.lastWinnerTag}` : `@${giveaway.lastWinnerId}`)
+            : null;
+        const winnerBlock = winner
+            ? `<p class="app-card-desc app-status-ok">${t('app.giveawayLastWinner', { tag: escapeHtml(winner) })}</p>
+               <p class="app-card-meta">${t('app.giveawayClaimHint')}</p>`
+            : `<p class="app-card-desc">${t('app.giveawayClosed')}</p>`;
         return `
         <section class="app-card app-giveaway-card is-closed">
             <h2 class="app-card-title">🎟️ ${t('app.giveawayTitle')}</h2>
-            <p class="app-card-desc">${t('app.giveawayClosed')}</p>
+            ${winnerBlock}
         </section>`;
     }
 

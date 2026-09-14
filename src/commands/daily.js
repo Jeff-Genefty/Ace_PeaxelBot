@@ -17,6 +17,24 @@ export default {
 
         if (!result.ok) {
             const streak = result.streak || result.profile?.dailyStreak || 0;
+
+            if (result.reason === 'need_message') {
+                return interaction.reply({
+                    flags: MessageFlags.Ephemeral,
+                    embeds: [
+                        new EmbedBuilder()
+                            .setColor(0xf59e0b)
+                            .setTitle('☀️ Write a message first')
+                            .setDescription(
+                                'To claim `/daily` XP you must **also send at least one message** on this Discord server today (Europe/Paris).\n\n'
+                                + '1. Post anything in a community channel\n'
+                                + '2. Run **`/daily`** again\n\n'
+                                + `Current streak: **${streak}** day${streak !== 1 ? 's' : ''} (safe until tomorrow once claimed).`,
+                            ),
+                    ],
+                });
+            }
+
             return interaction.reply({
                 flags: MessageFlags.Ephemeral,
                 embeds: [
@@ -40,7 +58,7 @@ export default {
         const p = result.profile;
         const mileLines = (result.milestonesHit || []).map((m) =>
             `🏅 **${m.label}!** +${m.xp} XP bonus`
-            + (m.cardTier ? ` + carte **${m.cardTier}**` : ''),
+            + (m.cardTier ? ' + **Athlete Card**' : ''),
         ).join('\n');
 
         const embed = new EmbedBuilder()
@@ -54,9 +72,10 @@ export default {
                 + `Progress: **${p.xpIntoLevel} / ${p.xpToNext} XP** (${p.progressPct}%)\n`
                 + (mileLines ? `\n${mileLines}\n` : '')
                 + (result.leveledUp ? `\n🎉 **Level up!** A card is waiting in your Hub chest.` : '')
-                + `\n\nStreak milestones: **7 · 14 · 30** days`,
+                + `\n\nStreak milestones: **7 · 14 · 30** days\n`
+                + `_Tip: each day, write a server message before \`/daily\`._`,
             )
-            .setFooter({ text: 'Peaxel Hub · 1 claim / day · Europe/Paris' })
+            .setFooter({ text: 'Peaxel Hub · 1 claim / day · message required · Europe/Paris' })
             .setTimestamp();
 
         const footerFile = applyHubFooter(embed, 'daily');

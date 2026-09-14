@@ -11,6 +11,9 @@ const EMPTY = {
     participantTags: [],
     openedAt: null,
     closesAt: null,
+    lastWinnerId: null,
+    lastWinnerTag: null,
+    lastWinnerAt: null,
 };
 
 function readGiveawayRaw() {
@@ -42,6 +45,7 @@ export function openGiveaway(source = 'manual') {
     }
     closesAt.setUTCHours(20, 0, 0, 0);
 
+    const prev = readGiveawayRaw();
     const payload = {
         status: 'open',
         participants: [],
@@ -49,18 +53,29 @@ export function openGiveaway(source = 'manual') {
         openedAt: now.toISOString(),
         closesAt: closesAt.toISOString(),
         source,
+        lastWinnerId: prev.lastWinnerId || null,
+        lastWinnerTag: prev.lastWinnerTag || null,
+        lastWinnerAt: prev.lastWinnerAt || null,
     };
     updateJsonSync(GIVEAWAYS_FILE, { ...EMPTY }, () => payload);
     return payload;
 }
 
-export function closeGiveaway() {
-    updateJsonSync(GIVEAWAYS_FILE, { ...EMPTY }, (data) => ({
-        ...data,
-        status: 'closed',
-        openedAt: data.openedAt,
-        closesAt: data.closesAt,
-    }));
+export function closeGiveaway(winner = null) {
+    updateJsonSync(GIVEAWAYS_FILE, { ...EMPTY }, (data) => {
+        const next = {
+            ...data,
+            status: 'closed',
+            openedAt: data.openedAt,
+            closesAt: data.closesAt,
+        };
+        if (winner?.id) {
+            next.lastWinnerId = String(winner.id);
+            next.lastWinnerTag = winner.tag || winner.username || null;
+            next.lastWinnerAt = new Date().toISOString();
+        }
+        return next;
+    });
 }
 
 export function joinGiveaway(userId, userTag) {
@@ -94,6 +109,9 @@ export function getGiveawayState(discordId = null) {
         joined: discordId ? (data.participants || []).includes(discordId) : false,
         openedAt: data.openedAt,
         closesAt: data.closesAt,
+        lastWinnerId: data.lastWinnerId || null,
+        lastWinnerTag: data.lastWinnerTag || null,
+        lastWinnerAt: data.lastWinnerAt || null,
     };
 }
 

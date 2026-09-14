@@ -10,6 +10,8 @@ import cookieParser from 'cookie-parser';
 import cron from 'node-cron';
 import analyticsRoutes from './routes/analytics.js';
 import feedbackRoutes from './routes/feedbacks.js';
+import leaderboardRoutes from './routes/leaderboard.js';
+import vaultRoutes from './routes/vault.js';
 import publicRouter from './web/routes/public.js';
 import adminRouter from './web/routes/admin.js';
 import legacyRouter from './routes/legacy.js';
@@ -120,6 +122,8 @@ app.use('/', publicRouter);
 app.use(`/${getAdminPath()}`, adminRouter);
 app.use('/analytics', analyticsRoutes);
 app.use('/feedbacks', feedbackRoutes);
+app.use('/leaderboard', leaderboardRoutes);
+app.use('/vault', vaultRoutes);
 app.use('/', legacyRouter);
 
 // Health check (monitoring / uptime)

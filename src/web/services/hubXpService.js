@@ -34,15 +34,13 @@ export const XP_REWARDS = {
 /** Jalons streak daily → bonus XP (+ carte optionnelle) */
 export const STREAK_MILESTONES = {
     7: { xp: 100, cardTier: 'common', label: '7-day streak' },
-    14: { xp: 200, cardTier: 'rare', label: '14-day streak' },
-    30: { xp: 500, cardTier: 'epic', label: '30-day streak' },
+    14: { xp: 200, cardTier: 'common', label: '14-day streak' },
+    30: { xp: 500, cardTier: 'common', label: '30-day streak' },
 };
 
-/** Récompenses fin de GW (top XP hebdo) */
+/** Récompense fin de GW — #1 XP hebdo (annonce dimanche soir) */
 export const WEEKLY_PODIUM = [
-    { rank: 1, cardTier: 'epic', xp: 150, emoji: '🥇' },
-    { rank: 2, cardTier: 'rare', xp: 100, emoji: '🥈' },
-    { rank: 3, cardTier: 'common', xp: 50, emoji: '🥉' },
+    { rank: 1, cardTier: 'common', xp: 150, emoji: '🥇' },
 ];
 
 const LEVEL_TITLES = [
@@ -65,6 +63,7 @@ function defaultProfile() {
         dailyStreak: 0,
         streakMilestonesClaimed: [],
         lastWeeklyPodiumWeekKey: null,
+        lastMessageDayKey: null,
         xpThisWeek: { weekKey: weekKeyNow(), amount: 0 },
         pendingCards: [],
         claimedCards: [],
@@ -129,9 +128,7 @@ export function levelTitle(level) {
     return LEVEL_TITLES[LEVEL_TITLES.length - 1];
 }
 
-function tierForLevel(level) {
-    if (level >= 10) return 'epic';
-    if (level >= 5) return 'rare';
+function tierForLevel(_level) {
     return 'common';
 }
 
@@ -168,7 +165,17 @@ export function getHubProfile(discordId) {
         ...progress,
         xpWeek: raw.xpThisWeek?.amount || 0,
         claimedDailyToday: raw.lastDailyKey === parisDayKey(),
+        messagedToday: raw.lastMessageDayKey === parisDayKey(),
     };
+}
+
+/** Enregistre qu'un manager a écrit sur le serveur (requis pour /daily). */
+export function recordServerMessage(discordId, meta = {}) {
+    const today = parisDayKey();
+    saveProfile(discordId, (p) => {
+        p.lastMessageDayKey = today;
+        return p;
+    }, meta);
 }
 
 function pushHistory(p, entry) {
@@ -240,6 +247,77 @@ export function addHubXp(discordId, amount, source, meta = {}) {
 }
 
 /**
+ * Retire de l'XP (admin). Ne descend pas sous 0. Ajuste aussi xpThisWeek.
+ * @returns {{ removed: number, profile }}
+ */
+export function removeHubXp(discordId, amount, source = 'admin_remove', meta = {}) {
+    const remove = Math.max(0, Math.floor(amount));
+    if (!remove) {
+        return { removed: 0, profile: getHubProfile(discordId) };
+    }
+
+    let removed = 0;
+    saveProfile(discordId, (p) => {
+        const before = p.xpTotal || 0;
+        removed = Math.min(before, remove);
+        p.xpTotal = before - removed;
+        ensureWeekBucket(p);
+        p.xpThisWeek.amount = Math.max(0, (p.xpThisWeek.amount || 0) - removed);
+        const next = computeLevelProgress(p.xpTotal);
+        p.level = next.level;
+        pushHistory(p, { type: 'xp', amount: -removed, source });
+        return p;
+    }, meta);
+
+    if (removed && !meta.silent) {
+        addLiveLog('XP', `${meta.username || discordId} −${removed} XP (${source})`);
+    }
+    return { removed, profile: getHubProfile(discordId) };
+}
+
+/** Remet xpThisWeek à 0 pour un user (ou tous si discordId null). */
+export function resetWeeklyXp(discordId = null, meta = {}) {
+    const wk = weekKeyNow();
+    if (discordId) {
+        saveProfile(discordId, (p) => {
+            p.xpThisWeek = { weekKey: wk, amount: 0 };
+            pushHistory(p, { type: 'admin', action: 'reset_weekly_xp' });
+            return p;
+        }, meta);
+        if (!meta.silent) addLiveLog('XP', `Weekly XP reset · ${meta.username || discordId}`);
+        return { ok: true, count: 1 };
+    }
+
+    let count = 0;
+    updateJsonSync(PROFILES_FILE, {}, (all) => {
+        for (const uid of Object.keys(all)) {
+            const p = { ...defaultProfile(), ...all[uid] };
+            p.xpThisWeek = { weekKey: wk, amount: 0 };
+            if (!p.history) p.history = [];
+            pushHistory(p, { type: 'admin', action: 'reset_weekly_xp_all' });
+            all[uid] = p;
+            count += 1;
+        }
+        return all;
+    });
+    if (!meta.silent) addLiveLog('XP', `Weekly XP reset for all · ${count} profiles`);
+    return { ok: true, count };
+}
+
+/** Remet xpTotal + level + xpThisWeek à zéro pour un user. */
+export function resetHubXp(discordId, meta = {}) {
+    saveProfile(discordId, (p) => {
+        p.xpTotal = 0;
+        p.level = 0;
+        p.xpThisWeek = { weekKey: weekKeyNow(), amount: 0 };
+        pushHistory(p, { type: 'admin', action: 'reset_all_xp' });
+        return p;
+    }, meta);
+    if (!meta.silent) addLiveLog('XP', `Full XP reset · ${meta.username || discordId}`);
+    return { ok: true, profile: getHubProfile(discordId) };
+}
+
+/**
  * XP message : 15–25 XP, max 1 message / 60 s.
  * @returns {{ awarded: number, skipped: boolean, reason?: string, profile }}
  */
@@ -292,6 +370,11 @@ export function claimDailyConnect(discordId, meta = {}) {
     saveProfile(discordId, (p) => {
         if (p.lastDailyKey === today) {
             result = { ok: false, reason: 'already_claimed', streak: p.dailyStreak || 0 };
+            return p;
+        }
+
+        if (p.lastMessageDayKey !== today) {
+            result = { ok: false, reason: 'need_message', streak: p.dailyStreak || 0 };
             return p;
         }
 
@@ -401,7 +484,11 @@ export function claimPendingCard(discordId, cardId, meta = {}) {
     saveProfile(discordId, (p) => {
         const idx = (p.pendingCards || []).findIndex((c) => c.id === cardId);
         if (idx < 0) return p;
-        card = { ...p.pendingCards[idx], claimedAt: new Date().toISOString() };
+        card = {
+            ...p.pendingCards[idx],
+            claimedAt: new Date().toISOString(),
+            fulfilled: false,
+        };
         p.pendingCards.splice(idx, 1);
         if (!p.claimedCards) p.claimedCards = [];
         p.claimedCards.push(card);
@@ -431,7 +518,6 @@ export async function notifyCardClaim(client, discordId, username, card) {
             `<@${discordId}> réclame une carte Hub.\n\n`
             + `**Manager:** ${username}\n`
             + `**Raison:** ${card.reason}\n`
-            + `**Tier:** ${card.tier || 'common'}\n`
             + `**ID:** \`${card.id}\`\n`
             + (card.gameweek ? `**GW:** ${card.gameweek}\n` : '')
             + (card.level ? `**Level-up:** ${card.level}\n` : '')
@@ -443,7 +529,7 @@ export async function notifyCardClaim(client, discordId, username, card) {
         const channel = await client.channels.fetch(CHALLENGE_LOG_CHANNEL_ID);
         if (channel?.isTextBased()) {
             await channel.send({
-                content: `🎁 <@${discordId}> a cliqué **Réclamer** · \`${card.reason}\` · ${card.tier || 'common'}`,
+                content: `🎁 <@${discordId}> a cliqué **Réclamer** · \`${card.reason}\``,
                 embeds: [embed],
             });
         }
@@ -452,8 +538,86 @@ export async function notifyCardClaim(client, discordId, username, card) {
     }
 }
 
+/** Marque une carte claimée comme livrée (admin). */
+export function fulfillClaimedCard(discordId, cardId, meta = {}) {
+    let ok = false;
+    saveProfile(discordId, (p) => {
+        const card = (p.claimedCards || []).find((c) => c.id === cardId);
+        if (!card) return p;
+        card.fulfilled = true;
+        card.fulfilledAt = new Date().toISOString();
+        pushHistory(p, { type: 'card_fulfilled', cardId });
+        ok = true;
+        return p;
+    }, meta);
+    if (ok && !meta.silent) {
+        addLiveLog('XP', `Card fulfilled · ${meta.username || discordId} · ${cardId}`);
+    }
+    return { ok };
+}
+
+/** Vue d'ensemble coffre — pending + claims en attente de livraison. */
+export function getCardVaultOverview() {
+    const all = readProfiles();
+    const pending = [];
+    const awaitingDelivery = [];
+    const fulfilled = [];
+
+    for (const [discordId, p] of Object.entries(all)) {
+        const username = p.username || null;
+        for (const card of p.pendingCards || []) {
+            pending.push({
+                discordId,
+                username,
+                ...card,
+                status: 'pending_claim',
+            });
+        }
+        for (const card of p.claimedCards || []) {
+            const row = { discordId, username, ...card };
+            if (card.fulfilled) fulfilled.push(row);
+            else awaitingDelivery.push({ ...row, status: 'awaiting_delivery' });
+        }
+    }
+
+    const byDate = (a, b) => String(b.claimedAt || b.createdAt || '').localeCompare(String(a.claimedAt || a.createdAt || ''));
+    pending.sort(byDate);
+    awaitingDelivery.sort(byDate);
+    fulfilled.sort(byDate);
+
+    return {
+        pending,
+        awaitingDelivery,
+        fulfilled: fulfilled.slice(0, 50),
+        counts: {
+            pending: pending.length,
+            awaitingDelivery: awaitingDelivery.length,
+            fulfilled: fulfilled.length,
+        },
+    };
+}
+
 export function getWeeklyLeaderboard(limit = 10) {
     return getLeaderboardForWeek(weekKeyNow(), limit);
+}
+
+export function getGlobalLeaderboard(limit = 25) {
+    const all = readProfiles();
+    const rows = Object.entries(all).map(([discordId, p]) => {
+        const progress = computeLevelProgress(p.xpTotal || 0);
+        const wk = weekKeyNow();
+        const weekAmt = p.xpThisWeek?.weekKey === wk ? (p.xpThisWeek.amount || 0) : 0;
+        return {
+            discordId,
+            username: p.username || null,
+            xpWeek: weekAmt,
+            xpTotal: p.xpTotal || 0,
+            level: progress.level,
+            title: progress.title,
+        };
+    }).filter((r) => r.xpTotal > 0);
+    rows.sort((a, b) => b.xpTotal - a.xpTotal || b.xpWeek - a.xpWeek);
+    return rows.slice(0, limit).map((r, i) => ({ ...r, rank: i + 1 }));
 }
 
 export function getLeaderboardForWeek(weekKey, limit = 10) {
@@ -475,11 +639,11 @@ export function getLeaderboardForWeek(weekKey, limit = 10) {
 }
 
 /**
- * Récompense le podium XP de la semaine écoulée (appeler lundi avant reset naturel).
- * Anti-doublon via lastWeeklyPodiumWeekKey sur chaque user + flag global dans history.
+ * Récompense le #1 XP de la semaine (appeler dimanche soir — weekKey courante).
+ * Anti-doublon via lastWeeklyPodiumWeekKey.
  */
-export function settleWeeklyPodium(previousWeekKey = weekKeyDaysAgo(1)) {
-    const top = getLeaderboardForWeek(previousWeekKey, 3);
+export function settleWeeklyPodium(weekKey = weekKeyNow()) {
+    const top = getLeaderboardForWeek(weekKey, 1);
     const rewarded = [];
 
     for (const podium of WEEKLY_PODIUM) {
@@ -488,30 +652,30 @@ export function settleWeeklyPodium(previousWeekKey = weekKeyDaysAgo(1)) {
 
         let granted = false;
         saveProfile(row.discordId, (p) => {
-            if (p.lastWeeklyPodiumWeekKey === previousWeekKey) return p;
-            p.lastWeeklyPodiumWeekKey = previousWeekKey;
+            if (p.lastWeeklyPodiumWeekKey === weekKey) return p;
+            p.lastWeeklyPodiumWeekKey = weekKey;
 
             const oldLevel = computeLevelProgress(p.xpTotal).level;
             p.xpTotal = (p.xpTotal || 0) + podium.xp;
-            // Ne pas ajouter à xpThisWeek (nouvelle GW) — bonus hors classement actuel
+            // Bonus hors classement hebdo courant (déjà figé pour l'annonce)
             pushHistory(p, {
                 type: 'xp',
                 amount: podium.xp,
                 source: 'weekly_podium',
                 rank: podium.rank,
-                weekKey: previousWeekKey,
+                weekKey,
             });
 
             const card = {
                 id: `podium_${podium.rank}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-                reason: 'leaderboard_top3',
+                reason: 'leaderboard_weekly',
                 tier: podium.cardTier,
                 rank: podium.rank,
-                weekKey: previousWeekKey,
+                weekKey,
                 createdAt: new Date().toISOString(),
             };
             p.pendingCards.push(card);
-            pushHistory(p, { type: 'card_pending', reason: 'leaderboard_top3', cardId: card.id, rank: podium.rank });
+            pushHistory(p, { type: 'card_pending', reason: 'leaderboard_weekly', cardId: card.id, rank: podium.rank });
 
             const next = computeLevelProgress(p.xpTotal);
             p.level = next.level;
@@ -529,16 +693,16 @@ export function settleWeeklyPodium(previousWeekKey = weekKeyDaysAgo(1)) {
                 cardTier: podium.cardTier,
                 bonusXp: podium.xp,
             });
-            addLiveLog('XP', `Podium GW ${previousWeekKey} #${podium.rank} → ${row.username || row.discordId}`);
+            addLiveLog('XP', `Weekly XP #1 ${weekKey} → ${row.username || row.discordId}`);
         }
     }
 
-    return { weekKey: previousWeekKey, rewarded };
+    return { weekKey, rewarded };
 }
 
 export async function announceWeeklyPodium(client, settlement) {
     if (!settlement?.rewarded?.length) return { success: false, reason: 'EMPTY' };
-    const { getChannel } = await import('../../utils/configManager.js');
+    const { getChannel, getTicketChannelId } = await import('../../utils/configManager.js');
     const { EmbedBuilder } = await import('discord.js');
     const { applyHubFooter } = await import('../../utils/hubFooter.js');
 
@@ -547,24 +711,27 @@ export async function announceWeeklyPodium(client, settlement) {
     const channel = await client.channels.fetch(channelId).catch(() => null);
     if (!channel?.isTextBased()) return { success: false, reason: 'CHANNEL_UNAVAILABLE' };
 
+    const winner = settlement.rewarded[0];
+    const ticketId = getTicketChannelId();
+    const ticketMention = ticketId ? `<#${ticketId}>` : 'the support ticket channel';
     const hubBase = process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
-    const lines = settlement.rewarded.map((r) =>
-        `${r.emoji} <@${r.discordId}> — **${r.xpWeek} XP** this GW · bonus **+${r.bonusXp} XP** · **${r.cardTier}** card`,
-    ).join('\n');
 
     const embed = new EmbedBuilder()
-        .setTitle(`🏆 Hub podium · ${settlement.weekKey}`)
+        .setTitle(`🏆 Weekly XP champion · ${settlement.weekKey}`)
         .setColor(0xa855f7)
         .setDescription(
-            'Top Hub XP earners of the last gameweek — rewards are in your **Hub chest**.\n\n'
-            + `${lines}\n\n`
-            + `Open the [Peaxel Hub](${hubBase}/app) → **Claim** your card, then finish via ticket.`,
+            `${winner.emoji} <@${winner.discordId}> topped the Hub leaderboard this week with **${winner.xpWeek} XP**!\n\n`
+            + `You've won an **Athlete Card** (+${winner.bonusXp} bonus XP already added).\n\n`
+            + `**Claim your card**\n`
+            + `1. Open the [Peaxel Hub](${hubBase}/app) → **Claim** in your card vault\n`
+            + `2. Open a ticket in ${ticketMention} to receive your card`,
         )
-        .setFooter({ text: 'Peaxel Hub Pass · weekly XP podium' })
+        .setFooter({ text: 'Peaxel Hub · weekly XP winner' })
         .setTimestamp();
 
     const footerFile = applyHubFooter(embed, 'podium');
     await channel.send({
+        content: `🏆 <@${winner.discordId}> — you earned the most Hub XP this week! Open a ticket to claim your Athlete Card.`,
         embeds: [embed],
         files: footerFile ? [footerFile] : [],
     });

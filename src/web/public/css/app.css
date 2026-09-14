@@ -179,6 +179,13 @@
     color: var(--text-dim, var(--text-muted));
 }
 
+.hub-xp-daily-hint {
+    margin: 0.25rem 0 0;
+    font-size: 0.68rem;
+    color: var(--peaxel-cyan, #22d3ee);
+    opacity: 0.9;
+}
+
 .role-badge {
     display: inline-block;
     padding: 0.2rem 0.55rem;
