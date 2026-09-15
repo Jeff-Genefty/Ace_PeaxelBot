@@ -34,12 +34,24 @@ export function setLoginCsrfCookie(res, token, isProd) {
     });
 }
 
+function timingSafeEqualHex(a, b) {
+    if (typeof a !== 'string' || typeof b !== 'string') return false;
+    try {
+        const bufA = Buffer.from(a, 'utf8');
+        const bufB = Buffer.from(b, 'utf8');
+        if (bufA.length !== bufB.length) return false;
+        return crypto.timingSafeEqual(bufA, bufB);
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Valide le token CSRF sur les requêtes POST authentifiées.
  */
 export function validateCsrf(req, res, next) {
     const token = req.body?._csrf;
-    if (!token || !req.session?.csrfToken || token !== req.session.csrfToken) {
+    if (!token || !req.session?.csrfToken || !timingSafeEqualHex(token, req.session.csrfToken)) {
         return res.status(403).send('Requête refusée : token CSRF invalide.');
     }
     next();
@@ -53,7 +65,7 @@ export function validateLoginCsrf(req, res, next) {
     const cookieToken = req.cookies?.[LOGIN_CSRF_COOKIE];
     const isProd = process.env.NODE_ENV === 'production';
 
-    if (!bodyToken || !cookieToken || bodyToken !== cookieToken) {
+    if (!bodyToken || !cookieToken || !timingSafeEqualHex(bodyToken, cookieToken)) {
         return res.status(403).send('Requête refusée : token CSRF invalide.');
     }
 

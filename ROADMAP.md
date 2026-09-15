@@ -4,7 +4,7 @@
 >
 > **Légende des statuts :** `⬜ À faire` · `🔄 En cours` · `✅ Terminé` · `⏸️ En pause` · `❌ Annulé`
 
-**Dernière mise à jour :** 2026-08-28 (Phase 0 terminée ✅)
+**Dernière mise à jour :** 2026-09-15 (hardening sécurité + cleanup dette tech)
 
 ---
 
@@ -38,7 +38,7 @@
 | # | Tâche | Statut | Notes |
 |---|-------|--------|-------|
 | 0.6 | Incrémenter `totalBans` lors des bans dashboard | ✅ Terminé | |
-| 0.7 | Ne plus enregistrer les slash commands à chaque boot (utiliser `register-commands.js` ou flag) | ✅ Terminé | Chargement local au boot, sync via `npm run register-commands` |
+| 0.7 | Ne plus enregistrer les slash commands à chaque boot (utiliser `register-commands.js` ou flag) | ✅ Terminé | Sync Discord uniquement via `npm run register-commands` (retiré du boot `index.js`) |
 | 0.8 | Corriger commentaire Coach Ace (25 % vs 10 % réel) | ✅ Terminé | Commentaire aligné sur 10 % |
 | 0.9 | Centraliser handlers `GuildMemberAdd` (index + welcomeListener) | ✅ Terminé | `memberJoinHandler.js` |
 

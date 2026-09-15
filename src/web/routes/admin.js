@@ -1,7 +1,6 @@
 import express from 'express';
-import fs, { readFileSync } from 'fs';
+import fs from 'fs';
 import { join, resolve } from 'path';
-import multer from 'multer';
 import { pageShell, escapeHtml } from '../utils/render.js';
 import { adminSidebar, adminTopbar, kpiCard, toolPanel, ADMIN_CSS } from '../utils/adminLayout.js';
 import { requireAdmin, requireAdminApi } from '../middleware/auth.js';
@@ -17,9 +16,16 @@ import {
     setLoginCsrfCookie, validateCsrf, validateLoginCsrf, initSessionCsrf,
 } from '../../utils/csrf.js';
 import { loginRateLimit, recordFailedLogin, clearLoginAttempts } from '../../utils/loginRateLimit.js';
+import {
+    isDiscordSnowflake,
+    normalizeSnowflake,
+    parseModActionBody,
+    isBroadcastChannelAllowed,
+    MAX_BROADCAST_MESSAGE_LENGTH,
+} from '../../utils/discordValidation.js';
+import { broadcastUpload, handleBroadcastUploadError } from '../../utils/upload.js';
 
 const router = express.Router();
-const upload = multer({ dest: 'uploads/' });
 
 const DATA_DIR = resolve('./data');
 const STATS_FILE = join(DATA_DIR, 'analytics.json');
@@ -126,8 +132,10 @@ router.get('/api/logs', requireAdminApi, (req, res) => {
 });
 
 router.get('/api/user/:id', requireAdminApi, async (req, res) => {
+    const id = normalizeSnowflake(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Invalid user id' });
     try {
-        const user = await req.app.get('discordClient').users.fetch(req.params.id);
+        const user = await req.app.get('discordClient').users.fetch(id);
         res.json({ id: user.id, tag: user.tag, avatar: user.displayAvatarURL({ extension: 'png' }) });
     } catch { res.status(404).json({ error: 'Not found' }); }
 });
@@ -308,7 +316,18 @@ router.get('/leaderboard', requireAdmin, (_req, res) => res.redirect('/leaderboa
 router.get('/vault', requireAdmin, (_req, res) => res.redirect('/vault'));
 
 router.post('/mod-action', requireAdmin, validateCsrf, async (req, res) => {
-    const { userId, reason, action, duration } = req.body;
+    const parsed = parseModActionBody(req.body);
+    if (!parsed.ok) {
+        const key = {
+            invalidUserId: 'admin.invalidUserId',
+            invalidAction: 'admin.invalidAction',
+            invalidDuration: 'admin.invalidDuration',
+            invalidReason: 'admin.invalidReason',
+        }[parsed.error] || 'admin.modError';
+        return res.status(400).send(req.t(key, { msg: parsed.error }));
+    }
+
+    const { userId, reason, action, duration } = parsed;
     const client = req.app.get('discordClient');
     try {
         const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID);
@@ -316,7 +335,7 @@ router.post('/mod-action', requireAdmin, validateCsrf, async (req, res) => {
         if (!member) return res.status(404).send(req.t('admin.userNotFound'));
         let logMsg = '';
         if (action === 'timeout') {
-            await member.timeout(parseInt(duration, 10) * 60 * 1000, reason);
+            await member.timeout(duration * 60 * 1000, reason);
             logMsg = `TIMEOUT: ${member.user.tag} (${duration}m)`;
         } else if (action === 'kick') {
             await member.kick(reason);
@@ -333,27 +352,62 @@ router.post('/mod-action', requireAdmin, validateCsrf, async (req, res) => {
 });
 
 router.post('/save-config', requireAdmin, validateCsrf, (req, res) => {
-    const { logs, announce, welcome, spotlight, feedback } = req.body;
-    if (logs) setChannel('logs', logs);
-    if (announce) setChannel('announce', announce);
-    if (welcome) setChannel('welcome', welcome);
-    if (spotlight) setChannel('spotlight', spotlight);
-    if (feedback) setChannel('feedback', feedback);
+    const fields = ['logs', 'announce', 'welcome', 'spotlight', 'feedback'];
+    for (const key of fields) {
+        const raw = req.body[key];
+        if (!raw) continue;
+        if (!isDiscordSnowflake(String(raw))) {
+            return res.status(400).send(req.t('admin.invalidChannelId'));
+        }
+        setChannel(key, String(raw).trim());
+    }
     addLiveLog('CONFIG', req.t('admin.configUpdated'));
     res.redirect(adminUrl('/'));
 });
 
-router.post('/send-announce', requireAdmin, validateCsrf, upload.single('footerImage'), async (req, res) => {
-    const { message, chanId } = req.body;
-    try {
-        const channel = await req.app.get('discordClient').channels.fetch(chanId);
-        const payload = { content: message };
-        if (req.file) payload.files = [{ attachment: req.file.path, name: 'broadcast.png' }];
-        await channel.send(payload);
-        if (req.file) fs.unlinkSync(req.file.path);
-        addLiveLog('BROADCAST', `Signal > #${channel.name}`);
-        res.redirect(adminUrl('/'));
-    } catch (e) { res.status(500).send(req.t('admin.broadcastError', { msg: e.message })); }
-});
+router.post(
+    '/send-announce',
+    requireAdmin,
+    validateCsrf,
+    (req, res, next) => {
+        broadcastUpload.single('footerImage')(req, res, (err) => {
+            if (err) return handleBroadcastUploadError(err, req, res, next);
+            next();
+        });
+    },
+    async (req, res) => {
+        const message = typeof req.body.message === 'string' ? req.body.message.trim() : '';
+        const chanId = normalizeSnowflake(req.body.chanId);
+        const channels = getConfig().channels || {};
+
+        const cleanupUpload = () => {
+            if (req.file?.path && fs.existsSync(req.file.path)) {
+                try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+            }
+        };
+
+        if (!message || message.length > MAX_BROADCAST_MESSAGE_LENGTH) {
+            cleanupUpload();
+            return res.status(400).send(req.t('admin.invalidBroadcastMessage'));
+        }
+        if (!chanId || !isBroadcastChannelAllowed(chanId, channels)) {
+            cleanupUpload();
+            return res.status(403).send(req.t('admin.channelNotAllowed'));
+        }
+
+        try {
+            const channel = await req.app.get('discordClient').channels.fetch(chanId);
+            const payload = { content: message };
+            if (req.file) payload.files = [{ attachment: req.file.path, name: 'broadcast.png' }];
+            await channel.send(payload);
+            cleanupUpload();
+            addLiveLog('BROADCAST', `Signal > #${channel.name}`);
+            res.redirect(adminUrl('/'));
+        } catch (e) {
+            cleanupUpload();
+            res.status(500).send(req.t('admin.broadcastError', { msg: e.message }));
+        }
+    },
+);
 
 export default router;

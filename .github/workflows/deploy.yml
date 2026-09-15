@@ -14,8 +14,8 @@ jobs:
       - name: 🚚 Transfert des fichiers
         uses: SamKirkland/FTP-Deploy-Action@v4.3.4
         with:
-          server: oafw0766.odns.fr
-          username: oafw0766
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./
           server-dir: ./peaxel-bot/ 
@@ -32,13 +32,13 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         continue-on-error: true
         with:
-          host: oafw0766.odns.fr
-          username: oafw0766
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           timeout: 15s
           script: |
-            cd /home/oafw0766/peaxel-bot
-            source /home/oafw0766/nodevenv/peaxel-bot/20/bin/activate
+            cd /home/${{ secrets.SSH_USER }}/peaxel-bot
+            source /home/${{ secrets.SSH_USER }}/nodevenv/peaxel-bot/20/bin/activate
             npm install --production
             touch tmp/restart.txt

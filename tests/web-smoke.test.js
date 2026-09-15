@@ -183,3 +183,36 @@ describe('escapeHtml', () => {
         assert.equal(escapeHtml('a & b'), 'a &amp; b');
     });
 });
+
+describe('discordValidation', () => {
+    it('accepts valid snowflakes and rejects garbage', async () => {
+        const { isDiscordSnowflake, parseModActionBody, isBroadcastChannelAllowed } = await import('../src/utils/discordValidation.js');
+        assert.equal(isDiscordSnowflake('1369976257047167059'), true);
+        assert.equal(isDiscordSnowflake('abc'), false);
+        assert.equal(isDiscordSnowflake('123'), false);
+
+        const bad = parseModActionBody({ userId: 'x', action: 'ban', reason: 'spam' });
+        assert.equal(bad.ok, false);
+
+        const timeout = parseModActionBody({
+            userId: '1369976257047167059',
+            action: 'timeout',
+            duration: '999',
+            reason: 'spam',
+        });
+        assert.equal(timeout.ok, false);
+        assert.equal(timeout.error, 'invalidDuration');
+
+        const ok = parseModActionBody({
+            userId: '1369976257047167059',
+            action: 'kick',
+            reason: 'spam',
+        });
+        assert.equal(ok.ok, true);
+        assert.equal(ok.action, 'kick');
+
+        const channels = { announce: '1369976257047167059', logs: null };
+        assert.equal(isBroadcastChannelAllowed('1369976257047167059', channels), true);
+        assert.equal(isBroadcastChannelAllowed('999999999999999999', channels), false);
+    });
+});

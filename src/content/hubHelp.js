@@ -1,11 +1,11 @@
 /**
  * Contenu d’aide Hub — partagé entre /help Discord et la FAQ landing.
- * Discord : topics EN (slash commands EN).
- * Landing : FAQ bilingue via i18n (home.faq / faq).
+ * Discord : topics EN/FR selon interaction.locale.
  */
 
-/** Topics Discord pour le menu /help */
-export const HELP_TOPICS = {
+import { discordLang } from '../utils/discordLocale.js';
+
+const HELP_TOPICS_EN = {
     hub_xp: {
         title: '⚡ Hub XP & Levels',
         color: 0x22d3ee,
@@ -167,7 +167,169 @@ export const HELP_TOPICS = {
     },
 };
 
-export const HELP_MENU_OPTIONS = [
+const HELP_TOPICS_FR = {
+    hub_xp: {
+        title: '⚡ XP Hub & niveaux',
+        color: 0x22d3ee,
+        description:
+            'Le **Peaxel Hub Pass** suit ton activité communauté sur Discord.\n'
+            + 'Gagne de l’XP → monte de niveau → titres de **Rookie** à **Hall of Fame**.',
+        fields: [
+            {
+                name: 'Comment marche l’XP',
+                value:
+                    '• Messages : **15–25 XP** (max 1 / 60 s — anti-farm)\n'
+                    + '• `/daily` : **+40 XP** (1× / jour Paris)\n'
+                    + '• Tâches défi hebdo : **+25 XP** chacune\n'
+                    + '• Quête hebdo complète : **+100 XP**\n'
+                    + '• Feedback : **+30** · Quiz join : **+15** · Quiz win : **+50**\n'
+                    + '• Giveaway : **+10** · #1 hebdo : **+150**',
+            },
+            {
+                name: 'Où suivre',
+                value:
+                    '• Discord : `/rank` — niveau, XP GW, streak, cartes pending\n'
+                    + '• Web : [Hub Peaxel `/app`](https://peaxel.genefty.com/app) après login Discord',
+            },
+        ],
+    },
+    hub_daily: {
+        title: '☀️ Daily Connect & streaks',
+        color: 0xfbbf24,
+        description:
+            'Claim 1× / jour (**Europe/Paris**). Un message serveur est requis avant.',
+        fields: [
+            {
+                name: 'Comment claim',
+                value:
+                    '1. Envoie **au moins un message** sur le Discord aujourd’hui\n'
+                    + '2. Lance **`/daily`**\n'
+                    + '3. Reçois **+40 XP Hub** et garde ton streak',
+            },
+            {
+                name: 'Jalons streak',
+                value:
+                    '• **7 jours** → +100 XP + carte Athlete\n'
+                    + '• **14 jours** → +200 XP + carte Athlete\n'
+                    + '• **30 jours** → +500 XP + carte Athlete\n'
+                    + '_Un jour manqué → streak remis à 1._',
+            },
+        ],
+    },
+    hub_challenges: {
+        title: '🎯 Défis hebdo',
+        color: 0xa855f7,
+        description:
+            'Chaque **lundi**, de nouvelles missions apparaissent sur le Hub (`/app`) et sont **auto-validées** depuis Discord.',
+        fields: [
+            {
+                name: 'Ce que tu gagnes',
+                value:
+                    '• **3 missions rotatives** + quête fixe **« envoyer 10 messages »**\n'
+                    + '• **+25 XP** / tâche · **+100 XP** quand tout est fait\n'
+                    + '• La quête complète donne aussi une **carte Athlete pending**',
+            },
+            {
+                name: 'Exemples de missions',
+                value:
+                    '`/daily` ×3 · quiz · giveaway · feedback · reacts · welcome · partager une carte · GW react…',
+            },
+            {
+                name: 'Preuve de claim',
+                value:
+                    'Une fois terminé, capture ton panel Hub (tampon PEAXEL HUB + GW + pseudo) et ouvre un ticket Discord si le staff le demande.',
+            },
+        ],
+    },
+    hub_vault: {
+        title: '🃏 Coffre de cartes',
+        color: 0x34d399,
+        description:
+            'Les cartes gagnées arrivent dans ton **coffre Hub** jusqu’au claim.',
+        fields: [
+            {
+                name: 'Comment gagner des cartes',
+                value:
+                    '• Finir la **quête hebdo**\n'
+                    + '• Atteindre un jalon **streak daily** (7 / 14 / 30)\n'
+                    + '• Gagner le **Scout Quiz**\n'
+                    + '• Finir **#1** au classement XP hebdo',
+            },
+            {
+                name: 'Comment claim',
+                value:
+                    '1. Ouvre [Hub `/app`](https://peaxel.genefty.com/app) → **Coffre**\n'
+                    + '2. Clique **Réclamer**\n'
+                    + '3. Ouvre un ticket Discord avec capture Hub — le staff livre la carte',
+            },
+        ],
+    },
+    hub_leaderboard: {
+        title: '🏆 Classement GW',
+        color: 0xf472b6,
+        description:
+            'L’XP gagnée **cette Gameweek** forme le classement Hub (pas l’XP lifetime).',
+        fields: [
+            {
+                name: 'Champion hebdo',
+                value:
+                    '• Top 10 sur `/app` · aperçu dans `/rank`\n'
+                    + '• **#1** chaque dimanche soir → **+150 XP** + carte Athlete\n'
+                    + '• Annoncé sur Discord après la clôture de la GW',
+            },
+        ],
+    },
+    hub_commands: {
+        title: '🤖 Commandes Hub',
+        color: 0x818cf8,
+        description: 'Slash commands utiles sur ce Discord :',
+        fields: [
+            {
+                name: 'Progression',
+                value:
+                    '• `/daily` — claim XP du jour (message requis)\n'
+                    + '• `/rank [user]` — niveau, XP GW, streak, coffre\n'
+                    + '• `/help` — ce menu',
+            },
+            {
+                name: 'Communauté & jeu',
+                value:
+                    '• `/scoutQuiz` — lancer / rejoindre le quiz\n'
+                    + '• `/how-to-play` — règles Peaxel (lineups & scoring)\n'
+                    + '• `/feedback` — laisser un feedback si dispo',
+            },
+            {
+                name: 'Hub web',
+                value: '[peaxel.genefty.com/app](https://peaxel.genefty.com/app) — défis, coffre, classement, rappel GW.',
+            },
+        ],
+    },
+    hub_faq: {
+        title: '❓ FAQ Hub',
+        color: 0x94a3b8,
+        description: 'Réponses rapides sur le Community Hub :',
+        fields: [
+            {
+                name: 'Pourquoi je ne peux pas `/daily` ?',
+                value: 'Tu dois envoyer **un message Discord aujourd’hui** (fuseau Paris) avant de claim.',
+            },
+            {
+                name: 'Est-ce que j’ai une carte au level-up ?',
+                value: 'Non — les cartes viennent des quêtes, streaks, quiz wins et du #1 hebdo.',
+            },
+            {
+                name: 'Quand le classement hebdo reset ?',
+                value: 'À chaque nouvelle Gameweek (lundi). La récompense podium est le dimanche soir.',
+            },
+            {
+                name: 'L’XP message est-elle illimitée ?',
+                value: 'Non — **un message toutes les 60 secondes** donne de l’XP (15–25).',
+            },
+        ],
+    },
+};
+
+const HELP_MENU_OPTIONS_EN = [
     { label: 'Hub XP & Levels', description: 'Earn XP, levels & titles.', value: 'hub_xp', emoji: '⚡' },
     { label: 'Daily & Streaks', description: '/daily, milestones, cards.', value: 'hub_daily', emoji: '☀️' },
     { label: 'Weekly Challenges', description: 'Missions & quest rewards.', value: 'hub_challenges', emoji: '🎯' },
@@ -181,4 +343,29 @@ export const HELP_MENU_OPTIONS = [
     { label: 'Review Peaxel', description: 'Trustpilot + Zealy XP.', value: 'link_trustpilot', emoji: '⭐' },
 ];
 
-/** Discord select menus max 25 options — we have 11, OK. Max 5 if we need to split — fine. */
+const HELP_MENU_OPTIONS_FR = [
+    { label: 'XP Hub & niveaux', description: 'XP, niveaux & titres.', value: 'hub_xp', emoji: '⚡' },
+    { label: 'Daily & streaks', description: '/daily, jalons, cartes.', value: 'hub_daily', emoji: '☀️' },
+    { label: 'Défis hebdo', description: 'Missions & récompenses.', value: 'hub_challenges', emoji: '🎯' },
+    { label: 'Coffre de cartes', description: 'Gagner & claimer des cartes.', value: 'hub_vault', emoji: '🃏' },
+    { label: 'Classement GW', description: 'XP hebdo & prix #1.', value: 'hub_leaderboard', emoji: '🏆' },
+    { label: 'Commandes Hub', description: 'Slash commands & /app.', value: 'hub_commands', emoji: '🤖' },
+    { label: 'FAQ Hub', description: 'Questions fréquentes.', value: 'hub_faq', emoji: '❓' },
+    { label: 'Comment jouer', description: 'Guide officiel du jeu.', value: 'link_play', emoji: '🎮' },
+    { label: 'Cartes & rareté', description: 'Docs cartes Athlete.', value: 'link_cards', emoji: '💎' },
+    { label: 'Support / Ace AI', description: 'Parler à Ace.', value: 'link_support', emoji: '🛠️' },
+    { label: 'Avis Peaxel', description: 'Trustpilot + XP Zealy.', value: 'link_trustpilot', emoji: '⭐' },
+];
+
+/** @deprecated Prefer getHelpTopics(locale) */
+export const HELP_TOPICS = HELP_TOPICS_EN;
+/** @deprecated Prefer getHelpMenuOptions(locale) */
+export const HELP_MENU_OPTIONS = HELP_MENU_OPTIONS_EN;
+
+export function getHelpTopics(locale) {
+    return discordLang(locale) === 'fr' ? HELP_TOPICS_FR : HELP_TOPICS_EN;
+}
+
+export function getHelpMenuOptions(locale) {
+    return discordLang(locale) === 'fr' ? HELP_MENU_OPTIONS_FR : HELP_MENU_OPTIONS_EN;
+}

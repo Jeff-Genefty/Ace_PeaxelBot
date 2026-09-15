@@ -5,7 +5,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import session from 'express-session';
-import createMemoryStore from 'memorystore';
+import sessionFileStore from 'session-file-store';
 import cookieParser from 'cookie-parser';
 import cron from 'node-cron';
 import analyticsRoutes from './routes/analytics.js';
@@ -24,7 +24,6 @@ import { joinGiveaway } from './web/services/giveawayService.js';
 import { invalidateStatsCache } from './web/services/statsService.js';
 import { updateJsonSync } from './utils/jsonStore.js';
 import { getRole } from './utils/configManager.js';
-import { registerCommands } from './register-commands.js';
 
 // Utility Imports
 import { initScheduler } from './scheduler.js';
@@ -35,7 +34,7 @@ import { registerMemberJoinHandler } from './handlers/memberJoinHandler.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
 import { handleChallengeMessage, handleChallengeReaction, handleChallengeGiveawayJoin } from './handlers/challengeTracker.js';
 
-const MemoryStore = createMemoryStore(session);
+const FileStore = sessionFileStore(session);
 
 config();
 
@@ -105,12 +104,20 @@ app.use(cookieParser());
 if (!isProd && !process.env.SESSION_SECRET) {
     console.warn(`${logPrefix} ⚠️ SESSION_SECRET absent — utilisation d'une clé de dev (non production).`);
 }
+const sessionsDir = resolve('./data/sessions');
+if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
+
 app.use(session({
     secret: process.env.SESSION_SECRET || 'cyber-secret-key-dev-only',
     resave: false,
     saveUninitialized: false,
     proxy: isProd,
-    store: new MemoryStore({ checkPeriod: 24 * 60 * 60 * 1000 }),
+    store: new FileStore({
+        path: sessionsDir,
+        ttl: 3600,
+        retries: 1,
+        logFn: () => {},
+    }),
     cookie: { maxAge: 3600000, secure: isProd, httpOnly: true, sameSite: 'lax' }
 }));
 
@@ -288,13 +295,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         app.listen(PORT, () => console.log(`${logPrefix} Web v2 active on port ${PORT} (admin: /${getAdminPath()})`));
 
         await loadCommands();
-
-        try {
-            await registerCommands();
-        } catch (err) {
-            console.error(`${logPrefix} Slash command sync failed:`, err.message);
-        }
-
+        // Slash commands : sync manuelle uniquement → npm run register-commands
         await client.login(process.env.DISCORD_TOKEN);
     } catch (error) { 
         console.error(`${logPrefix} Critical Startup Error:`, error.message); 

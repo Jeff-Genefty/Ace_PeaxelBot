@@ -9,6 +9,7 @@ import {
     exchangeDiscordCode,
     fetchDiscordUser,
     formatDiscordUser,
+    isPeaxelGuildMember,
 } from '../services/discordAuth.js';
 import { gatherPublicStats } from '../services/statsService.js';
 import { gatherAppDashboard } from '../services/appDashboardService.js';
@@ -75,6 +76,11 @@ router.get('/', async (req, res) => {
     const client = req.app.get('discordClient');
     const loginRequired = req.query.login === 'required';
     const oauthError = req.query.error;
+    const oauthAlert = oauthError === 'not_member'
+        ? `<div class="alert alert-error">${t('home.oauthNotMember')}</div>`
+        : oauthError
+            ? `<div class="alert alert-error">${t('home.oauthError')}</div>`
+            : '';
     const featuredCards = getFeaturedCards(8);
     const discordUser = req.session.discordUser || null;
     const publicStats = await gatherPublicStats(client, locale, discordUser?.id);
@@ -100,7 +106,7 @@ router.get('/', async (req, res) => {
             <p class="hero-lead">${t('home.subtitle')}</p>
             <div class="hero-actions">
                 ${loginRequired ? `<div class="alert alert-info">${t('home.loginRequired')}</div>` : ''}
-                ${oauthError ? `<div class="alert alert-error">${t('home.oauthError')}</div>` : ''}
+                ${oauthAlert}
                 ${discordUser
         ? `<a href="/app" class="btn btn-primary btn-glow">${t('meta.hubApp')}</a>`
         : `<a href="/auth/discord" class="btn btn-discord btn-glow">
@@ -163,6 +169,11 @@ router.get('/auth/discord/callback', async (req, res) => {
         }
         const tokenData = await exchangeDiscordCode(req, code);
         const user = await fetchDiscordUser(tokenData.access_token);
+        const client = req.app.get('discordClient');
+        const isMember = await isPeaxelGuildMember(client, user.id);
+        if (!isMember) {
+            return res.redirect('/?error=not_member');
+        }
         initSessionCsrf(req.session);
         req.session.discordUser = formatDiscordUser(user);
         req.session.save((err) => {

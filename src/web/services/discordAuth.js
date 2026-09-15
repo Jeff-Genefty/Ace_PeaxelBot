@@ -22,9 +22,17 @@ export function createOAuthState(session) {
 }
 
 export function validateOAuthState(session, state) {
-    if (!session.oauthState || !state || session.oauthState !== state) return false;
+    const expected = session.oauthState;
     delete session.oauthState;
-    return true;
+    if (!expected || !state || typeof state !== 'string') return false;
+    try {
+        const a = Buffer.from(expected, 'utf8');
+        const b = Buffer.from(state, 'utf8');
+        if (a.length !== b.length) return false;
+        return crypto.timingSafeEqual(a, b);
+    } catch {
+        return false;
+    }
 }
 
 export function getDiscordAuthUrl(req, state) {
@@ -32,7 +40,7 @@ export function getDiscordAuthUrl(req, state) {
         client_id: process.env.DISCORD_CLIENT_ID,
         redirect_uri: getDiscordRedirectUri(req),
         response_type: 'code',
-        scope: 'identify guilds',
+        scope: 'identify',
         state,
     });
     return `https://discord.com/api/oauth2/authorize?${params}`;
@@ -76,4 +84,19 @@ export function formatDiscordUser(user) {
         tag: user.discriminator === '0' ? user.username : `${user.username}#${user.discriminator}`,
         avatarUrl,
     };
+}
+
+/**
+ * Vérifie que l'utilisateur est membre de la guild Peaxel (via le bot).
+ */
+export async function isPeaxelGuildMember(client, userId) {
+    const guildId = process.env.DISCORD_GUILD_ID;
+    if (!client || !guildId || !userId) return false;
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        const member = await guild.members.fetch(userId).catch(() => null);
+        return Boolean(member);
+    } catch {
+        return false;
+    }
 }

@@ -28,7 +28,6 @@ export const XP_REWARDS = {
     quiz_join: 15,
     quiz_win: 50,
     giveaway: 10,
-    react: 5,
 };
 
 /** Jalons streak daily → bonus XP (+ carte optionnelle) */
