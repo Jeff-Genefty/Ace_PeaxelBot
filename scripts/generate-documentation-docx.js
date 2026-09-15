@@ -315,7 +315,7 @@ const doc = new Document({
             heading('11. Pas encore livré (roadmap — à mentionner en « next »)'),
             bullet('Liaison Discord ↔ compte Peaxel (/link)'),
             bullet('GW Check-in lineup (bouton opening + XP)'),
-            bullet('Lineup Show & Tell · Prediction Challenge Discord'),
+            bullet('Lineup Show & Tell'),
             bullet('Rôles dynamiques top XP'),
             bullet('Attribution cartes auto via API game.peaxel.me'),
             bullet('File admin claims avancée / config no-code'),

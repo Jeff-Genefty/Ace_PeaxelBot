@@ -300,15 +300,33 @@ client.on(Events.InteractionCreate, async (interaction) => {
 });
 
 // --- STARTUP ---
+let httpServer = null;
+
+async function shutdown(signal) {
+    console.log(`${logPrefix} ${signal} reçu — arrêt propre…`);
+    try {
+        if (httpServer) {
+            await new Promise((resolve) => httpServer.close(() => resolve()));
+        }
+        if (client.isReady()) await client.destroy();
+    } catch (err) {
+        console.error(`${logPrefix} Erreur pendant l'arrêt:`, err.message);
+    }
+    process.exit(0);
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 (async () => {
     try {
-        // Dashboard listening first
-        app.listen(PORT, () => console.log(`${logPrefix} Web v2 active on port ${PORT} (admin: /${getAdminPath()})`));
+        httpServer = app.listen(PORT, () => console.log(`${logPrefix} Web v2 active on port ${PORT} (admin: /${getAdminPath()})`));
 
         await loadCommands();
         // Slash commands : sync manuelle uniquement → npm run register-commands
         await client.login(process.env.DISCORD_TOKEN);
-    } catch (error) { 
-        console.error(`${logPrefix} Critical Startup Error:`, error.message); 
+    } catch (error) {
+        console.error(`${logPrefix} Critical Startup Error:`, error.message);
+        process.exit(1);
     }
 })();

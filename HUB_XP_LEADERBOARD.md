@@ -71,9 +71,8 @@ Helper : `src/utils/hubFooter.js` → `applyHubFooter(embed, kind)`
 
 1. **GW Check-in** — bouton lineup opening (+50 XP)
 2. **Lineup Show & Tell**
-3. **Prediction Challenge** Discord
-4. Rôles dynamiques top XP
-5. File admin claims + API Peaxel
+3. Rôles dynamiques top XP
+4. File admin claims + API Peaxel
 
 ---
 

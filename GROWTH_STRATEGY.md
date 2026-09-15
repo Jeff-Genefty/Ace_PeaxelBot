@@ -61,7 +61,6 @@
 | 02 | 1ère GW | 1 carte bonus à la première participation | In-game auto | ✅ Actif | Activation critique — 50 % des inscrits ne jouent pas |
 | 03 | Zealy Quests | Quêtes hebdo → XP + cartes | zealy.io/cw/peaxel-quest | ✅ Actif | Rétention + tâches sociales — sync Discord à automatiser |
 | 04 | Discord | Giveaways, quiz, trivia, rewards chat | Discord + bot | ✅ Actif | Hub communautaire — conversion non mesurée |
-| 05 | X Predictions | @Peaxel8888 — 3 niveaux difficulté, 1–3 cartes | X/Twitter | ✅ Actif | Acquisition externe — pas encore miroir Discord |
 
 > Page dédiée bien structurée : [peaxel.me/win-freecards-on-peaxel](https://peaxel.me/win-freecards-on-peaxel/)
 
@@ -111,7 +110,7 @@
 | **Jeu game.peaxel.me** | Live GW, marché actif, multilingue | Pas de pop-up Discord post-signup | Onboarding in-game, referral natif | Cloudflare friction bots |
 | **Discord** | Bot Ace mature, cycle GW automatisé, rewards chat | ~314 membres, pas de lien compte jeu | Server Discovery, Season Pass | Serveurs concurrents fantasy |
 | **Zealy** | Quêtes structurées, XP + cartes | Liens incohérents dans le bot (`c/peaxel` vs `cw/peaxel-quest`) | Sync auto avec bot Discord | Fatigue quêtes si répétitives |
-| **X** | Prediction Challenges hebdo, @Peaxel8888 | Portée à mesurer | Threads GW, clips viraux | Algorithmes, concurrence |
+| **X** | Contenu organique @Peaxel8888 | Portée à mesurer | Threads GW, clips viraux | Algorithmes, concurrence |
 | **Docs + Ace AI** | Playbook complet, support 24/7 | Docs datées (9 mois) | Intégrer Ace dans onboarding Discord | — |
 | **Marque** | Personnage Ace fort, identité visuelle | Listings Discord parlent encore « Web3/NFT/beta » | Unifier messaging F2P partout | Confusion Web3 vs F2P |
 
@@ -126,7 +125,6 @@
 | I5 | Aucun tracking UTM | Liens bot, Discord, Zealy | Impossible mesurer ROI canaux | UTM systématiques |
 | I6 | Discord ↔ jeu déconnectés | Pas de `/link` | Giveaways non ciblés, pas de recap perso | → ROADMAP 1.5 |
 | I7 | Récompenses manuelles | Tickets `#claim` | Friction, lenteur, churn post-win | → ROADMAP 4.18 API rewards |
-| I8 | Predictions X seulement | Pas de thread Discord | 50 % de l'engagement hebdo hors Discord | → ROADMAP 1.13 |
 
 ---
 
@@ -166,7 +164,6 @@
 | Pas de GW Check-in | Pas de streak, giveaways non ciblés | P0 | 1.11, 1.12 |
 | Zealy manuel (XP admin) | Friction, erreurs, scale impossible | P1 | 2.19–2.24 |
 | Quiz sans leaderboard saison | Moins de compétition long terme | P1 | 1.15, 2.25 |
-| Predictions pas sur Discord | Canal X isolé du hub | P1 | 1.13 |
 | Rewards via tickets manuels | Délai claim → frustration | P1 | 4.18 |
 | Pas de recap GW personnalisé | Occasion rétention manquée | P2 | 4.16 |
 | Analytics funnel non mesuré | Décisions à l'aveugle | P0 | 3.8 |
@@ -266,7 +263,7 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 | G1.1 | **Programme ambassadeurs athlètes** — lien `game.peaxel.me/?talent=xxx` tracké | ⬜ À faire | 200+ micro-influenceurs — levier #1 |
 | G1.2 | Kit ambassadeur : visuels, bio link, script story, QR event | ⬜ À faire | Template Canva + Notion |
 | G1.3 | TikTok/Reels : Pick of the Week, clutch GW, underrated athletes | ⬜ À faire | 3 posts/sem. — reprendre contenu spotlight bot |
-| G1.4 | Threads X hebdo : preview GW, résultats, meta picks | ⬜ À faire | Aligné @Peaxel8888 Prediction Challenge |
+| G1.4 | Threads X hebdo : preview GW, résultats, meta picks | ⬜ À faire | Contenu organique @Peaxel8888 |
 | G1.5 | SEO : pages par sport (BMX fantasy, skate fantasy, MMA fantasy…) | ⬜ À faire | Long tail action sports sur peaxel.me |
 | G1.6 | Guest posts / podcasts action sports FR + EN | ⬜ À faire | 2/mois |
 | G1.7 | Reddit — communautés sport + fantasy (valeur d'abord) | ⬜ À faire | AMA trimestriel |
@@ -373,7 +370,6 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 |---|-------|--------|-------|
 | G3.7 | Scout Quiz — teaser lundi soir + leaderboard saison | ⬜ À faire | → ROADMAP 1.14–1.15 |
 | G3.8 | Spotlight — CTA « ajoute à ta lineup avant jeudi » | ⬜ À faire | Lien fiche athlète game.peaxel.me |
-| G3.9 | Prediction Challenge — thread Discord miroir X | ⬜ À faire | → ROADMAP 1.13 · @Peaxel8888 |
 | G3.10 | Giveaway — éligibilité = verified + GW soumise | ⬜ À faire | → ROADMAP 2.5 |
 | G3.11 | Coach Ace messages contextuels (jour GW) | ⬜ À faire | → ROADMAP 2.7 |
 
@@ -421,7 +417,7 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 | G4.9 | Card Drop Events + Flash Drops (15 min avant) | ⬜ À faire | → ROADMAP 2.10–2.11 |
 | G4.10 | Vote « Athlète de la semaine » | ⬜ À faire | → ROADMAP 2.3 |
 | G4.11 | Lineup Show & Tell `#lineups` | ⬜ À faire | → ROADMAP 2.9 |
-| G4.12 | Leaderboards : quiz, streaks, predictions, activité | ⬜ À faire | → ROADMAP 2.25–2.28 |
+| G4.12 | Leaderboards : quiz, streaks, activité | ⬜ À faire | → ROADMAP 2.25–2.28 |
 
 ### Modération & culture
 
@@ -489,7 +485,6 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 | **Lundi** | 18:00 | Thread « Qui tu picks ? » | `#lineups` | — |
 | **Mardi** | 19:00 | Scout Quiz (bot) | `#quiz-zone` | — |
 | **Mercredi** | 16:00 | Athlete Spotlight (bot) | `#spotlight` | Fiche athlète |
-| **Mercredi** | 20:00 | Prediction Challenge | X @Peaxel8888 + `#predictions` | — |
 | **Jeudi** | 18:59 | Closing — 5h restantes (bot) | `#announcements` | game.peaxel.me |
 | **Jeudi** | 22:00 | « Dernière chance » ping verified | `#announcements` | — |
 | **Vendredi** | — | Compilation meilleures lineups | `#lineups` | Social proof |
@@ -507,7 +502,7 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 | **game.peaxel.me** | `?talent=` athlètes | Inscription, 1ère GW | GW, marché, CashWallet | Referral, partage lineup | — |
 | **Discord** | Discovery, giveaways | Welcome, `/how-to-play` | Quiz, GW cycle, drops | UGC, MVP | discord.com/invite/p2K6kquXHU |
 | **Zealy** | Quêtes invite | 1ère GW, Trustpilot | Quêtes hebdo | Leaderboard mensuel | cw/peaxel-quest |
-| **X** | Predictions, threads | Lien signup | Résultats live | RT concours | @Peaxel8888 |
+| **X** | Threads, clips, acquisition | Lien signup | Résultats live | RT concours | @Peaxel8888 |
 | **Docs** | SEO long tail | Playbook complet | Référence scoring | — | docs.peaxel.me |
 | **Ace AI** | — | Support onboarding | FAQ 24/7 | — | ace.peaxel.me |
 | **Athlètes** | Stories, bio links | « Joue avec moi » | Updates perf | Co-content | ?talent=xxx |
@@ -527,7 +522,6 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 | GE6 | Referral in-app + quête Zealy invite | M | 🟠 Élevé | ⬜ À faire |
 | GE7 | Contenu TikTok/Reels + threads X hebdo | M | 🟠 Élevé | ⬜ À faire |
 | GE8 | Zealy auto-sync + unification liens | M | 🟠 Élevé | ⬜ À faire |
-| GE9 | Predictions Discord miroir X | S | 🟠 Élevé | ⬜ À faire |
 | GE10 | Season Pass + Duel Manager | L | 🟡 Moyen | ⬜ À faire |
 | GE11 | Ads payantes test (Meta + TikTok) | M | 🟡 Moyen | ⬜ À faire |
 | GE12 | Espace web joueur (profil, leaderboards) | L | 🟡 Moyen | ⬜ À faire |
@@ -561,7 +555,7 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 | **S1** | UTM partout · corriger lien Zealy bot · baseline KPIs · `#start-here` | Tech + Growth |
 | **S2** | Restructuration salons Discord · calendrier éditorial · 10 liens athlètes actifs | Community |
 | **S3** | Vidéo onboarding 90 sec · A/B welcome · campagne Trustpilot · update listings Discord | Content |
-| **S4** | GW Check-in manuel · thread predictions Discord · 4 posts TikTok · quête Zealy invite | Product + Social |
+| **S4** | GW Check-in manuel · 4 posts TikTok · quête Zealy invite | Product + Social |
 
 ---
 
@@ -600,7 +594,6 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 
 🎮 JEU
   #lineups                — Partage & discussion GW
-  #predictions            — Challenge hebdo (miroir X)
   #spotlight              — Athlète de la semaine (bot)
   #quiz-zone              — Scout Quiz (bot)
 
@@ -640,11 +633,6 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 
 ### Closing GW
 > **⏱️ 5 heures restantes.** Pas encore de lineup ? L'Autoplay Ace peut t'aider jusqu'à mercredi. [Soumettre →](https://game.peaxel.me)
-
-### Prediction Challenge (Discord + X)
-> **Challenge GW {N}** — 3 niveaux :
-> 🟢 Facile (1 carte) · 🟡 Moyen (2 cartes) · 🔴 Difficile (3 cartes)
-> Réponds avec ta prédiction + ton pseudo Peaxel. Follow @Peaxel8888 sur X.
 
 ### Réactivation churn
 > Hey Manager, tu as manqué 2 GW. On te prête une carte pour te remettre dans la course. Prochaine deadline : jeudi. [Revenir jouer →](https://game.peaxel.me)

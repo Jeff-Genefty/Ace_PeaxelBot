@@ -102,7 +102,6 @@
 |---|-------|--------|-------|
 | 1.11 | **GW Check-in** — bouton « J'ai soumis ma lineup » dans annonce opening | ⬜ À faire | |
 | 1.12 | Streak GW check-in (4 GW consécutives = récompense) | ⬜ À faire | |
-| 1.13 | **Prediction Challenge Discord** — thread hebdo (aligné X) | ⬜ À faire | |
 
 ### Dashboard améliorations
 
@@ -164,7 +163,6 @@
 |---|-------|--------|-------|
 | 2.25 | Leaderboard quiz (Discord + web) | ⬜ À faire | |
 | 2.26 | Leaderboard streaks GW | ⬜ À faire | |
-| 2.27 | Leaderboard predictions | ⬜ À faire | |
 | 2.28 | Leaderboard activité communautaire | ⬜ À faire | |
 
 ---
@@ -200,7 +198,7 @@
 |---|-------|--------|-------|
 | 3.14 | Page profil — lien Discord ↔ Peaxel, badges, streaks | ⬜ À faire | |
 | 3.15 | Page stats — quiz gagnés, drops, participations GW | ⬜ À faire | |
-| 3.16 | Page leaderboards — quiz, activité, predictions | ⬜ À faire | |
+| 3.16 | Page leaderboards — quiz, activité | ⬜ À faire | |
 | 3.17 | Page récompenses — historique + statut claim | ⬜ À faire | |
 | 3.18 | Page lineup preview (si API Peaxel dispo) | ⬜ À faire | |
 | 3.19 | Préférences notifications (opening, quiz, drop) | ⬜ À faire | |
@@ -227,7 +225,7 @@
 | 4.6 | `GET /users/{peaxelId}/cards` | ⬜ À faire | Collection cartes |
 | 4.7 | `GET /leaderboard/gw/{n}` | ⬜ À faire | Top managers GW |
 | 4.8 | `GET /athletes` | ⬜ À faire | Sync pool spotlight |
-| 4.9 | `GET /athletes/{id}/stats` | ⬜ À faire | Stats live quiz/predictions |
+| 4.9 | `GET /athletes/{id}/stats` | ⬜ À faire | Stats live quiz / spotlight |
 | 4.10 | `POST /rewards/grant` | ⬜ À faire | Attribuer carte/XP auto |
 | 4.11 | `POST /webhooks/subscribe` | ⬜ À faire | Events GW, results, cards |
 

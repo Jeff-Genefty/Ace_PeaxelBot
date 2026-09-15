@@ -19,7 +19,7 @@ export async function initDiscordLogger(client) {
   const channelId = getChannel('logs');
   
   if (!channelId) {
-    console.log(`${logPrefix} LOG_CHANNEL_ID not set. Discord logging disabled.`);
+    console.warn(`${logPrefix} LOG_CHANNEL_ID / config.channels.logs absent — logs Discord désactivés (définir LOG_CHANNEL_ID sur Railway).`);
     return false;
   }
   
