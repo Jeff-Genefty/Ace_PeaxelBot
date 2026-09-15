@@ -22,6 +22,7 @@ import { attachI18n } from './web/i18n/index.js';
 import { addLiveLog } from './web/services/liveLogService.js';
 import { joinGiveaway } from './web/services/giveawayService.js';
 import { invalidateStatsCache } from './web/services/statsService.js';
+import { purgeDisabledHubCards } from './web/services/hubXpService.js';
 import { updateJsonSync } from './utils/jsonStore.js';
 import { getRole } from './utils/configManager.js';
 
@@ -70,6 +71,16 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 // Initialize / sync super admin from .env
 await ensureAdminUsers();
+
+// Retire le backlog de cartes level_up (drop désactivé)
+try {
+    const purged = purgeDisabledHubCards();
+    if (purged.removed > 0) {
+        console.log(`${logPrefix} 🧹 Hub cards: purged ${purged.removed} level_up card(s) (${purged.profiles} profile(s))`);
+    }
+} catch (err) {
+    console.error(`${logPrefix} Hub card purge failed:`, err.message);
+}
 
 // --- ANALYTICS ENGINE ---
 function updateStats(updater) {

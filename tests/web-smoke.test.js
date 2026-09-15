@@ -168,6 +168,54 @@ describe('hubXpService', () => {
         wipeHubUser(testId);
     });
 
+    it('rejects and purges level_up hub cards', async () => {
+        wipeHubUser(testId);
+        const {
+            grantPendingCard,
+            claimPendingCard,
+            getHubProfile,
+            purgeDisabledHubCards,
+        } = await import('../src/web/services/hubXpService.js');
+        const { updateJsonSync } = await import('../src/utils/jsonStore.js');
+        const { join, resolve } = await import('path');
+
+        assert.equal(grantPendingCard(testId, 'level_up', { tier: 'common' }), null);
+
+        const hubFile = join(resolve('./data'), 'hub_profiles.json');
+        updateJsonSync(hubFile, {}, (all) => {
+            all[testId] = {
+                ...(all[testId] || {}),
+                pendingCards: [{
+                    id: 'lvl_1_test_abc',
+                    reason: 'level_up',
+                    level: 1,
+                    tier: 'common',
+                    createdAt: new Date().toISOString(),
+                }],
+                claimedCards: [{
+                    id: 'lvl_2_test_def',
+                    reason: 'level_up',
+                    level: 2,
+                    tier: 'common',
+                    claimedAt: new Date().toISOString(),
+                    fulfilled: false,
+                }],
+            };
+            return all;
+        });
+
+        const purged = purgeDisabledHubCards();
+        assert.ok(purged.removed >= 2);
+
+        const denied = claimPendingCard(testId, 'lvl_1_test_abc', { username: 'Tester' });
+        assert.equal(denied.ok, false);
+
+        const profile = getHubProfile(testId);
+        assert.equal((profile.pendingCards || []).some((c) => c.reason === 'level_up'), false);
+        assert.equal((profile.claimedCards || []).some((c) => c.reason === 'level_up' && !c.fulfilled), false);
+        wipeHubUser(testId);
+    });
+
     it('exposes streak milestones and weekly podium config', async () => {
         const { STREAK_MILESTONES, WEEKLY_PODIUM, weekKeyDaysAgo } = await import('../src/web/services/hubXpService.js');
         assert.equal(STREAK_MILESTONES[7].xp, 100);

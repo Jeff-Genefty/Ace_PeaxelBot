@@ -47,6 +47,63 @@ const LEVEL_TITLES = [
     'Elite', 'Captain', 'Champion', 'Legend', 'Hall of Fame',
 ];
 
+/** Raisons de carte désactivées (ex. level_up — plus de drop / claim). */
+const DISABLED_CARD_REASONS = new Set(['level_up']);
+
+function isDisabledCardReason(reason) {
+    return DISABLED_CARD_REASONS.has(reason);
+}
+
+/**
+ * Retire les cartes désactivées du coffre :
+ * - pending (non claimables)
+ * - claimed non livrées (ne pas livrer côté staff)
+ * @returns {number} nombre de cartes retirées
+ */
+function scrubDisabledCards(p) {
+    let removed = 0;
+    p.pendingCards = (p.pendingCards || []).filter((c) => {
+        if (!isDisabledCardReason(c.reason)) return true;
+        removed += 1;
+        return false;
+    });
+    p.claimedCards = (p.claimedCards || []).filter((c) => {
+        if (!isDisabledCardReason(c.reason) || c.fulfilled) return true;
+        removed += 1;
+        return false;
+    });
+    return removed;
+}
+
+/**
+ * Purge one-shot / démarrage : retire toutes les cartes level_up du backlog.
+ * @returns {{ removed: number, profiles: number }}
+ */
+export function purgeDisabledHubCards() {
+    let removed = 0;
+    let profiles = 0;
+    updateJsonSync(PROFILES_FILE, {}, (all) => {
+        for (const uid of Object.keys(all)) {
+            const p = { ...defaultProfile(), ...all[uid] };
+            if (!p.pendingCards) p.pendingCards = [];
+            if (!p.claimedCards) p.claimedCards = [];
+            if (!p.history) p.history = [];
+            const n = scrubDisabledCards(p);
+            if (n > 0) {
+                removed += n;
+                profiles += 1;
+                pushHistory(p, { type: 'admin', action: 'purge_disabled_cards', removed: n });
+            }
+            all[uid] = p;
+        }
+        return all;
+    });
+    if (removed > 0) {
+        addLiveLog('XP', `Purged ${removed} disabled card(s) across ${profiles} profile(s)`);
+    }
+    return { removed, profiles };
+}
+
 function readProfiles() {
     if (!fs.existsSync(PROFILES_FILE)) return {};
     try { return JSON.parse(readFileSync(PROFILES_FILE, 'utf-8')); } catch { return {}; }
@@ -142,9 +199,11 @@ function saveProfile(discordId, updater, meta = {}) {
         if (!current.pendingCards) current.pendingCards = [];
         if (!current.claimedCards) current.claimedCards = [];
         if (!current.history) current.history = [];
+        scrubDisabledCards(current);
         ensureWeekBucket(current);
         if (meta.username) current.username = meta.username;
         result = updater(current);
+        scrubDisabledCards(result);
         all[uid] = result;
         return all;
     });
@@ -155,8 +214,10 @@ export function getHubProfile(discordId) {
     const raw = readProfiles()[String(discordId)] || defaultProfile();
     const progress = computeLevelProgress(raw.xpTotal || 0);
     ensureWeekBucket(raw);
+    const pendingCards = (raw.pendingCards || []).filter((c) => !isDisabledCardReason(c.reason));
     return {
         ...raw,
+        pendingCards,
         ...progress,
         xpWeek: raw.xpThisWeek?.amount || 0,
         claimedDailyToday: raw.lastDailyKey === parisDayKey(),
@@ -431,6 +492,7 @@ export function claimDailyConnect(discordId, meta = {}) {
 
 /** Ajoute une carte pending (quête hebdo, etc.) */
 export function grantPendingCard(discordId, reason, extra = {}) {
+    if (isDisabledCardReason(reason)) return null;
     let card = null;
     saveProfile(discordId, (p) => {
         card = {
@@ -455,12 +517,19 @@ export function grantPendingCard(discordId, reason, extra = {}) {
 export function claimPendingCard(discordId, cardId, meta = {}) {
     let card = null;
     let ok = false;
+    let disabled = false;
 
     saveProfile(discordId, (p) => {
         const idx = (p.pendingCards || []).findIndex((c) => c.id === cardId);
         if (idx < 0) return p;
+        const pending = p.pendingCards[idx];
+        if (isDisabledCardReason(pending.reason)) {
+            p.pendingCards.splice(idx, 1);
+            disabled = true;
+            return p;
+        }
         card = {
-            ...p.pendingCards[idx],
+            ...pending,
             claimedAt: new Date().toISOString(),
             fulfilled: false,
         };
@@ -472,6 +541,7 @@ export function claimPendingCard(discordId, cardId, meta = {}) {
         return p;
     }, meta);
 
+    if (disabled) return { ok: false, reason: 'disabled' };
     if (!ok) return { ok: false, reason: 'not_found' };
 
     addLiveLog('XP', `${meta.username || discordId} claimed card ${cardId} (${card.reason})`);
@@ -541,6 +611,7 @@ export function getCardVaultOverview() {
     for (const [discordId, p] of Object.entries(all)) {
         const username = p.username || null;
         for (const card of p.pendingCards || []) {
+            if (isDisabledCardReason(card.reason)) continue;
             pending.push({
                 discordId,
                 username,
@@ -549,6 +620,7 @@ export function getCardVaultOverview() {
             });
         }
         for (const card of p.claimedCards || []) {
+            if (isDisabledCardReason(card.reason) && !card.fulfilled) continue;
             const row = { discordId, username, ...card };
             if (card.fulfilled) fulfilled.push(row);
             else awaitingDelivery.push({ ...row, status: 'awaiting_delivery' });
