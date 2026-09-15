@@ -1,9 +1,9 @@
-/* Homepage — style peaxel.me : fond noir, cartes TA3, hero épuré */
+/* Homepage — style peaxel.me : thèmes sombre / clair */
 
 .landing-home {
     position: relative;
     isolation: isolate;
-    background: #000;
+    background: var(--bg);
 }
 
 .landing-home .landing-nav {
@@ -24,7 +24,7 @@
 }
 
 .landing-home .site-footer {
-    background: rgba(0, 0, 0, 0.85);
+    background: var(--surface-overlay);
     backdrop-filter: blur(16px);
     border-top-color: rgba(34, 211, 238, 0.1);
 }
@@ -91,6 +91,18 @@
     position: absolute;
     inset: 0;
     background: radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+html[data-theme="light"] .home-bg-vignette {
+    background: radial-gradient(ellipse 70% 60% at 50% 45%, transparent 35%, rgba(241, 245, 249, 0.88) 100%);
+}
+
+html[data-theme="light"] .home-bg-orb {
+    opacity: 0.55;
+}
+
+html[data-theme="light"] .home-float-card img.ta3-card {
+    opacity: 0.7;
 }
 
 /* ─── Floating TA3 cards ─── */
@@ -205,11 +217,11 @@
     margin: 0 0 1rem;
     letter-spacing: -0.03em;
     text-transform: uppercase;
-    color: #fff;
+    color: var(--text);
 }
 
 .hero-title {
-    background: linear-gradient(180deg, #ffffff 0%, #ffffff 45%, rgba(34, 211, 238, 0.85) 100%);
+    background: linear-gradient(180deg, var(--hero-title-start) 0%, var(--hero-title-start) 45%, rgba(34, 211, 238, 0.85) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

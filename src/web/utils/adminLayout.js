@@ -1,5 +1,5 @@
 import { adminUrl } from '../services/adminPath.js';
-import { adminBrand } from './branding.js';
+import { adminBrand, themeSwitcher } from './branding.js';
 import { isSuperAdmin } from '../services/adminUsers.js';
 import { escapeHtml } from './render.js';
 import { langSwitcher } from '../i18n/index.js';
@@ -48,7 +48,10 @@ export function adminSidebar(active, base = adminUrl(''), admin = null, { t, loc
                 ${links}
             </nav>
             ${userBlock}
-            <div class="admin-lang-wrap">${langSwitcher(returnPath || base, locale, t)}</div>
+            <div class="admin-lang-wrap">
+                ${themeSwitcher(t)}
+                ${langSwitcher(returnPath || base, locale, t)}
+            </div>
             <a href="${base}/logout" class="admin-logout-btn">${t('admin.logout')}</a>
         </aside>`;
 }

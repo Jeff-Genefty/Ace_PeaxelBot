@@ -11,6 +11,7 @@ import { addLiveLog, getLiveLogs, LOG_ACTIONS } from '../services/liveLogService
 import { getConfig, setChannel } from '../../utils/configManager.js';
 import { updateJsonSync } from '../../utils/jsonStore.js';
 import { langSwitcher } from '../i18n/index.js';
+import { themeSwitcher } from '../utils/branding.js';
 import {
     csrfInput, createLoginCsrfToken, loginCsrfInput,
     setLoginCsrfCookie, validateCsrf, validateLoginCsrf, initSessionCsrf,
@@ -65,7 +66,10 @@ router.get('/login', (req, res) => {
                 <h1>${t('admin.loginTitle')}</h1>
                 <p class="subtitle">${t('admin.loginSub')}</p>
             </div>
-            ${langSwitcher(loginPath, locale, t)}
+            <div class="login-prefs">
+                ${themeSwitcher(t)}
+                ${langSwitcher(loginPath, locale, t)}
+            </div>
             ${error}
             <form action="${adminUrl('/login')}" method="POST">
                 ${csrf}

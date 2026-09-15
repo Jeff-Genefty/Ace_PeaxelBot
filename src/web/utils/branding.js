@@ -12,6 +12,21 @@ export const PEAXEL_LINKS = {
     hub: 'https://peaxel.genefty.com',
 };
 
+const ICON_MOON = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>`;
+const ICON_SUN = `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`;
+
+/** Bascule thème clair / sombre (client — localStorage) */
+export function themeSwitcher(t) {
+    return `<div class="theme-switch" role="group" aria-label="${t('theme.label')}">
+        <button type="button" class="theme-btn" data-theme-set="dark" aria-pressed="false" title="${t('theme.dark')}">
+            ${ICON_MOON}<span>${t('theme.dark')}</span>
+        </button>
+        <button type="button" class="theme-btn" data-theme-set="light" aria-pressed="false" title="${t('theme.light')}">
+            ${ICON_SUN}<span>${t('theme.light')}</span>
+        </button>
+    </div>`;
+}
+
 function externalLink(href, label) {
     return `<a href="${href}" class="nav-link" target="_blank" rel="noopener noreferrer">${label}</a>`;
 }
@@ -56,7 +71,10 @@ export function peaxelFooter({ t, locale, returnPath = '/' }) {
             </nav>
             <p class="footer-copy">&copy; ${t('footer.copy')}</p>
             <p class="footer-genefty">${t('footer.geneftyPrefix')} <a href="https://genefty.com" target="_blank" rel="noopener noreferrer">${t('footer.geneftyName')}</a></p>
-            ${langSwitcher(returnPath, locale, t)}
+            <div class="footer-prefs">
+                ${themeSwitcher(t)}
+                ${langSwitcher(returnPath, locale, t)}
+            </div>
         </div>
     </footer>`;
 }
@@ -81,6 +99,7 @@ export function publicNav({ user = null, t, locale, returnPath = '/' } = {}) {
                 ${user ? `<a href="/app/leaderboard" class="nav-link">${t('nav.leaderboard')}</a>` : ''}
                 ${peaxelExternalNav({ t })}
             </div>
+            ${themeSwitcher(t)}
             ${langSwitcher(returnPath, locale, t)}
             ${userBlock}
         </div>

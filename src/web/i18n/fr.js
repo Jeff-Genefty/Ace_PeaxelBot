@@ -15,6 +15,11 @@ export default {
         en: 'EN',
         fr: 'FR',
     },
+    theme: {
+        label: 'Thème',
+        dark: 'Sombre',
+        light: 'Clair',
+    },
     nav: {
         menu: 'Menu',
         signIn: 'Se connecter',

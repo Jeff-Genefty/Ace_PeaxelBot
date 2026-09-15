@@ -1,6 +1,6 @@
-/* Peaxel Web v2 — Branding peaxel.me + responsive */
+/* Peaxel Web v2 — Branding peaxel.me + responsive + thèmes */
 :root {
-    /* Palette Peaxel (logo cyan → violet) */
+    /* Palette Peaxel (logo cyan → violet) — inchangée entre thèmes */
     --peaxel-cyan: #22d3ee;
     --peaxel-blue: #3b82f6;
     --peaxel-purple: #7c3aed;
@@ -8,6 +8,18 @@
     --peaxel-gradient: linear-gradient(135deg, #22d3ee 0%, #6366f1 45%, #7c3aed 100%);
     --peaxel-gradient-soft: linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(124, 58, 237, 0.15));
 
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #10b981;
+    --radius: 12px;
+    --radius-lg: 20px;
+    --font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --nav-h: 72px;
+    --sidebar-w: 260px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --theme-color: #050508;
+
+    /* Défaut = sombre (avant data-theme / script) */
     --bg: #000000;
     --bg-elevated: #050505;
     --bg-card: #0a0a0a;
@@ -19,19 +31,54 @@
     --accent-dim: rgba(124, 58, 237, 0.15);
     --neon: var(--peaxel-cyan);
     --neon-dim: rgba(34, 211, 238, 0.1);
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    --success: #10b981;
     --text: #f1f5f9;
     --text-muted: #94a3b8;
     --text-dim: #64748b;
-    --radius: 12px;
-    --radius-lg: 20px;
     --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-    --font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --nav-h: 72px;
-    --sidebar-w: 260px;
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --surface-glass: rgba(255, 255, 255, 0.03);
+    --surface-overlay: rgba(0, 0, 0, 0.85);
+    --hero-glow: rgba(34, 211, 238, 0.12);
+    --landing-orb-2: rgba(124, 58, 237, 0.1);
+    --landing-orb-3: rgba(99, 102, 241, 0.08);
+    --console-bg: #08080c;
+    --console-header: #11111b;
+    --alert-error-text: #fca5a5;
+    --hero-title-start: #ffffff;
+}
+
+html[data-theme="dark"],
+:root:not([data-theme]) {
+    color-scheme: dark;
+}
+
+html[data-theme="light"] {
+    color-scheme: light;
+    --theme-color: #f1f5f9;
+    --bg: #f1f5f9;
+    --bg-elevated: #ffffff;
+    --bg-card: #ffffff;
+    --border: #e2e8f0;
+    --border-hover: #cbd5e1;
+    --primary: #0891b2;
+    --primary-dim: rgba(8, 145, 178, 0.12);
+    --accent: #6d28d9;
+    --accent-dim: rgba(109, 40, 217, 0.1);
+    --neon: #0891b2;
+    --neon-dim: rgba(8, 145, 178, 0.1);
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-dim: #64748b;
+    --shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+    --surface-glass: rgba(255, 255, 255, 0.72);
+    --surface-overlay: rgba(255, 255, 255, 0.92);
+    --hero-glow: rgba(34, 211, 238, 0.18);
+    --landing-orb-2: rgba(124, 58, 237, 0.12);
+    --landing-orb-3: rgba(99, 102, 241, 0.1);
+    --console-bg: #f8fafc;
+    --console-header: #e2e8f0;
+    --alert-error-text: #b91c1c;
+    --hero-title-start: #0f172a;
+    --peaxel-gradient-soft: linear-gradient(135deg, rgba(8, 145, 178, 0.12), rgba(109, 40, 217, 0.1));
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -95,9 +142,9 @@ a:hover { opacity: 0.9; }
     display: flex;
     flex-direction: column;
     background:
-        radial-gradient(ellipse 90% 60% at 50% -15%, rgba(34, 211, 238, 0.12), transparent),
-        radial-gradient(ellipse 70% 50% at 100% 80%, rgba(124, 58, 237, 0.1), transparent),
-        radial-gradient(ellipse 50% 40% at 0% 60%, rgba(99, 102, 241, 0.08), transparent),
+        radial-gradient(ellipse 90% 60% at 50% -15%, var(--hero-glow), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 80%, var(--landing-orb-2), transparent),
+        radial-gradient(ellipse 50% 40% at 0% 60%, var(--landing-orb-3), transparent),
         var(--bg);
 }
 
@@ -289,7 +336,7 @@ a:hover { opacity: 0.9; }
 
 /* ─── Alerts ─── */
 .alert { padding: 0.75rem 1rem; border-radius: var(--radius); font-size: 0.875rem; margin-bottom: 1rem; text-align: left; width: 100%; max-width: 540px; margin-inline: auto; }
-.alert-error { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+.alert-error { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: var(--alert-error-text); }
 .alert-info { background: var(--neon-dim); border: 1px solid rgba(34,211,238,0.3); color: var(--peaxel-cyan); }
 
 /* ─── App layout ─── */
@@ -399,8 +446,16 @@ a:hover { opacity: 0.9; }
 }
 .footer-links a { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; }
 .footer-copy { margin: 0; font-size: 0.75rem; color: var(--text-dim); }
+.footer-prefs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
 
-.lang-switch {
+.lang-switch,
+.theme-switch {
     display: inline-flex;
     gap: 0.25rem;
     padding: 0.2rem;
@@ -408,32 +463,60 @@ a:hover { opacity: 0.9; }
     border: 1px solid var(--border);
     border-radius: 999px;
 }
-.lang-btn {
+.lang-btn,
+.theme-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    gap: 0.3rem;
     min-width: 2.25rem;
-    padding: 0.35rem 0.6rem;
+    padding: 0.35rem 0.65rem;
     border-radius: 999px;
     font-size: 0.7rem;
     font-weight: 800;
-    color: var(--text-dim) !important;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
     text-decoration: none;
+    transition: color 0.15s, background 0.15s;
 }
-.lang-btn:hover { color: var(--text) !important; opacity: 1; }
-.lang-btn.is-active {
+.lang-btn:hover,
+.theme-btn:hover { color: var(--text); opacity: 1; }
+.lang-btn.is-active,
+.theme-btn.is-active {
     background: var(--peaxel-gradient);
-    color: #fff !important;
+    color: #fff;
+}
+.theme-btn svg {
+    width: 0.85rem;
+    height: 0.85rem;
+    flex-shrink: 0;
 }
 .admin-lang-wrap {
     padding: 0 1rem 0.75rem;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
 }
-.login-card .lang-switch {
+.login-card .lang-switch,
+.login-card .theme-switch {
     display: flex;
     justify-content: center;
+    margin-bottom: 0.75rem;
+}
+.login-prefs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
     margin-bottom: 1rem;
+}
+.login-prefs .lang-switch,
+.login-prefs .theme-switch {
+    margin-bottom: 0;
 }
 
 /* ─── Admin layout ─── */
@@ -600,13 +683,13 @@ textarea { min-height: 88px; resize: vertical; }
 input:focus, textarea:focus, select:focus { outline: none; border-color: var(--peaxel-cyan); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12); }
 
 .mod-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem; }
-.mod-actions .btn-ban { grid-column: span 2; background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+.mod-actions .btn-ban { grid-column: span 2; background: rgba(239,68,68,0.15); color: var(--alert-error-text); border: 1px solid rgba(239,68,68,0.3); }
 
 .user-preview { display: none; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
 .user-preview img { width: 32px; height: 32px; border-radius: 50%; }
 
 .console {
-    background: #08080c;
+    background: var(--console-bg);
     border: 1px solid var(--border);
     border-left: 4px solid var(--peaxel-cyan);
     border-radius: var(--radius);
@@ -614,7 +697,7 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--p
     margin-bottom: 1rem;
 }
 .console-header {
-    background: #11111b;
+    background: var(--console-header);
     padding: 0.5rem 1rem;
     font-size: 0.7rem;
     color: var(--text-dim);
@@ -740,7 +823,7 @@ body.nav-open { overflow: hidden; }
     flex-shrink: 0;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #f8fafc;
+    color: var(--text);
     letter-spacing: 0.01em;
 }
 
@@ -798,8 +881,8 @@ body.nav-open { overflow: hidden; }
         align-items: stretch;
         justify-content: flex-start;
         gap: 1rem;
-        /* Fond 100 % opaque — masque tout le hero */
-        background: #000000;
+        /* Fond opaque — masque tout le hero */
+        background: var(--bg);
         border-bottom: none;
         padding: calc(44px + var(--nav-h) + 0.5rem) 1.25rem calc(2rem + var(--safe-bottom));
         box-shadow: none;
@@ -828,7 +911,8 @@ body.nav-open { overflow: hidden; }
         width: 100%;
         justify-content: center;
     }
-    .nav-actions .lang-switch {
+    .nav-actions .lang-switch,
+    .nav-actions .theme-switch {
         justify-content: flex-start;
         margin: 0.25rem 0;
     }

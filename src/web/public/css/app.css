@@ -11,14 +11,14 @@
 }
 
 .profile-card-glow {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-glass);
     backdrop-filter: blur(12px);
     border-color: rgba(34, 211, 238, 0.12);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--shadow);
 }
 
 .panel-glass {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--surface-glass);
     backdrop-filter: blur(10px);
 }
 

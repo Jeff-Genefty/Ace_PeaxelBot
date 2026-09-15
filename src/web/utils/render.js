@@ -27,11 +27,14 @@ export function pageShell({
     const canonical = ogUrl || baseUrl || '';
     const imageUrl = ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`;
 
+    const themeBoot = `<script>(function(){try{var k='peaxel_theme',t=localStorage.getItem(k);if(t!=='light'&&t!=='dark'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';}document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();</script>`;
+
     return `<!DOCTYPE html>
 <html lang="${htmlLang}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    ${themeBoot}
     <meta name="theme-color" content="#050508">
     <meta name="description" content="${escapeHtml(description)}">
     <meta property="og:type" content="${escapeHtml(ogType)}">
@@ -56,6 +59,7 @@ export function pageShell({
 <body class="${bodyClass}">
 ${body}
 ${navScript}
+<script src="/js/theme.js" defer></script>
 ${extraJs}
 </body>
 </html>`;

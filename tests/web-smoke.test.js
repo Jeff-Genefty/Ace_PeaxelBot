@@ -62,6 +62,8 @@ describe('pageShell', () => {
         assert.match(html, /property="og:title"/);
         assert.match(html, /name="twitter:card"/);
         assert.match(html, /manifest\.webmanifest/);
+        assert.match(html, /peaxel_theme/);
+        assert.match(html, /\/js\/theme\.js/);
         assert.match(html, /<main>ok<\/main>/);
     });
 
