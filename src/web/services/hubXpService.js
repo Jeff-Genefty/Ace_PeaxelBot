@@ -726,3 +726,18 @@ export function getUserWeekRank(discordId) {
     if (idx < 0) return { rank: null, xpWeek: 0, total: rows.length };
     return { rank: idx + 1, xpWeek: rows[idx].xpWeek, total: rows.length };
 }
+
+export function getUserGlobalRank(discordId) {
+    const all = readProfiles();
+    const rows = Object.entries(all)
+        .map(([id, p]) => ({
+            discordId: id,
+            xpTotal: p.xpTotal || 0,
+            xpWeek: p.xpThisWeek?.weekKey === weekKeyNow() ? (p.xpThisWeek.amount || 0) : 0,
+        }))
+        .filter((r) => r.xpTotal > 0);
+    rows.sort((a, b) => b.xpTotal - a.xpTotal || b.xpWeek - a.xpWeek);
+    const idx = rows.findIndex((r) => r.discordId === String(discordId));
+    if (idx < 0) return { rank: null, xpTotal: 0, total: rows.length };
+    return { rank: idx + 1, xpTotal: rows[idx].xpTotal, total: rows.length };
+}

@@ -1,9 +1,9 @@
 import { escapeHtml } from './render.js';
 import { PEAXEL_LINKS } from './branding.js';
 
-function roleBadges(roles) {
+function roleBadges(roles, t) {
     if (!roles?.length) {
-        return `<span class="role-badge role-badge-default">${escapeHtml('Member')}</span>`;
+        return `<span class="role-badge role-badge-default">${escapeHtml(t('app.memberDefaultRole'))}</span>`;
     }
     return roles.map((r) =>
         `<span class="role-badge" style="--role-color:${escapeHtml(r.color)};border-color:${escapeHtml(r.color)};color:${escapeHtml(r.color)}">${escapeHtml(r.name)}</span>`,
@@ -40,7 +40,7 @@ export function renderAppProfile({ user, profile, dashboard, t }) {
         <img class="app-profile-avatar" src="${escapeHtml(user.avatarUrl)}" alt="" width="48" height="48">
         <div class="app-profile-meta">
             <h1 class="app-profile-name">${escapeHtml(user.username)}</h1>
-            <div class="app-profile-roles">${roleBadges(profile.roles)}</div>
+            <div class="app-profile-roles">${roleBadges(profile.roles, t)}</div>
             ${xpBlock}
         </div>
     </header>`;
@@ -231,7 +231,9 @@ export function renderAppLeaderboardCard({ dashboard, t }) {
         ? rows.map((r) => `
             <li class="hub-lb-row${r.isYou ? ' is-you' : ''}">
                 <span class="hub-lb-rank">#${r.rank}</span>
-                <span class="hub-lb-name">${escapeHtml(r.displayName)}${r.isYou ? ` <em>${t('app.hubYou')}</em>` : ''}</span>
+                <a class="hub-lb-name hub-lb-link" href="/app/manager/${encodeURIComponent(r.discordId)}">
+                    ${escapeHtml(r.displayName)}${r.isYou ? ` <em>${t('app.hubYou')}</em>` : ''}
+                </a>
                 <span class="hub-lb-xp">${r.xpWeek} XP</span>
                 <span class="hub-lb-lvl">Lv.${r.level}</span>
             </li>`).join('')
@@ -245,6 +247,7 @@ export function renderAppLeaderboardCard({ dashboard, t }) {
         </div>
         <p class="app-card-desc">${t('app.hubLeaderboardDesc')}</p>
         <ol class="hub-lb-list">${list}</ol>
+        <p class="app-card-meta"><a href="/app/leaderboard">${t('app.hubLeaderboardSeeAll')}</a></p>
     </section>`;
 }
 

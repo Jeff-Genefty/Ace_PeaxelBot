@@ -17,10 +17,23 @@ import { getFeaturedCards } from '../services/featuredCards.js';
 import { renderHomeBackground } from '../utils/homeBackground.js';
 import { renderGwTicker, renderGiveawayStrip } from '../utils/widgets.js';
 import { renderAppDashboard } from '../utils/appWidgets.js';
+import { renderAppLeaderboardPage, renderAppManagerProfile } from '../utils/appLeaderboardWidgets.js';
 import { toggleGwReminder } from '../services/gwReminderService.js';
-import { claimPendingCard, notifyCardClaim } from '../services/hubXpService.js';
+import {
+    claimPendingCard,
+    notifyCardClaim,
+    getWeeklyLeaderboard,
+    getGlobalLeaderboard,
+    getHubProfile,
+    getUserWeekRank,
+    getUserGlobalRank,
+    weekKeyNow,
+} from '../services/hubXpService.js';
+import { fetchMemberProfile } from '../services/memberProfileService.js';
 import { getTicketUrl } from '../services/weeklyChallengeService.js';
+import { getGameweekStatus } from '../services/gameweekService.js';
 import { csrfInput, validateCsrf, initSessionCsrf } from '../../utils/csrf.js';
+import { normalizeSnowflake } from '../../utils/discordValidation.js';
 import en from '../i18n/en.js';
 import fr from '../i18n/fr.js';
 
@@ -225,6 +238,97 @@ router.get('/app', requireDiscordUser, async (req, res) => {
         body,
         extraCss: HOME_CSS + APP_CSS,
         extraJs: APP_JS + SHARED_JS,
+        ...shellOpts(req),
+    }));
+});
+
+function mapLbRows(rows, viewerId, viewerUsername) {
+    return rows.map((row) => ({
+        ...row,
+        isYou: row.discordId === String(viewerId),
+        displayName: row.username
+            || (row.discordId === String(viewerId) ? viewerUsername : `Manager #${row.rank}`),
+    }));
+}
+
+router.get('/app/leaderboard', requireDiscordUser, (req, res) => {
+    const user = req.session.discordUser;
+    const { t, locale } = req;
+    const tab = req.query.tab === 'global' ? 'global' : 'week';
+    const gw = getGameweekStatus();
+    const weekRows = mapLbRows(getWeeklyLeaderboard(50), user.id, user.username);
+    const globalRows = mapLbRows(getGlobalLeaderboard(50), user.id, user.username);
+
+    const body = `
+    <div class="landing landing-app landing-home">
+        ${renderGwTicker({ t, gw })}
+        ${renderHomeBackground(getFeaturedCards(4))}
+        ${publicNav({ user: { username: escapeHtml(user.username), avatarUrl: user.avatarUrl }, t, locale, returnPath: '/app/leaderboard' })}
+        <div class="app-layout app-layout-live">
+            ${renderAppLeaderboardPage({
+                tab,
+                weekRows,
+                globalRows,
+                gameweek: gw.gameweek,
+                weekKey: weekKeyNow(),
+                viewerId: user.id,
+                t,
+            })}
+        </div>
+        ${peaxelFooter({ t, locale, returnPath: '/app/leaderboard' })}
+    </div>`;
+
+    res.send(pageShell({
+        title: t('meta.hubLeaderboard'),
+        body,
+        extraCss: HOME_CSS + APP_CSS,
+        extraJs: SHARED_JS,
+        ...shellOpts(req),
+    }));
+});
+
+router.get('/app/manager/:id', requireDiscordUser, async (req, res) => {
+    const viewer = req.session.discordUser;
+    const { t, locale } = req;
+    const id = normalizeSnowflake(req.params.id);
+    if (!id) return res.status(400).send(t('app.managerInvalid'));
+
+    const client = req.app.get('discordClient');
+    const discord = await fetchMemberProfile(client, id);
+    const hub = getHubProfile(id);
+    const rankWeek = getUserWeekRank(id);
+    const rankGlobal = getUserGlobalRank(id);
+    const gw = getGameweekStatus();
+
+    // Prefer Hub-stored username if Discord fetch failed
+    if (!discord.username && hub.username) {
+        discord.username = hub.username;
+    }
+
+    const body = `
+    <div class="landing landing-app landing-home">
+        ${renderGwTicker({ t, gw })}
+        ${renderHomeBackground(getFeaturedCards(4))}
+        ${publicNav({ user: { username: escapeHtml(viewer.username), avatarUrl: viewer.avatarUrl }, t, locale, returnPath: `/app/manager/${id}` })}
+        <div class="app-layout app-layout-live">
+            ${renderAppManagerProfile({
+                discord,
+                hub,
+                rankWeek,
+                rankGlobal,
+                isYou: id === String(viewer.id),
+                locale,
+                t,
+            })}
+        </div>
+        ${peaxelFooter({ t, locale, returnPath: `/app/manager/${id}` })}
+    </div>`;
+
+    res.send(pageShell({
+        title: t('meta.hubManager', { name: discord.username || id }),
+        body,
+        extraCss: HOME_CSS + APP_CSS,
+        extraJs: SHARED_JS,
         ...shellOpts(req),
     }));
 });

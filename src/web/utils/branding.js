@@ -78,6 +78,7 @@ export function publicNav({ user = null, t, locale, returnPath = '/' } = {}) {
         </button>
         <div class="nav-actions" data-nav-menu>
             <div class="nav-links">
+                ${user ? `<a href="/app/leaderboard" class="nav-link">${t('nav.leaderboard')}</a>` : ''}
                 ${peaxelExternalNav({ t })}
             </div>
             ${langSwitcher(returnPath, locale, t)}

@@ -171,7 +171,7 @@ const doc = new Document({
 
             heading('4.3 Feedback', HeadingLevel.HEADING_2),
             bullet('Modal note 1–5 + points positifs / améliorations / commentaires'),
-            bullet('1 feedback à vie par utilisateur (v2 saisonnier prévu en roadmap)'),
+            bullet('1 feedback à vie par utilisateur'),
             bullet('+30 XP Hub + validation défi « feedback » si présent'),
             bullet('Salon stats renommé : Feedback: X | Y ⭐'),
 
@@ -315,7 +315,6 @@ const doc = new Document({
             heading('11. Pas encore livré (roadmap — à mentionner en « next »)'),
             bullet('Liaison Discord ↔ compte Peaxel (/link)'),
             bullet('GW Check-in lineup (bouton opening + XP)'),
-            bullet('Feedback par saison / vrai NPS'),
             bullet('Lineup Show & Tell · Prediction Challenge Discord'),
             bullet('Rôles dynamiques top XP'),
             bullet('Attribution cartes auto via API game.peaxel.me'),

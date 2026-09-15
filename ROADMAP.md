@@ -96,13 +96,6 @@
 | 1.7 | Commande `/ping` (documentée README mais absente) | ⬜ À faire | |
 | 1.8 | Commandes manuelles opening/closing unifiées (remplace README obsolète) | ⬜ À faire | |
 
-### Feedback v2
-
-| # | Tâche | Statut | Notes |
-|---|-------|--------|-------|
-| 1.9 | Feedback par saison/GW au lieu de 1 seule fois à vie | ⬜ À faire | |
-| 1.10 | NPS tracké dans dashboard | ⬜ À faire | |
-
 ### Mécaniques engagement (Phase 1)
 
 | # | Tâche | Statut | Notes |
@@ -110,8 +103,6 @@
 | 1.11 | **GW Check-in** — bouton « J'ai soumis ma lineup » dans annonce opening | ⬜ À faire | |
 | 1.12 | Streak GW check-in (4 GW consécutives = récompense) | ⬜ À faire | |
 | 1.13 | **Prediction Challenge Discord** — thread hebdo (aligné X) | ⬜ À faire | |
-| 1.14 | Scout Quiz v2 — module partagé + indices progressifs | 🔄 En cours | Module partagé ✅, indices à faire |
-| 1.15 | Scout Quiz — leaderboard saisonnier | ⬜ À faire | |
 
 ### Dashboard améliorations
 
@@ -128,7 +119,6 @@
 
 | # | Tâche | Statut | Notes |
 |---|-------|--------|-------|
-| 2.1 | Scout Quiz — niveaux de difficulté (3 indices progressifs) | ⬜ À faire | |
 | 2.2 | Scout Quiz — timer visible dans l'embed | ⬜ À faire | |
 | 2.3 | Spotlight — vote communautaire « Athlète de la semaine » | ⬜ À faire | |
 | 2.4 | Spotlight — lien direct fiche Peaxel | ⬜ À faire | |
@@ -284,9 +274,7 @@
 |------|-------------|--------|--------|
 | E1 | Stabilisation — bugs P0/P1, cleanup | S | ✅ Terminé |
 | E2 | Config centralisée — un seul source of truth | S | ✅ Terminé |
-| E3 | Scout Quiz v2 — module partagé, leaderboard, indices | M | 🔄 En cours |
 | E4 | GW Check-in — bouton, streak, rôle | M | ⬜ À faire |
-| E5 | Feedback v2 — par saison, NPS | S | ⬜ À faire |
 | E6 | Migration DB — JSON → Supabase | L | ⬜ À faire |
 | E7 | Web admin v2 — Next.js, calendrier, config UI | L | ⬜ À faire |
 | E8 | Web joueur — profil, stats, rewards | L | ⬜ À faire |

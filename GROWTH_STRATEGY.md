@@ -394,7 +394,7 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 |---|-------|--------|-------|
 | G3.18 | Managers inactifs 2+ GW — message Ace personnalisé | ⬜ À faire | |
 | G3.19 | Offre retour : carte prêtée pour la GW | ⬜ À faire | |
-| G3.20 | Sondage churn : « Qu'est-ce qui t'a arrêté ? » | ⬜ À faire | → ROADMAP 1.9 Feedback v2 |
+| G3.20 | Sondage churn : « Qu'est-ce qui t'a arrêté ? » | ⬜ À faire | |
 | G3.21 | Campagne fin de saison — teaser Season suivante | ⬜ À faire | |
 
 ---
@@ -548,7 +548,7 @@ Découverte → Intérêt → Inscription → Activation → Rétention → Advo
 | Rétention GW+4 | — | 20 % actifs | 35 % actifs | Streak tracker |
 | Participants quiz / lancement | — | +60 % | +100 % | Bot analytics |
 | Referrals / mois | 0 | 50 | 300 | Referral system |
-| NPS communauté | — | 40+ | 50+ | Feedback v2 |
+| NPS communauté | — | 40+ | 50+ | Feedback existant |
 | Trustpilot avis (4+ étoiles) | — | 50 | 150 | Trustpilot |
 | CAC (coût acquisition) | — | < 3 € | < 2 € | Ads + analytics |
 
