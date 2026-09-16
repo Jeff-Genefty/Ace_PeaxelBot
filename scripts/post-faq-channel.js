@@ -238,6 +238,50 @@ const messages = [
             .setFooter({ text: 'Peaxel Hub · Weekly #1 · All-time XP' }),
     },
     {
+        files: ['faq-withdrawals.png'],
+        embed: () => new EmbedBuilder()
+            .setColor(0x10b981)
+            .setTitle('💸 Withdrawals & payouts')
+            .setDescription(
+                'Rewards go to your **Peaxel wallet**. Cash withdrawals are paid out via **wire transfer** or **Stripe**, '
+                + 'depending on your **location / region**. Payouts follow a fixed schedule — they are **not** instant or on-demand.',
+            )
+            .addFields(
+                {
+                    name: 'Payout methods',
+                    value:
+                        '• **Wire transfer** or **Stripe** — available method depends on your **geolocation**\n'
+                        + '• The option shown in your Peaxel account is the one enabled for your region\n'
+                        + '• We cannot force a method that is unavailable in your country',
+                },
+                {
+                    name: 'Processing schedule',
+                    value:
+                        '• Withdrawals are processed **once per day**\n'
+                        + '• **Monday to Friday only** (no weekend processing)\n'
+                        + '• Instant / on-demand payouts are **not available**',
+                },
+                {
+                    name: 'Important notice',
+                    value:
+                        'Please **do not open repeated tickets** asking when your payment will arrive or which method you “should” get.\n\n'
+                        + 'If ticket volume about payment timing continues, we will:\n'
+                        + '1. **Auto-close** those tickets\n'
+                        + '2. Move payout processing to **once per week** instead of daily\n\n'
+                        + 'Thanks for your understanding — this keeps payouts fast and fair for everyone.',
+                },
+                {
+                    name: 'Need help?',
+                    value:
+                        'Open a ticket only for **real payout issues** (missing transfer after the expected window, '
+                        + 'failed Stripe payout, wrong bank details, etc.) — not for “when will I get paid?” '
+                        + 'or “can I switch to Stripe/wire?” questions.',
+                },
+            )
+            .setImage(embedImage('faq-withdrawals.png'))
+            .setFooter({ text: 'Peaxel · Withdrawals · Wire / Stripe by region · Mon–Fri' }),
+    },
+    {
         files: ['faq-need-help.png'],
         components: true,
         embed: () => new EmbedBuilder()

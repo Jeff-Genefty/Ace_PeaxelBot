@@ -165,6 +165,45 @@ const HELP_TOPICS_EN = {
             },
         ],
     },
+    withdrawals: {
+        title: '💸 Withdrawals & payouts',
+        color: 0x10b981,
+        description:
+            'Rewards go to your **Peaxel wallet**. Cash withdrawals are paid out via **wire transfer** or **Stripe**, '
+            + 'depending on your **location / region**. Payouts follow a fixed schedule — they are **not** instant or on-demand.',
+        fields: [
+            {
+                name: 'Payout methods',
+                value:
+                    '• **Wire transfer** or **Stripe** — available method depends on your **geolocation**\n'
+                    + '• The option shown in your Peaxel account is the one enabled for your region\n'
+                    + '• We cannot force a method that is unavailable in your country',
+            },
+            {
+                name: 'Processing schedule',
+                value:
+                    '• Withdrawals are processed **once per day**\n'
+                    + '• **Monday to Friday only** (no weekend processing)\n'
+                    + '• Instant / on-demand payouts are **not available**',
+            },
+            {
+                name: 'Important notice',
+                value:
+                    'Please **do not open repeated tickets** asking when your payment will arrive or which method you “should” get.\n\n'
+                    + 'If ticket volume about payment timing continues, we will:\n'
+                    + '1. **Auto-close** those tickets\n'
+                    + '2. Move payout processing to **once per week** instead of daily\n\n'
+                    + 'Thanks for your understanding — this keeps payouts fast and fair for everyone.',
+            },
+            {
+                name: 'Need help?',
+                value:
+                    'Open a ticket only for **real payout issues** (missing transfer after the expected window, '
+                    + 'failed Stripe payout, wrong bank details, etc.) — not for “when will I get paid?” '
+                    + 'or “can I switch to Stripe/wire?” questions.',
+            },
+        ],
+    },
 };
 
 const HELP_TOPICS_FR = {
@@ -327,6 +366,45 @@ const HELP_TOPICS_FR = {
             },
         ],
     },
+    withdrawals: {
+        title: '💸 Retraits & paiements',
+        color: 0x10b981,
+        description:
+            'Les rewards vont dans ton **wallet Peaxel**. Les retraits cash passent par **virement** ou **Stripe**, '
+            + 'selon ta **localisation / région**. Les paiements suivent un planning fixe — ce n’est **pas** instantané ni à la demande.',
+        fields: [
+            {
+                name: 'Méthodes de paiement',
+                value:
+                    '• **Virement** ou **Stripe** — la méthode disponible dépend de ta **géolocalisation**\n'
+                    + '• L’option affichée sur ton compte Peaxel est celle activée pour ta région\n'
+                    + '• On ne peut pas forcer une méthode indisponible dans ton pays',
+            },
+            {
+                name: 'Planning de traitement',
+                value:
+                    '• Les retraits sont traités **une fois par jour**\n'
+                    + '• **Du lundi au vendredi uniquement** (pas le week-end)\n'
+                    + '• Les paiements instantanés / à la demande ne sont **pas disponibles**',
+            },
+            {
+                name: 'Avertissement important',
+                value:
+                    'Merci de **ne pas ouvrir des tickets répétés** pour demander quand ton paiement arrivera ou quelle méthode tu « devrais » avoir.\n\n'
+                    + 'Si le volume de tickets sur le timing des paiements continue, nous :\n'
+                    + '1. **Fermerons automatiquement** ces tickets\n'
+                    + '2. Passerons à un traitement **une fois par semaine** au lieu de quotidien\n\n'
+                    + 'Merci de ta compréhension — ça garde les paiements rapides et équitables pour tout le monde.',
+            },
+            {
+                name: 'Besoin d’aide ?',
+                value:
+                    'Ouvre un ticket uniquement pour un **vrai problème de payout** (virement manquant après la fenêtre attendue, '
+                    + 'échec Stripe, mauvaises coordonnées bancaires, etc.) — pas pour « quand suis-je payé ? » '
+                    + 'ou « puis-je passer en Stripe/virement ? ».',
+            },
+        ],
+    },
 };
 
 const HELP_MENU_OPTIONS_EN = [
@@ -337,6 +415,7 @@ const HELP_MENU_OPTIONS_EN = [
     { label: 'GW Leaderboard', description: 'Weekly XP ranking & #1 prize.', value: 'hub_leaderboard', emoji: '🏆' },
     { label: 'Hub Commands', description: 'Slash commands & /app.', value: 'hub_commands', emoji: '🤖' },
     { label: 'Hub FAQ', description: 'Common Hub questions.', value: 'hub_faq', emoji: '❓' },
+    { label: 'Withdrawals & payouts', description: 'Wire / Stripe, schedule, tickets.', value: 'withdrawals', emoji: '💸' },
     { label: 'How to Play', description: 'Official game guide.', value: 'link_play', emoji: '🎮' },
     { label: 'Cards & Rarity', description: 'Athlete cards docs.', value: 'link_cards', emoji: '💎' },
     { label: 'Support / Ace AI', description: 'Chat with Ace.', value: 'link_support', emoji: '🛠️' },
@@ -351,6 +430,7 @@ const HELP_MENU_OPTIONS_FR = [
     { label: 'Classement GW', description: 'XP hebdo & prix #1.', value: 'hub_leaderboard', emoji: '🏆' },
     { label: 'Commandes Hub', description: 'Slash commands & /app.', value: 'hub_commands', emoji: '🤖' },
     { label: 'FAQ Hub', description: 'Questions fréquentes.', value: 'hub_faq', emoji: '❓' },
+    { label: 'Retraits & paiements', description: 'Virement / Stripe, planning, tickets.', value: 'withdrawals', emoji: '💸' },
     { label: 'Comment jouer', description: 'Guide officiel du jeu.', value: 'link_play', emoji: '🎮' },
     { label: 'Cartes & rareté', description: 'Docs cartes Athlete.', value: 'link_cards', emoji: '💎' },
     { label: 'Support / Ace AI', description: 'Parler à Ace.', value: 'link_support', emoji: '🛠️' },
