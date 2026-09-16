@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import { join, resolve } from 'path';
 import { pageShell, escapeHtml } from '../utils/render.js';
-import { adminSidebar, adminTopbar, kpiCard, toolPanel, ADMIN_CSS } from '../utils/adminLayout.js';
+import { adminSidebar, adminTopbar, kpiCard, kpiSection, toolPanel, ADMIN_CSS } from '../utils/adminLayout.js';
 import { requireAdmin, requireAdminApi } from '../middleware/auth.js';
 import { adminUrl } from '../services/adminPath.js';
 import { authenticateAdmin } from '../services/adminUsers.js';
@@ -232,13 +232,28 @@ router.get('/', requireAdmin, async (req, res) => {
                 pills: statusPills,
             })}
 
+            ${kpiSection(t('admin.sectionGrowth'))}
             <div class="stats-row">
-                ${kpiCard(`${data.kpis.activePopRate}%`, t('admin.kpiRoleActivity'), 'highlight')}
-                ${kpiCard(data.kpis.arrivalsToday, t('admin.kpiArrivals'), '')}
+                ${kpiCard(data.kpis.dac, t('admin.kpiDac'), 'highlight', t('admin.hintVsYesterday', { delta: data.kpis.dacDelta }))}
+                ${kpiCard(`+${data.kpis.arrivalsToday}`, t('admin.kpiArrivals'), '', t('admin.hintPeriodToday'))}
+                ${kpiCard(data.kpis.arrivals7d, t('admin.kpiArrivals7d'), '', t('admin.hintVsPrevWeek', { delta: data.kpis.arrivalsDelta7d }))}
+                ${kpiCard(`${data.kpis.activeToday} · ${data.kpis.activePopRate}%`, t('admin.kpiRoleActivity'), 'highlight', t('admin.hintPeriodToday'))}
+                ${kpiCard(data.kpis.challengeParticipants, t('admin.kpiChallenges'), '', t('admin.hintQuestDone', { n: data.kpis.challengeQuestComplete }))}
+                ${kpiCard(data.kpis.giveawayCount, t('admin.kpiGiveaway'), '', t('admin.hintPeriodGw'))}
+                ${kpiCard(
+                    data.kpis.vaultAwaiting,
+                    t('admin.kpiVaultSla'),
+                    data.kpis.vaultSlaBreaches > 0 ? 'danger' : '',
+                    t('admin.hintVaultSla', { pending: data.kpis.vaultPending, sla: data.kpis.vaultSlaBreaches }),
+                )}
+                ${kpiCard(`${data.kpis.avgRating}★`, t('admin.kpiFeedbackAvg', { count: data.kpis.totalFeedbacks }), 'highlight', t('admin.hintStreaks', { s3: data.kpis.streakGe3, s7: data.kpis.streakGe7 }))}
+            </div>
+
+            ${kpiSection(t('admin.sectionOps'))}
+            <div class="stats-row">
+                ${kpiCard(data.kpis.messagesToday.toLocaleString(locale), t('admin.kpiMessagesToday'), 'accent', t('admin.hintMessages7d', { n: data.kpis.messages7d, delta: data.kpis.messagesDelta7d }))}
+                ${kpiCard(data.kpis.commandsToday, t('admin.kpiCommandsToday'), '', t('admin.hintCommands7d', { n: data.kpis.commands7d }))}
                 ${kpiCard(`${data.kpis.weeklyGrowth >= 0 ? '+' : ''}${data.kpis.weeklyGrowth}%`, t('admin.kpiGrowth'), 'highlight')}
-                ${kpiCard(data.kpis.messagesSent.toLocaleString(locale), t('admin.kpiMessages'), 'accent')}
-                ${kpiCard(data.kpis.commandsExecuted, t('admin.kpiCommands'), '')}
-                ${kpiCard(`${data.kpis.avgRating}*`, t('admin.kpiNps', { count: data.kpis.totalFeedbacks }), 'highlight')}
                 ${kpiCard(data.kpis.totalBans, t('admin.kpiBans'), 'danger')}
                 ${kpiCard(data.kpis.totalPosts, t('admin.kpiPosts'), '')}
             </div>

@@ -315,6 +315,38 @@ export function getChallengeState(discordId, gameweek = getCurrentWeekNumber()) 
     };
 }
 
+/** Agrégats défis pour la GW courante (dashboard admin). */
+export function getChallengeWeekStats(gameweek = getCurrentWeekNumber()) {
+    const set = getWeeklyChallengeSet(gameweek);
+    const all = readJson(PROGRESS_FILE, {});
+    const gk = String(gameweek);
+    let participants = 0;
+    let questComplete = 0;
+    let tasksDone = 0;
+
+    for (const byGw of Object.values(all)) {
+        const p = byGw?.[gk];
+        if (!p) continue;
+        const completed = p.completedTasks || [];
+        const metrics = p.metrics || {};
+        const hasProgress = completed.length > 0 || Object.keys(metrics).length > 0;
+        if (!hasProgress) continue;
+        participants += 1;
+        tasksDone += completed.length;
+        if (set.tasks.length && set.tasks.every((t) => completed.includes(t))) {
+            questComplete += 1;
+        }
+    }
+
+    return {
+        gameweek,
+        participants,
+        questComplete,
+        tasksDone,
+        taskCount: set.tasks?.length || 0,
+    };
+}
+
 export function getTicketUrl() {
     const guildId = process.env.DISCORD_GUILD_ID;
     const ticketId = getTicketChannelId();

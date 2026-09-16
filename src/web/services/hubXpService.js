@@ -147,6 +147,44 @@ export function parisDayKey() {
     return `${y}-${m}-${day}`;
 }
 
+/** Clé jour Paris pour J-N (0 = aujourd'hui). */
+export function parisDayKeyDaysAgo(days = 0) {
+    const d = getParisDate();
+    d.setUTCDate(d.getUTCDate() - Math.max(0, Math.floor(days)));
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+/**
+ * KPIs Hub Pass — DAC, streaks actifs, base profils.
+ * @param {string} [dayKey] défaut = aujourd'hui Paris
+ */
+export function getHubEngagementStats(dayKey = parisDayKey()) {
+    const all = readProfiles();
+    const yesterday = parisDayKeyDaysAgo(1);
+    const activeStreakDays = new Set([dayKey, yesterday]);
+
+    let dac = 0;
+    let streakGe3 = 0;
+    let streakGe7 = 0;
+    let profilesWithXp = 0;
+
+    for (const p of Object.values(all)) {
+        if ((p.xpTotal || 0) > 0) profilesWithXp += 1;
+        if (p.lastDailyKey === dayKey) dac += 1;
+
+        const streak = p.dailyStreak || 0;
+        if (streak > 0 && activeStreakDays.has(p.lastDailyKey)) {
+            if (streak >= 3) streakGe3 += 1;
+            if (streak >= 7) streakGe7 += 1;
+        }
+    }
+
+    return { dac, streakGe3, streakGe7, profilesWithXp, dayKey };
+}
+
 /** XP nécessaire pour passer du niveau `level` au suivant. */
 export function xpToNextLevel(level) {
     const L = Math.max(0, Math.floor(level));

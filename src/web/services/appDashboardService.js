@@ -6,7 +6,7 @@ import { getNextScheduledRun } from '../../utils/activityTracker.js';
 import { getFeedbackStats, hasAlreadySubmitted } from '../../utils/feedbackStore.js';
 import { fetchMemberProfile } from './memberProfileService.js';
 import { getChallengeState, syncExternalTasks, getTicketUrl } from './weeklyChallengeService.js';
-import { getHubProfile, getUserWeekRank, getWeeklyLeaderboard, XP_REWARDS } from './hubXpService.js';
+import { getHubProfile, getUserWeekRank, getWeeklyLeaderboard, XP_REWARDS, parisDayKey } from './hubXpService.js';
 import { hasGwReminder } from './gwReminderService.js';
 import { getCurrentDayName } from '../../utils/week.js';
 import { getChannel } from '../../utils/configManager.js';
@@ -15,10 +15,10 @@ const STATS_FILE = join(resolve('./data'), 'analytics.json');
 
 function readStats() {
     if (!fs.existsSync(STATS_FILE)) {
-        return { dailyActiveRoleUsers: [], dailyHistory: {}, messagesSent: 0 };
+        return { dailyActiveRoleUsers: [], dailyHistory: {}, dailyBreakdown: {}, messagesSent: 0 };
     }
     try { return JSON.parse(readFileSync(STATS_FILE, 'utf-8')); } catch {
-        return { dailyActiveRoleUsers: [], dailyHistory: {}, messagesSent: 0 };
+        return { dailyActiveRoleUsers: [], dailyHistory: {}, dailyBreakdown: {}, messagesSent: 0 };
     }
 }
 
@@ -30,7 +30,7 @@ function discordChannelUrl(channelId) {
 
 export async function gatherAppDashboard(client, locale, discordId, discordUser) {
     const stats = readStats();
-    const today = new Date().toISOString().split('T')[0];
+    const today = parisDayKey();
     const gw = getGameweekStatus();
     const giveaway = getGiveawayState(discordId);
     const feedbackStats = getFeedbackStats();
@@ -48,6 +48,9 @@ export async function gatherAppDashboard(client, locale, discordId, discordUser)
     }));
     const announceChannelId = getChannel('announce');
     const feedbackChannelId = getChannel('feedback');
+    const messagesToday = stats.dailyBreakdown?.[today]?.messages
+        ?? stats.dailyHistory?.[today]
+        ?? 0;
 
     return {
         user: discordUser,
@@ -61,7 +64,7 @@ export async function gatherAppDashboard(client, locale, discordId, discordUser)
         },
         activity: {
             activeManagers: stats.dailyActiveRoleUsers?.length || 0,
-            messagesToday: stats.dailyHistory?.[today] || 0,
+            messagesToday,
         },
         nextEvent: {
             label: nextEvent.label,

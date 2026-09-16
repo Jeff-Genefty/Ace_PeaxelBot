@@ -67,11 +67,16 @@ export function adminTopbar({ title, subtitle, pills = '' }) {
     </header>`;
 }
 
-export function kpiCard(value, label, variant = '') {
+export function kpiCard(value, label, variant = '', hint = '') {
     return `<article class="stat-card ${variant}">
         <span class="stat-value">${value}</span>
         <span class="stat-label">${label}</span>
+        ${hint ? `<span class="stat-hint">${hint}</span>` : ''}
     </article>`;
+}
+
+export function kpiSection(title) {
+    return `<p class="kpi-section-label">${title}</p>`;
 }
 
 export function toolPanel(title, icon, content) {

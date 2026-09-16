@@ -219,6 +219,33 @@
     font-weight: 700;
 }
 
+.stat-hint {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: none;
+}
+
+.kpi-section-label {
+    margin: 0 0 0.55rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.kpi-section-label + .stats-row {
+    margin-bottom: 1.25rem;
+}
+
+.stats-row + .kpi-section-label {
+    margin-top: 0.25rem;
+}
+
 /* ─── Layout zones ─── */
 .admin-zones {
     display: grid;

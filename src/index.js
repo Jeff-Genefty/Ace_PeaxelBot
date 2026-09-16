@@ -22,7 +22,7 @@ import { attachI18n } from './web/i18n/index.js';
 import { addLiveLog } from './web/services/liveLogService.js';
 import { joinGiveaway } from './web/services/giveawayService.js';
 import { invalidateStatsCache } from './web/services/statsService.js';
-import { purgeDisabledHubCards } from './web/services/hubXpService.js';
+import { purgeDisabledHubCards, getHubEngagementStats, parisDayKey, parisDayKeyDaysAgo } from './web/services/hubXpService.js';
 import { updateJsonSync } from './utils/jsonStore.js';
 import { getRole } from './utils/configManager.js';
 
@@ -63,6 +63,7 @@ const DEFAULT_STATS = {
     arrivalsToday: 0,
     dailyActiveRoleUsers: [],
     dailyHistory: {},
+    dailyBreakdown: {},
     history: {},
     totalBans: 0,
 };
@@ -87,13 +88,30 @@ function updateStats(updater) {
     return updateJsonSync(STATS_FILE, DEFAULT_STATS, updater);
 }
 
+const EVENT_BREAKDOWN_KEY = {
+    messagesSent: 'messages',
+    commandsExecuted: 'commands',
+    feedbacksReceived: 'feedbacks',
+};
+
 const trackEvent = (type) => {
     updateStats((stats) => {
         if (stats[type] !== undefined) {
             stats[type]++;
-            const today = new Date().toISOString().split('T')[0];
-            if (!stats.dailyHistory) stats.dailyHistory = {};
-            stats.dailyHistory[today] = (stats.dailyHistory[today] || 0) + 1;
+            const today = parisDayKey();
+            if (!stats.dailyBreakdown) stats.dailyBreakdown = {};
+            if (!stats.dailyBreakdown[today]) {
+                stats.dailyBreakdown[today] = { messages: 0, commands: 0, feedbacks: 0 };
+            }
+            const key = EVENT_BREAKDOWN_KEY[type];
+            if (key) {
+                stats.dailyBreakdown[today][key] = (stats.dailyBreakdown[today][key] || 0) + 1;
+            }
+            // Legacy aggregate (messages only going forward — stop polluting with cmds/feedbacks)
+            if (type === 'messagesSent') {
+                if (!stats.dailyHistory) stats.dailyHistory = {};
+                stats.dailyHistory[today] = (stats.dailyHistory[today] || 0) + 1;
+            }
         }
         return stats;
     });
@@ -224,30 +242,43 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
     }
 });
 
-// Midnight Analytics Snapshot
+// Midnight Analytics Snapshot (Europe/Paris) — clé = journée qui vient de se terminer
 cron.schedule('0 0 * * *', async () => {
-    if (!ACTIVITY_TRACK_ROLE_ID) return;
     const guild = await client.guilds.fetch(process.env.DISCORD_GUILD_ID).catch(() => null);
     if (!guild) return;
 
-    const roleMembers = guild.roles.cache.get(ACTIVITY_TRACK_ROLE_ID)?.members.size || 1;
-    const today = new Date().toISOString().split('T')[0];
+    const snapshotDay = parisDayKeyDaysAgo(1);
+    const roleMembers = ACTIVITY_TRACK_ROLE_ID
+        ? (guild.roles.cache.get(ACTIVITY_TRACK_ROLE_ID)?.members.size || 1)
+        : 0;
+    const dacYesterday = getHubEngagementStats(snapshotDay).dac;
+    const breakdown = {}; // filled inside updater
 
     updateStats((stats) => {
         const activeToday = stats.dailyActiveRoleUsers?.length || 0;
+        const dayBreakdown = stats.dailyBreakdown?.[snapshotDay] || {};
         if (!stats.history) stats.history = {};
-        stats.history[today] = {
-            roleActivity: ((activeToday / roleMembers) * 100).toFixed(1),
+        stats.history[snapshotDay] = {
+            roleActivity: roleMembers > 0
+                ? ((activeToday / roleMembers) * 100).toFixed(1)
+                : '0.0',
             arrivals: stats.arrivalsToday || 0,
-            totalMembers: guild.memberCount
+            totalMembers: guild.memberCount,
+            dac: dacYesterday,
+            messages: dayBreakdown.messages || 0,
+            commands: dayBreakdown.commands || 0,
+            feedbacks: dayBreakdown.feedbacks || 0,
+            activeRoleUsers: activeToday,
         };
+        Object.assign(breakdown, stats.history[snapshotDay]);
         stats.arrivalsToday = 0;
         stats.dailyActiveRoleUsers = [];
         return stats;
     });
 
-    console.log(`${logPrefix} Daily analytics snapshot saved.`);
-});
+    invalidateStatsCache('all');
+    console.log(`${logPrefix} Daily analytics snapshot saved for ${snapshotDay}.`, breakdown);
+}, { scheduled: true, timezone: 'Europe/Paris' });
 
 client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isChatInputCommand()) {
