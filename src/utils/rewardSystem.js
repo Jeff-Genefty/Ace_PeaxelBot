@@ -3,6 +3,7 @@ import { resolve } from 'path';
 import { readJsonSync, updateJsonSync } from './jsonStore.js';
 import { loadRewardState, saveRewardState } from './rewardState.js';
 import { getChannel, getStaffExcludedRoles, getTicketChannelId } from './configManager.js';
+import { gameUrl, DISCORD_REFS } from './peaxelLinks.js';
 
 const REWARDS_PATH = './data/userRewards.json';
 
@@ -76,11 +77,13 @@ async function triggerAceRecognition(message) {
         'active managers fuel Peaxel — this one’s on Ace.',
     ];
 
+    const playUrl = gameUrl(DISCORD_REFS.reward);
+
     const embed = new EmbedBuilder()
         .setTitle('🃏 Ace reward — Free Athlete Card')
         .setDescription(
             `Hey <@${user.id}>, ${variations[Math.floor(Math.random() * variations.length)]}\n\n`
-            + 'You’ve earned a **Free Athlete Card** for your roster on [game.peaxel.me](https://game.peaxel.me).',
+            + `You’ve earned a **Free Athlete Card** for your roster on [game.peaxel.me](${playUrl}).`,
         )
         .addFields({
             name: '📩 How to claim',

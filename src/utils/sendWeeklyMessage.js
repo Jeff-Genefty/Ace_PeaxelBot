@@ -19,6 +19,7 @@ import { loadReactionsConfig } from '../config/reactionsConfig.js';
 import { recordWeeklyPost } from './activityTracker.js';
 import { logWeeklyPost } from './discordLogger.js';
 import { getChannel, getRole } from './configManager.js';
+import { withGameRef, applyGameRefsInText, DISCORD_REFS } from './peaxelLinks.js';
 
 export async function sendWeeklyMessage(client, { isManual = false, type = 'opening' } = {}) {
   const logPrefix = '[Peaxel Send]';
@@ -43,8 +44,12 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
   const validType = (type === 'opening' || type === 'closing') ? type : 'opening';
   const typeConfig = config[validType];
   const roleMention = `<@&${ROLE_ID}>`;
+  const gameRef = validType === 'closing' ? DISCORD_REFS.closing : DISCORD_REFS.opening;
 
-  let finalDescription = getFormattedDescription(weekNumber, validType, roleMention);
+  let finalDescription = applyGameRefsInText(
+    getFormattedDescription(weekNumber, validType, roleMention),
+    gameRef,
+  );
 
   const imageFileName = getImageName(validType);
   const imagePath = resolve(process.cwd(), `./assets/${imageFileName}`);
@@ -78,13 +83,15 @@ export async function sendWeeklyMessage(client, { isManual = false, type = 'open
 
   if (attachment) embed.setImage(`attachment://${imageFileName}`);
 
+  const playUrl = withGameRef(typeConfig.playUrl, gameRef);
+
   const buttons = [];
-  if (typeConfig.showPlayButton && typeConfig.playUrl) {
+  if (typeConfig.showPlayButton && playUrl) {
     buttons.push(
       new ButtonBuilder()
         .setLabel(typeConfig.playButtonLabel || 'Play on Peaxel')
         .setStyle(ButtonStyle.Link)
-        .setURL(typeConfig.playUrl),
+        .setURL(playUrl),
     );
   }
   if (typeConfig.showLeaderboardButton && typeConfig.leaderboardUrl) {

@@ -1,4 +1,5 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { gameUrl, withGameRef, DISCORD_REFS } from './peaxelLinks.js';
 
 /**
  * Builds the weekly Athlete Spotlight payload (content + embed + buttons).
@@ -6,6 +7,8 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'disc
 export function buildSpotlightPayload(athlete, generalChannelId) {
   const athleteName = (athlete.name || 'Athlete').toUpperCase();
   const displayName = athlete.name || 'this athlete';
+  const athleteUrl = withGameRef(athlete.peaxelLink || gameUrl(DISCORD_REFS.spotlight), DISCORD_REFS.spotlight);
+  const playUrl = gameUrl(DISCORD_REFS.spotlight);
 
   let prizesText = '';
   for (let i = 1; i <= 5; i++) {
@@ -14,7 +17,7 @@ export function buildSpotlightPayload(athlete, generalChannelId) {
 
   const embed = new EmbedBuilder()
     .setTitle(`🌟 Athlete Spotlight · ${athleteName}`)
-    .setURL(athlete.peaxelLink || 'https://game.peaxel.me')
+    .setURL(athleteUrl)
     .setColor('#a855f7')
     .setThumbnail(athlete.talent_profile_image_url || null)
     .addFields(
@@ -74,11 +77,11 @@ export function buildSpotlightPayload(athlete, generalChannelId) {
     new ButtonBuilder()
       .setLabel('View athlete')
       .setStyle(ButtonStyle.Link)
-      .setURL(athlete.peaxelLink || 'https://game.peaxel.me'),
+      .setURL(athleteUrl),
     new ButtonBuilder()
       .setLabel('Play on Peaxel')
       .setStyle(ButtonStyle.Link)
-      .setURL('https://game.peaxel.me'),
+      .setURL(playUrl),
   );
 
   const socialMedia = [

@@ -8,6 +8,7 @@ import { getChannel } from '../utils/configManager.js';
 import { getParisDate, getCurrentWeekNumber } from '../utils/week.js';
 import { addLiveLog } from '../web/services/liveLogService.js';
 import { applyHubFooter } from './hubFooter.js';
+import { gameUrl, DISCORD_REFS } from './peaxelLinks.js';
 
 const WEB_BASE = () => process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
 
@@ -33,6 +34,7 @@ export async function sendDailyConnectMessage(client) {
         timeZone: 'UTC',
     });
     const gw = getCurrentWeekNumber();
+    const playUrl = gameUrl(DISCORD_REFS.daily);
 
     const embed = new EmbedBuilder()
         .setTitle('☀️ Daily Connect — claim today’s Hub XP')
@@ -45,7 +47,7 @@ export async function sendDailyConnectMessage(client) {
             + '• Progress weekly Hub challenges when Daily is one of the missions\n\n'
             + '⚠️ **Requirement:** send **at least one message** on this Discord server today, then run `/daily`.\n\n'
             + `Track your level & ranking on the [Peaxel Hub](${WEB_BASE()}/app).\n`
-            + 'Still need a lineup? → [game.peaxel.me](https://game.peaxel.me)',
+            + `Still need a lineup? → [Play free](${playUrl})`,
         )
         .setFooter({ text: 'Peaxel Hub · message + /daily · Europe/Paris' })
         .setTimestamp();
@@ -58,7 +60,7 @@ export async function sendDailyConnectMessage(client) {
         new ButtonBuilder()
             .setLabel('Play on Peaxel')
             .setStyle(ButtonStyle.Link)
-            .setURL('https://game.peaxel.me'),
+            .setURL(playUrl),
     );
 
     const footerFile = applyHubFooter(embed, 'daily');

@@ -17,17 +17,17 @@ const DEFAULT_CONFIG = {
     title: '🏟️ Gameweek {WEEK_NUMBER} is open — build your lineup',
     description:
       'Hey {ROLE_MENTION} — **Ace** here.\n\n'
-      + '**Gameweek {WEEK_NUMBER}** just opened on [game.peaxel.me](https://game.peaxel.me). '
+      + '**Gameweek {WEEK_NUMBER}** just opened. '
       + 'Scout your cards, set your lineup, and compete for XP, leaderboard spots, and real rewards.\n\n'
       + '**What to do now**\n'
-      + '1️⃣ Open the game and pick your athletes for GW {WEEK_NUMBER}\n'
+      + '1️⃣ **Play** — open the game and pick your athletes for GW {WEEK_NUMBER}\n'
       + '2️⃣ Lock a strong lineup before **Thursday 23:59 (Paris)**\n'
       + '3️⃣ Stay active on Discord — Hub XP, `/daily`, and weekly challenges keep stacking\n\n'
       + 'Play free. Compete. Collect cards. Let’s go, Managers.',
     imageName: 'opening-banner.png',
     color: '#6366F1',
     footerText: 'Peaxel · Fantasy action sports · game.peaxel.me',
-    playUrl: 'https://game.peaxel.me/',
+    playUrl: 'https://game.peaxel.me/?ref=discord_opening',
     leaderboardUrl: 'https://peaxel.me/leaderboard',
     playButtonLabel: '🎮 Play on Peaxel',
     leaderboardButtonLabel: '📊 Leaderboard',
@@ -44,12 +44,12 @@ const DEFAULT_CONFIG = {
       + '**Quick checklist**\n'
       + '✅ Best athletes in the starting lineup?\n'
       + '✅ Captain / strategy optimized?\n'
-      + '✅ Changes saved on [game.peaxel.me](https://game.peaxel.me)?\n\n'
+      + '✅ Changes saved in the game?\n\n'
       + 'Miss the deadline and you sit this GW out. Don’t leave points on the table.',
     imageName: 'closing-banner.png',
     color: '#EF4444',
     footerText: 'Peaxel · Lineup deadline · Thursday 23:59 Paris',
-    playUrl: 'https://game.peaxel.me/',
+    playUrl: 'https://game.peaxel.me/?ref=discord_closing',
     leaderboardUrl: 'https://peaxel.me/leaderboard',
     playButtonLabel: '🎮 Lock my lineup',
     leaderboardButtonLabel: '📊 Leaderboard',

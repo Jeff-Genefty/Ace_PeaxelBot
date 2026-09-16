@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { openGiveaway } from '../web/services/giveawayService.js';
+import { gameUrl, DISCORD_REFS } from '../utils/peaxelLinks.js';
 
 export const data = new SlashCommandBuilder()
     .setName('giveaway-start')
@@ -8,11 +9,12 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction) {
     openGiveaway('manual');
+    const playUrl = gameUrl(DISCORD_REFS.giveaway);
 
     const embed = new EmbedBuilder()
         .setTitle('🎟️ Peaxel Giveaway — win an Athlete Card')
         .setDescription(
-            'Enter for a chance to win an **Athlete Card** for your roster on [game.peaxel.me](https://game.peaxel.me).\n\n'
+            `Enter for a chance to win an **Athlete Card** for your roster on [game.peaxel.me](${playUrl}).\n\n`
             + '**How to enter**\n'
             + 'Click **Enter giveaway** below (one entry per manager). '
             + 'The winner is drawn when the event closes — claim via ticket.\n\n'

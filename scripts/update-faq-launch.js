@@ -1,6 +1,8 @@
 /**
- * One-shot: post Peaxel FAQ embeds to a Discord channel.
- * Usage: node scripts/post-faq-channel.js
+ * Update live FAQ channel embeds for launch (no Alpha/Beta) + UTM play links.
+ * Matches messages by embed title — does not re-post (no duplicates).
+ *
+ * Usage: node scripts/update-faq-launch.js
  */
 import { config } from 'dotenv';
 import {
@@ -22,25 +24,22 @@ const { gameUrl, ZEALY_URL, DOCS_URL, SITE_URL, ACE_URL, TRUSTPILOT_URL, DISCORD
     pathToFileURL(resolve(__dirname, '../src/utils/peaxelLinks.js')).href
 );
 
-const CHANNEL_ID = '1370054311949631648';
+const CHANNEL_ID = process.env.FAQ_CHANNEL_ID || '1370054311949631648';
 const GUILD_ID = process.env.DISCORD_GUILD_ID || '1369976254647898152';
 const TICKET_CHANNEL_ID = process.env.TICKET_CHANNEL_ID || '1369976260066803794';
 const HUB_URL = process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
-const ASSETS = resolve('./assets');
 const PLAY_URL = gameUrl(DISCORD_REFS.faq);
+const ASSETS = resolve('./assets');
 
 function asset(name) {
     return new AttachmentBuilder(resolve(ASSETS, name), { name });
 }
 
-function embedImage(fileName) {
-    return `attachment://${fileName}`;
-}
-
-const messages = [
+const updates = [
     {
+        matchTitle: '❓ Peaxel FAQ — Welcome',
         files: ['faq-welcome.png'],
-        embed: () => new EmbedBuilder()
+        build: () => new EmbedBuilder()
             .setColor(0xa855f7)
             .setTitle('❓ Peaxel FAQ — Welcome')
             .setDescription(
@@ -55,13 +54,14 @@ const messages = [
                 + `• Docs: ${DOCS_URL}\n`
                 + '• Interactive help on Discord: `/help`',
             )
-            .setImage(embedImage('faq-welcome.png'))
+            .setImage('attachment://faq-welcome.png')
             .setFooter({ text: 'Peaxel · Own the Game. Manage Real Athletes.' })
             .setTimestamp(),
     },
     {
+        matchTitle: '💎 What is Peaxel?',
         files: ['faq-what-is-peaxel.png'],
-        embed: () => new EmbedBuilder()
+        build: () => new EmbedBuilder()
             .setColor(0x22d3ee)
             .setTitle('💎 What is Peaxel?')
             .setDescription(
@@ -91,84 +91,13 @@ const messages = [
                         + `3. Optional quests on **Zealy** — ${ZEALY_URL}`,
                 },
             )
-            .setImage(embedImage('faq-what-is-peaxel.png'))
+            .setImage('attachment://faq-what-is-peaxel.png')
             .setFooter({ text: 'Peaxel · Platform overview · Open Arena' }),
     },
     {
-        files: ['faq-community-hub.png'],
-        embed: () => new EmbedBuilder()
-            .setColor(0x7c3aed)
-            .setTitle('🏟️ Community Hub on Discord')
-            .setDescription(
-                'The **Peaxel Community Hub** tracks your Discord activity and turns it into progression:\n'
-                + '**Hub XP → levels → weekly challenges → card vault → Gameweek leaderboards.**\n\n'
-                + 'It lives in two places:\n'
-                + '• **Discord** — `/daily`, `/rank`, `/help`\n'
-                + `• **Web** — ${HUB_URL}/app (Discord login required · Peaxel server members only)`,
-            )
-            .addFields(
-                {
-                    name: 'What you can do on /app',
-                    value:
-                        '• See your **level, XP bar, streak** and weekly rank\n'
-                        + '• Track **weekly challenges** (auto-validated from Discord actions)\n'
-                        + '• Open your **card vault** and claim rewards\n'
-                        + '• Browse **weekly & all-time leaderboards** + manager profiles\n'
-                        + '• Enable a **GW deadline reminder** (Discord DM)',
-                },
-                {
-                    name: 'Bugs, support & tickets',
-                    value:
-                        `Report issues or claim deliveries via <#${TICKET_CHANNEL_ID}>.\n`
-                        + 'Top contributors may be rewarded for useful bug reports and community help.',
-                },
-            )
-            .setImage(embedImage('faq-community-hub.png'))
-            .setFooter({ text: 'Peaxel Hub · Discord + Web' }),
-    },
-    {
-        files: ['faq-hub-xp.png'],
-        embed: () => new EmbedBuilder()
-            .setColor(0xfbbf24)
-            .setTitle('⚡ Earning Hub XP')
-            .setDescription(
-                'Hub XP powers your **Hub Pass** progression (titles from Rookie → Hall of Fame).\n'
-                + 'XP is earned from Discord activity — not from in-game lineup score.',
-            )
-            .addFields(
-                {
-                    name: 'Main XP sources',
-                    value:
-                        '• **Messages** — 15–25 XP (max **1 counted / 60 seconds** — anti-farm)\n'
-                        + '• **`/daily`** — +40 XP once per day (**Europe/Paris**)\n'
-                        + '• **Weekly challenge task** — +25 XP each\n'
-                        + '• **Full weekly quest** — +100 XP\n'
-                        + '• **Feedback** +30 · **Quiz join** +15 · **Quiz win** +50\n'
-                        + '• **Giveaway entry** +10 · **Weekly XP #1** +150',
-                },
-                {
-                    name: 'How /daily works',
-                    value:
-                        '1. Send **at least one message** on this Discord server today (Paris day)\n'
-                        + '2. Run **`/daily`**\n'
-                        + '3. Keep your **streak** alive for milestone bonuses',
-                },
-                {
-                    name: 'Streak milestones',
-                    value:
-                        '• **7 days** → +100 XP + Athlete Card\n'
-                        + '• **14 days** → +200 XP + Athlete Card\n'
-                        + '• **30 days** → +500 XP + Athlete Card\n'
-                        + '_Miss a day → streak resets to 1._\n\n'
-                        + '**Important:** leveling up unlocks **titles only** — it does **not** drop a card.',
-                },
-            )
-            .setImage(embedImage('faq-hub-xp.png'))
-            .setFooter({ text: 'Peaxel Hub · /daily · /rank' }),
-    },
-    {
+        matchTitle: '🎯 Weekly challenges & card vault',
         files: ['faq-challenges-vault.png'],
-        embed: () => new EmbedBuilder()
+        build: () => new EmbedBuilder()
             .setColor(0x34d399)
             .setTitle('🎯 Weekly challenges & card vault')
             .setDescription(
@@ -206,91 +135,14 @@ const messages = [
                         + 'weekly spotlights, and more — mostly via **Zealy + Discord + in-game activity**.',
                 },
             )
-            .setImage(embedImage('faq-challenges-vault.png'))
+            .setImage('attachment://faq-challenges-vault.png')
             .setFooter({ text: 'Peaxel Hub · Challenges · Vault' }),
     },
     {
-        files: ['faq-leaderboards.png'],
-        embed: () => new EmbedBuilder()
-            .setColor(0xf472b6)
-            .setTitle('🏆 Hub leaderboards')
-            .setDescription(
-                'There are **two Hub rankings**. Both are visible on the web Hub after Discord login.',
-            )
-            .addFields(
-                {
-                    name: 'This week (Gameweek board)',
-                    value:
-                        '• Ranks **XP earned during the current Gameweek** (not lifetime XP)\n'
-                        + '• Resets every **Monday** with the new GW\n'
-                        + '• Top 10 preview on `/app`\n'
-                        + '• Full board: `/app/leaderboard?tab=week`\n'
-                        + '• **#1 every Sunday ~20:05 (Paris)** → **+150 XP + Athlete Card** + Discord announcement',
-                },
-                {
-                    name: 'All-time (global board)',
-                    value:
-                        '• Ranks your **total Hub Pass XP**\n'
-                        + '• Does **not** reset each week\n'
-                        + '• Full board: `/app/leaderboard?tab=global`\n'
-                        + '• Click any manager name to open their **profile card** (avatar, roles, XP, streak…)',
-                },
-                {
-                    name: 'Discord shortcut',
-                    value: 'Use **`/rank`** anytime for your level, weekly rank, streak and a Top 3 preview.',
-                },
-            )
-            .setImage(embedImage('faq-leaderboards.png'))
-            .setFooter({ text: 'Peaxel Hub · Weekly #1 · All-time XP' }),
-    },
-    {
-        files: ['faq-withdrawals.png'],
-        embed: () => new EmbedBuilder()
-            .setColor(0x10b981)
-            .setTitle('💸 Withdrawals & payouts')
-            .setDescription(
-                'Rewards go to your **Peaxel wallet**. Cash withdrawals are paid out via **wire transfer** or **Stripe**, '
-                + 'depending on your **location / region**. Payouts follow a fixed schedule — they are **not** instant or on-demand.',
-            )
-            .addFields(
-                {
-                    name: 'Payout methods',
-                    value:
-                        '• **Wire transfer** or **Stripe** — available method depends on your **geolocation**\n'
-                        + '• The option shown in your Peaxel account is the one enabled for your region\n'
-                        + '• We cannot force a method that is unavailable in your country',
-                },
-                {
-                    name: 'Processing schedule',
-                    value:
-                        '• Withdrawals are processed **once per day**\n'
-                        + '• **Monday to Friday only** (no weekend processing)\n'
-                        + '• Instant / on-demand payouts are **not available**',
-                },
-                {
-                    name: 'Important notice',
-                    value:
-                        'Please **do not open repeated tickets** asking when your payment will arrive or which method you “should” get.\n\n'
-                        + 'If ticket volume about payment timing continues, we will:\n'
-                        + '1. **Auto-close** those tickets\n'
-                        + '2. Move payout processing to **once per week** instead of daily\n\n'
-                        + 'Thanks for your understanding — this keeps payouts fast and fair for everyone.',
-                },
-                {
-                    name: 'Need help?',
-                    value:
-                        'Open a ticket only for **real payout issues** (missing transfer after the expected window, '
-                        + 'failed Stripe payout, wrong bank details, etc.) — not for “when will I get paid?” '
-                        + 'or “can I switch to Stripe/wire?” questions.',
-                },
-            )
-            .setImage(embedImage('faq-withdrawals.png'))
-            .setFooter({ text: 'Peaxel · Withdrawals · Wire / Stripe by region · Mon–Fri' }),
-    },
-    {
+        matchTitle: '🎮 HOW TO PLAY PEAXEL | Official Guide',
         files: ['faq-need-help.png'],
-        components: true,
-        embed: () => new EmbedBuilder()
+        withButtons: true,
+        build: () => new EmbedBuilder()
             .setColor(0xa855f7)
             .setTitle('🎮 HOW TO PLAY PEAXEL | Official Guide')
             .setDescription(
@@ -335,7 +187,7 @@ const messages = [
                         + 'On Discord: `/help` (Hub Pass) or `/how-to-play` anytime.',
                 },
             )
-            .setImage(embedImage('faq-need-help.png'))
+            .setImage('attachment://faq-need-help.png')
             .setFooter({ text: 'Peaxel · The Next Generation of Scouting' }),
     },
 ];
@@ -366,25 +218,34 @@ client.once('ready', async () => {
         const channel = await client.channels.fetch(CHANNEL_ID);
         if (!channel?.isTextBased()) throw new Error(`Channel ${CHANNEL_ID} not text-based`);
 
-        console.log(`Posting ${messages.length} FAQ messages to #${channel.name || CHANNEL_ID}…`);
-
-        for (let i = 0; i < messages.length; i++) {
-            const spec = messages[i];
-            const files = spec.files.map((f) => asset(f));
-            const payload = {
-                embeds: [spec.embed()],
-                files,
-            };
-            if (spec.components) payload.components = howToPlayButtons();
-
-            const sent = await channel.send(payload);
-            console.log(`✅ ${i + 1}/${messages.length} → ${sent.id}`);
-            await new Promise((r) => setTimeout(r, 1200));
+        const fetched = await channel.messages.fetch({ limit: 50 });
+        const byTitle = new Map();
+        for (const msg of fetched.values()) {
+            const title = msg.embeds?.[0]?.title;
+            if (title && !byTitle.has(title)) byTitle.set(title, msg);
         }
 
-        console.log('Done.');
+        let updated = 0;
+        for (const spec of updates) {
+            const msg = byTitle.get(spec.matchTitle);
+            if (!msg) {
+                console.warn(`⚠️ Not found: ${spec.matchTitle}`);
+                continue;
+            }
+            const payload = {
+                embeds: [spec.build()],
+                files: spec.files.map((f) => asset(f)),
+            };
+            if (spec.withButtons) payload.components = howToPlayButtons();
+            await msg.edit(payload);
+            console.log(`✅ Updated: ${spec.matchTitle} (${msg.id})`);
+            updated++;
+            await new Promise((r) => setTimeout(r, 800));
+        }
+
+        console.log(`Done — ${updated}/${updates.length} FAQ embeds updated.`);
     } catch (err) {
-        console.error('Failed:', err);
+        console.error(err);
         process.exitCode = 1;
     } finally {
         client.destroy();

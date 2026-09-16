@@ -26,7 +26,7 @@ function howToPlayButtons() {
     const ticketUrl = `https://discord.com/channels/${GUILD_ID}/${TICKET_CHANNEL_ID}`;
     return [
         new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setLabel('Play Now').setStyle(ButtonStyle.Link).setURL('https://game.peaxel.me'),
+            new ButtonBuilder().setLabel('Play Now').setStyle(ButtonStyle.Link).setURL('https://game.peaxel.me/?ref=discord_faq'),
             new ButtonBuilder().setLabel('Full Guide').setStyle(ButtonStyle.Link).setURL('https://docs.peaxel.me/'),
             new ButtonBuilder().setLabel('Community Hub').setStyle(ButtonStyle.Link).setURL(`${HUB_URL}/app`),
             new ButtonBuilder().setLabel('Leaderboards').setStyle(ButtonStyle.Link).setURL(`${HUB_URL}/app/leaderboard`),

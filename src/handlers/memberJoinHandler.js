@@ -2,7 +2,13 @@ import { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Butto
 import { resolve } from 'path';
 import { existsSync } from 'fs';
 import { getChannel } from '../utils/configManager.js';
-import { loadMessageConfig } from '../config/messageConfig.js';
+import {
+    gameUrl,
+    ZEALY_URL,
+    DOCS_URL,
+    FREE_CARDS_URL,
+    DISCORD_REFS,
+} from '../utils/peaxelLinks.js';
 
 const logPrefix = '[Peaxel Welcome]';
 const WEB_BASE = () => process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
@@ -18,40 +24,37 @@ async function sendWelcomeMessage(member) {
     const channel = await member.client.channels.fetch(welcomeChannelId).catch(() => null);
     if (!channel?.isTextBased()) return;
 
-    const msgConfig = loadMessageConfig();
-    const playUrl = msgConfig.opening.playUrl || 'https://game.peaxel.me/';
-    const zealyUrl = 'https://zealy.io/cw/peaxel-quest/questboard';
-    const trustpilotUrl = 'https://www.trustpilot.com/review/peaxel.me';
+    const playUrl = gameUrl(DISCORD_REFS.welcome);
     const hubUrl = `${WEB_BASE()}/app`;
-    const freeCardsUrl = 'https://peaxel.me/win-freecards-on-peaxel';
-
     const imagePath = resolve(process.cwd(), 'assets', 'welcome-image.png');
 
     const embed = new EmbedBuilder()
-        .setTitle('👋 Welcome to Peaxel — Ace here')
+        .setTitle('👋 Welcome to Peaxel — the Arena is open')
         .setDescription(
             `Hey <@${member.id}> — glad you’re here.\n\n`
-            + '**Peaxel** is the free fantasy game where you scout real action-sports athletes, '
-            + 'build weekly lineups on [game.peaxel.me](https://game.peaxel.me), and compete for rewards.\n\n'
-            + '**Start in 4 steps**\n'
-            + `1️⃣ **Play free** — [create your account](${playUrl}) and claim your first card\n`
-            + `2️⃣ **Stack more free cards** — [see every free-card path](${freeCardsUrl})\n`
-            + `3️⃣ **Hub XP** — use \`/daily\` and join weekly Discord challenges ([open Hub](${hubUrl}))\n`
-            + `4️⃣ **Zealy quests** — [earn XP & cards](${zealyUrl}) · boost with a [Trustpilot review](${trustpilotUrl})\n\n`
-            + 'Need help? Ask in chat or check docs.peaxel.me.',
+            + '**Peaxel** is free: scout real action-sports athletes, build weekly lineups, '
+            + 'and compete for rewards.\n\n'
+            + `**Step 1 — play free**\n`
+            + `[Create your account & claim your first card →](${playUrl})\n\n`
+            + '**Then on Discord**\n'
+            + `• Hub XP — \`/daily\` + weekly challenges → [Open Hub](${hubUrl})\n`
+            + `• Free-card paths — [peaxel.me/win-freecards](${FREE_CARDS_URL})\n`
+            + `• Quests — [Zealy](${ZEALY_URL})\n\n`
+            + `Stuck? \`/how-to-play\` · [docs](${DOCS_URL}) · Ace AI`,
         )
         .setColor('#22d3ee')
         .setTimestamp()
         .setFooter({ text: 'Peaxel · Collect · Compete · Win' });
 
+    // 1 CTA primaire + 2 secondaires (ordre : Jouer → Hub → Docs)
     const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setLabel('Play free').setStyle(ButtonStyle.Link).setURL(playUrl),
-        new ButtonBuilder().setLabel('Zealy quests').setStyle(ButtonStyle.Link).setURL(zealyUrl),
         new ButtonBuilder().setLabel('Open Hub').setStyle(ButtonStyle.Link).setURL(hubUrl),
+        new ButtonBuilder().setLabel('How to play').setStyle(ButtonStyle.Link).setURL(DOCS_URL),
     );
 
     const options = {
-        content: `Welcome <@${member.id}> — your Peaxel roadmap is below 👇`,
+        content: `Welcome <@${member.id}> — **start by playing free** 👇`,
         embeds: [embed],
         components: [buttons],
     };

@@ -2,6 +2,7 @@ import fs, { readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { updateJsonSync } from '../../utils/jsonStore.js';
 import { getCurrentWeekNumber, getParisDate } from '../../utils/week.js';
+import { gameUrl, DISCORD_REFS } from '../../utils/peaxelLinks.js';
 
 const REMINDERS_FILE = join(resolve('./data'), 'gw_reminders.json');
 
@@ -49,10 +50,11 @@ export async function sendGwDeadlineReminders(client) {
     let sent = 0;
     let failed = 0;
 
+    const playUrl = gameUrl(DISCORD_REFS.reminder);
     const text =
         `⏰ **Gameweek ${gw} — ~2 hours left to lock your lineup**\n\n`
         + `Deadline: **Thursday 23:59 (Paris)**.\n`
-        + `Update your roster now → https://game.peaxel.me\n\n`
+        + `Update your roster now → ${playUrl}\n\n`
         + `_You’re getting this because reminders are enabled on the Peaxel Hub._`;
 
     for (const userId of userIds) {

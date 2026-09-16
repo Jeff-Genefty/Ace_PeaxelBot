@@ -2,10 +2,10 @@ import { langSwitcher } from '../i18n/index.js';
 
 const LOGO_SRC = '/img/peaxel-mark.png';
 
-/** Liens officiels Peaxel (écosystème) */
+/** Liens officiels Peaxel (écosystème) — jeu avec UTM hub web */
 export const PEAXEL_LINKS = {
     site: 'https://peaxel.me',
-    game: 'https://game.peaxel.me',
+    game: 'https://game.peaxel.me/?ref=discord_hub',
     docs: 'https://docs.peaxel.me',
     help: 'https://ace.peaxel.me',
     discord: 'https://discord.com/invite/p2K6kquXHU',
