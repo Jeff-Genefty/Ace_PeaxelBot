@@ -394,13 +394,14 @@ router.post('/save-config', requireAdmin, validateCsrf, (req, res) => {
 router.post(
     '/send-announce',
     requireAdmin,
-    validateCsrf,
+    // Multer must run before CSRF: multipart fields (incl. _csrf) are not in req.body otherwise
     (req, res, next) => {
         broadcastUpload.single('footerImage')(req, res, (err) => {
             if (err) return handleBroadcastUploadError(err, req, res, next);
             next();
         });
     },
+    validateCsrf,
     async (req, res) => {
         const message = typeof req.body.message === 'string' ? req.body.message.trim() : '';
         const chanId = normalizeSnowflake(req.body.chanId);
