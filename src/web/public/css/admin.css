@@ -97,14 +97,21 @@
     border: 1px solid rgba(34, 211, 238, 0.25);
 }
 
+.admin-logout-form {
+    margin: 0 1rem 1.25rem;
+}
+
 .admin-logout-btn {
     display: block;
-    margin: 0 1rem 1.25rem;
+    width: 100%;
+    margin: 0;
     padding: 0.65rem 1rem;
     text-align: center;
     border-radius: 10px;
     font-size: 0.8rem;
     font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
     color: #fca5a5 !important;
     background: rgba(239, 68, 68, 0.08);
     border: 1px solid rgba(239, 68, 68, 0.2);
@@ -438,7 +445,7 @@
 @media (max-width: 768px) {
     .charts-duo { grid-template-columns: 1fr; }
     .admin-nav-link { margin-inline: 0.5rem; }
-    .admin-logout-btn { margin-inline: 0.5rem; }
+    .admin-logout-form { margin-inline: 0.5rem; }
     .admin-user-block { margin-inline: 0.5rem; }
 }
 

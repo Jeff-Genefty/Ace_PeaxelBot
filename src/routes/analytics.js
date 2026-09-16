@@ -4,6 +4,7 @@ import { adminSidebar, adminTopbar, kpiCard, kpiSection, ADMIN_CSS } from '../we
 import { pageShell } from '../web/utils/render.js';
 import { adminUrl } from '../web/services/adminPath.js';
 import { gatherAdminStats } from '../web/services/statsService.js';
+import { csrfInput } from '../utils/csrf.js';
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get('/', requireAdmin, async (req, res) => {
 
     const body = `
     <div class="admin-body admin-v3">
-        ${adminSidebar('/analytics', base, req.session.admin, { t, locale, returnPath: '/analytics' })}
+        ${adminSidebar('/analytics', base, req.session.admin, { t, locale, returnPath: '/analytics', csrf: csrfInput(req.session) })}
         <main class="admin-main">
             ${adminTopbar({
                 title: t('admin.intelligenceCenter'),

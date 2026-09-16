@@ -50,7 +50,7 @@ router.get('/', requireAdmin, (req, res) => {
 
     const body = `
     <div class="admin-body admin-v3">
-        ${adminSidebar('/leaderboard', base, req.session.admin, { t, locale, returnPath: '/leaderboard' })}
+        ${adminSidebar('/leaderboard', base, req.session.admin, { t, locale, returnPath: '/leaderboard', csrf })}
         <main class="admin-main">
             ${adminTopbar({
                 title: t('admin.leaderboardTitle'),

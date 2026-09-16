@@ -234,6 +234,61 @@ describe('escapeHtml', () => {
     });
 });
 
+describe('hub leaderboard profile links', () => {
+    it('renders manager profile links on leaderboard rows', async () => {
+        const { renderAppLeaderboardPage } = await import('../src/web/utils/appLeaderboardWidgets.js');
+        const t = (key) => key;
+        const html = renderAppLeaderboardPage({
+            tab: 'week',
+            weekRows: [{
+                discordId: '1369976257047167059',
+                displayName: 'Ace',
+                xpWeek: 120,
+                level: 3,
+                rank: 1,
+            }],
+            globalRows: [],
+            gameweek: 12,
+            weekKey: '2026-W38',
+            viewerId: '1369976257047167059',
+            t,
+        });
+        assert.match(html, /href="\/app\/manager\/1369976257047167059"/);
+        assert.match(html, /hub-lb-row-link/);
+        assert.match(html, /app\.hubYou/);
+    });
+});
+
+describe('logout CSRF forms', () => {
+    it('renders POST logout with CSRF in public nav and admin sidebar', async () => {
+        const { publicNav } = await import('../src/web/utils/branding.js');
+        const { adminSidebar } = await import('../src/web/utils/adminLayout.js');
+        const t = (key) => key;
+        const csrf = '<input type="hidden" name="_csrf" value="tok">';
+
+        const nav = publicNav({
+            user: { id: '1369976257047167059', username: 'Ace', avatarUrl: '/img/peaxel-mark.png' },
+            t,
+            locale: 'en',
+            csrf,
+        });
+        assert.match(nav, /action="\/auth\/logout"/);
+        assert.match(nav, /method="POST"/);
+        assert.match(nav, /name="_csrf"/);
+        assert.match(nav, /href="\/app\/manager\/1369976257047167059"/);
+
+        const sidebar = adminSidebar('', '/staff-console', { email: 'a@b.c' }, {
+            t,
+            locale: 'en',
+            returnPath: '/staff-console',
+            csrf,
+        });
+        assert.match(sidebar, /action="\/staff-console\/logout"/);
+        assert.match(sidebar, /method="POST"/);
+        assert.match(sidebar, /name="_csrf"/);
+    });
+});
+
 describe('discordValidation', () => {
     it('accepts valid snowflakes and rejects garbage', async () => {
         const { isDiscordSnowflake, parseModActionBody, isBroadcastChannelAllowed } = await import('../src/utils/discordValidation.js');

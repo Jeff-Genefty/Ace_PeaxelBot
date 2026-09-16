@@ -45,6 +45,20 @@ const SHARED_JS = '<script src="/js/countdown.js" defer></script>';
 
 const router = express.Router();
 
+function navUserFromSession(user) {
+    if (!user) return null;
+    return {
+        id: user.id,
+        username: escapeHtml(user.username),
+        avatarUrl: user.avatarUrl,
+    };
+}
+
+function ensureCsrf(req) {
+    if (!req.session.csrfToken) initSessionCsrf(req.session);
+    return csrfInput(req.session);
+}
+
 function faqDictionary(locale) {
     return locale === 'fr' ? fr : en;
 }
@@ -98,16 +112,18 @@ router.get('/', async (req, res) => {
     const discordUser = req.session.discordUser || null;
     const publicStats = await gatherPublicStats(client, locale, discordUser?.id);
     const gw = publicStats.gameweekStatus;
+    const csrf = discordUser ? ensureCsrf(req) : '';
 
     const body = `
     <div class="landing landing-home">
         ${renderGwTicker({ t, gw })}
         ${renderHomeBackground(featuredCards)}
         ${publicNav({
-        user: discordUser ? { username: escapeHtml(discordUser.username), avatarUrl: discordUser.avatarUrl } : null,
+        user: navUserFromSession(discordUser),
         t,
         locale,
         returnPath: '/',
+        csrf,
     })}
         ${renderGiveawayStrip({ t, giveaway: publicStats.giveaway })}
         <section class="hero hero-peaxel">
@@ -198,7 +214,9 @@ router.get('/auth/discord/callback', async (req, res) => {
     }
 });
 
-router.get('/auth/logout', (req, res) => {
+router.get('/auth/logout', (_req, res) => res.redirect('/'));
+
+router.post('/auth/logout', requireDiscordUser, validateCsrf, (req, res) => {
     delete req.session.discordUser;
     req.session.save(() => res.redirect('/'));
 });
@@ -224,7 +242,7 @@ router.get('/app', requireDiscordUser, async (req, res) => {
     <div class="landing landing-app landing-home">
         ${renderGwTicker({ t, gw })}
         ${renderHomeBackground(getFeaturedCards(4))}
-        ${publicNav({ user: { username: escapeHtml(user.username), avatarUrl: user.avatarUrl }, t, locale, returnPath: '/app' })}
+        ${publicNav({ user: navUserFromSession(user), t, locale, returnPath: '/app', csrf })}
         <div class="app-layout app-layout-live">
             ${flash}
             ${renderGiveawayStrip({ t, giveaway: dashboard.giveaway })}
@@ -258,12 +276,13 @@ router.get('/app/leaderboard', requireDiscordUser, (req, res) => {
     const gw = getGameweekStatus();
     const weekRows = mapLbRows(getWeeklyLeaderboard(50), user.id, user.username);
     const globalRows = mapLbRows(getGlobalLeaderboard(50), user.id, user.username);
+    const csrf = ensureCsrf(req);
 
     const body = `
     <div class="landing landing-app landing-home">
         ${renderGwTicker({ t, gw })}
         ${renderHomeBackground(getFeaturedCards(4))}
-        ${publicNav({ user: { username: escapeHtml(user.username), avatarUrl: user.avatarUrl }, t, locale, returnPath: '/app/leaderboard' })}
+        ${publicNav({ user: navUserFromSession(user), t, locale, returnPath: '/app/leaderboard', csrf })}
         <div class="app-layout app-layout-live">
             ${renderAppLeaderboardPage({
                 tab,
@@ -294,11 +313,25 @@ router.get('/app/manager/:id', requireDiscordUser, async (req, res) => {
     if (!id) return res.status(400).send(t('app.managerInvalid'));
 
     const client = req.app.get('discordClient');
-    const discord = await fetchMemberProfile(client, id);
+    let discord;
+    try {
+        discord = await fetchMemberProfile(client, id);
+    } catch {
+        discord = {
+            found: false,
+            id,
+            username: null,
+            tag: null,
+            avatarUrl: `https://cdn.discordapp.com/embed/avatars/0.png`,
+            roles: [],
+            joinedAt: null,
+        };
+    }
     const hub = getHubProfile(id);
     const rankWeek = getUserWeekRank(id);
     const rankGlobal = getUserGlobalRank(id);
     const gw = getGameweekStatus();
+    const csrf = ensureCsrf(req);
 
     // Prefer Hub-stored username if Discord fetch failed
     if (!discord.username && hub.username) {
@@ -309,7 +342,7 @@ router.get('/app/manager/:id', requireDiscordUser, async (req, res) => {
     <div class="landing landing-app landing-home">
         ${renderGwTicker({ t, gw })}
         ${renderHomeBackground(getFeaturedCards(4))}
-        ${publicNav({ user: { username: escapeHtml(viewer.username), avatarUrl: viewer.avatarUrl }, t, locale, returnPath: `/app/manager/${id}` })}
+        ${publicNav({ user: navUserFromSession(viewer), t, locale, returnPath: `/app/manager/${id}`, csrf })}
         <div class="app-layout app-layout-live">
             ${renderAppManagerProfile({
                 discord,

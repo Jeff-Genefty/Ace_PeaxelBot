@@ -4,7 +4,7 @@ import { isSuperAdmin } from '../services/adminUsers.js';
 import { escapeHtml } from './render.js';
 import { langSwitcher } from '../i18n/index.js';
 
-export function adminSidebar(active, base = adminUrl(''), admin = null, { t, locale, returnPath } = {}) {
+export function adminSidebar(active, base = adminUrl(''), admin = null, { t, locale, returnPath, csrf = '' } = {}) {
     const navItems = [
         { path: '', key: 'admin.overview', icon: '◉' },
         { path: '/analytics', key: 'admin.analytics', icon: '▤', absolute: true },
@@ -52,7 +52,10 @@ export function adminSidebar(active, base = adminUrl(''), admin = null, { t, loc
                 ${themeSwitcher(t)}
                 ${langSwitcher(returnPath || base, locale, t)}
             </div>
-            <a href="${base}/logout" class="admin-logout-btn">${t('admin.logout')}</a>
+            <form action="${base}/logout" method="POST" class="admin-logout-form">
+                ${csrf}
+                <button type="submit" class="admin-logout-btn">${t('admin.logout')}</button>
+            </form>
         </aside>`;
 }
 

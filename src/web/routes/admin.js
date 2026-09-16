@@ -47,7 +47,12 @@ function renderChannelSelect(name, currentId, guildChannels, t) {
         <datalist id="${listId}">${options}</datalist>`;
 }
 
-const i18nOpts = (req) => ({ t: req.t, locale: req.locale, returnPath: req.originalUrl });
+const i18nOpts = (req) => ({
+    t: req.t,
+    locale: req.locale,
+    returnPath: req.originalUrl,
+    csrf: csrfInput(req.session),
+});
 
 router.get('/login', (req, res) => {
     if (req.session.admin) return res.redirect(adminUrl('/'));
@@ -114,7 +119,9 @@ router.post('/login', loginRateLimit, validateLoginCsrf, async (req, res) => {
     }
 });
 
-router.get('/logout', (req, res) => {
+router.get('/logout', (_req, res) => res.redirect(adminUrl('/login')));
+
+router.post('/logout', requireAdmin, validateCsrf, (req, res) => {
     delete req.session.admin;
     req.session.save(() => res.redirect(adminUrl('/login')));
 });

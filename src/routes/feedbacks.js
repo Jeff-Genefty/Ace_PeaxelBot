@@ -6,6 +6,7 @@ import { adminSidebar, adminTopbar, ADMIN_CSS } from '../web/utils/adminLayout.j
 import { pageShell, escapeHtml } from '../web/utils/render.js';
 import { adminUrl } from '../web/services/adminPath.js';
 import { localeDateString } from '../web/i18n/index.js';
+import { csrfInput } from '../utils/csrf.js';
 
 const router = express.Router();
 const FEEDBACKS_FILE = resolve('./data/feedbacks.json');
@@ -40,7 +41,7 @@ router.get('/', requireAdmin, (req, res) => {
 
     const body = `
     <div class="admin-body admin-v3">
-        ${adminSidebar('/feedbacks', base, req.session.admin, { t, locale, returnPath: '/feedbacks' })}
+        ${adminSidebar('/feedbacks', base, req.session.admin, { t, locale, returnPath: '/feedbacks', csrf: csrfInput(req.session) })}
         <main class="admin-main">
             ${adminTopbar({
                 title: t('admin.feedbackVault'),

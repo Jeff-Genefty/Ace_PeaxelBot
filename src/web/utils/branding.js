@@ -79,12 +79,18 @@ export function peaxelFooter({ t, locale, returnPath = '/' }) {
     </footer>`;
 }
 
-export function publicNav({ user = null, t, locale, returnPath = '/' } = {}) {
+export function publicNav({ user = null, t, locale, returnPath = '/', csrf = '' } = {}) {
+    const profileHref = user?.id ? `/app/manager/${encodeURIComponent(user.id)}` : '/app';
     const userBlock = user
         ? `<div class="nav-user">
-                <img src="${user.avatarUrl}" alt="" class="nav-avatar" width="32" height="32">
-                <span class="nav-username">${user.username}</span>
-                <a href="/auth/logout" class="btn btn-ghost btn-sm">${t('nav.logout')}</a>
+                <a href="${profileHref}" class="nav-user-link" title="${t('app.managerTitle')}">
+                    <img src="${user.avatarUrl}" alt="" class="nav-avatar" width="32" height="32">
+                    <span class="nav-username">${user.username}</span>
+                </a>
+                <form action="/auth/logout" method="POST" class="nav-logout-form">
+                    ${csrf}
+                    <button type="submit" class="btn btn-ghost btn-sm">${t('nav.logout')}</button>
+                </form>
            </div>`
         : `<a href="/auth/discord" class="btn btn-primary btn-sm">${t('nav.signIn')}</a>`;
 

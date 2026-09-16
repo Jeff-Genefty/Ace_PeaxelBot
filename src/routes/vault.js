@@ -52,7 +52,7 @@ router.get('/', requireAdmin, (req, res) => {
 
     const body = `
     <div class="admin-body admin-v3">
-        ${adminSidebar('/vault', base, req.session.admin, { t, locale, returnPath: '/vault' })}
+        ${adminSidebar('/vault', base, req.session.admin, { t, locale, returnPath: '/vault', csrf })}
         <main class="admin-main">
             ${adminTopbar({
                 title: t('admin.vaultTitle'),

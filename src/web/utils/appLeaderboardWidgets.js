@@ -43,14 +43,17 @@ export function renderAppLeaderboardPage({
             const isYou = r.discordId === String(viewerId);
             const name = escapeHtml(r.displayName);
             const xp = isWeek ? r.xpWeek : r.xpTotal;
+            const href = `/app/manager/${encodeURIComponent(r.discordId)}`;
             return `
             <li class="hub-lb-row${isYou ? ' is-you' : ''}">
-                <span class="hub-lb-rank">#${r.rank}</span>
-                <a class="hub-lb-name hub-lb-link" href="/app/manager/${encodeURIComponent(r.discordId)}">
-                    ${name}${isYou ? ` <em>${t('app.hubYou')}</em>` : ''}
+                <a class="hub-lb-row-link" href="${href}">
+                    <span class="hub-lb-rank">#${r.rank}</span>
+                    <span class="hub-lb-name">
+                        ${name}${isYou ? ` <em>${t('app.hubYou')}</em>` : ''}
+                    </span>
+                    <span class="hub-lb-xp">${xp} XP</span>
+                    <span class="hub-lb-lvl">Lv.${r.level}</span>
                 </a>
-                <span class="hub-lb-xp">${xp} XP</span>
-                <span class="hub-lb-lvl">Lv.${r.level}</span>
             </li>`;
         }).join('')
         : `<li class="hub-lb-empty">${emptyMsg}</li>`;
