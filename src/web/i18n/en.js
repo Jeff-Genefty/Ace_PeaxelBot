@@ -67,7 +67,7 @@ export default {
             },
             {
                 q: 'What are weekly challenges?',
-                a: 'Every Monday you get 3 rotating missions plus a fixed “send 10 messages” quest. The bot auto-validates Discord actions. Completing everything grants +100 XP and a pending card in your vault.',
+                a: 'Every Monday you get 3 rotating missions plus a fixed “send 10 messages” quest (messages must be at least 5 minutes apart and contain real text — spam like “.” does not count). Completing everything grants +100 XP and a pending card in your vault.',
             },
             {
                 q: 'How do I get and claim Athlete Cards?',
@@ -145,7 +145,7 @@ export default {
         feedbackCta: 'Open #feedback',
         feedbackThanks: 'Thanks for your review! Community average: {avg}/5 ({count} reviews).',
         challengeTitle: 'Weekly challenges',
-        challengeDesc: 'New challenges every Monday: 3 rotating missions + a fixed “send 10 messages” quest. The bot auto-validates your Discord actions.',
+        challengeDesc: 'New challenges every Monday: 3 rotating missions + a fixed “send 10 messages” quest (5 min apart, real content). The bot auto-validates your Discord actions.',
         challengeProgress: 'tasks',
         challengeAllDone: 'All missions completed!',
         challengeTicketHint: 'Screenshot this panel with the PEAXEL HUB stamp + GW + your username, then send it via a Discord ticket.',
@@ -155,7 +155,7 @@ export default {
                 quiz: 'Join the scout quiz on Discord',
                 feedback: 'Leave feedback via the 💬 button',
                 messages: 'Send at least 2 messages on Discord',
-                messages_10: 'Send 10 messages on the Discord server',
+                messages_10: 'Send 10 Discord messages (min. 5 min apart, real content)',
                 giveaway: 'Enter the weekend giveaway',
                 spotlight: 'React to this week\'s athlete spotlight',
                 welcome: 'Welcome a new community member',

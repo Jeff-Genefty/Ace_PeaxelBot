@@ -14,6 +14,13 @@ import { settleWeeklyPodium, announceWeeklyPodium } from './web/services/hubXpSe
 import { sendDailyConnectMessage } from './utils/dailyConnectMessage.js';
 import { sendGwDeadlineReminders } from './web/services/gwReminderService.js';
 import { addLiveLog } from './web/services/liveLogService.js';
+import {
+    generateQuizSchedule,
+    getDueQuizSlot,
+    markQuizSlotFired,
+    unmarkQuizSlotFired,
+    getQuizScheduleSummary,
+} from './utils/quizSchedule.js';
 
 const logPrefix = '[Peaxel Scheduler]';
 const GIVEAWAY_FILE = './data/giveaways.json';
@@ -21,6 +28,19 @@ const GIVEAWAY_FILE = './data/giveaways.json';
 const schedulerState = loadSchedulerState();
 let lastSentOpenWeek = schedulerState.lastSentOpenWeek;
 let lastSentCloseWeek = schedulerState.lastSentCloseWeek;
+
+async function fireScoutQuiz(client, reason = 'scheduled') {
+    const result = await runScoutQuiz(client, {
+        onStart: () => updatePresence(client, 'Quiz Active 🎲'),
+        onWinner: () => updatePresence(client),
+    });
+    if (!result.success) {
+        console.warn(`${logPrefix} [Quiz] Skipped (${reason}): ${result.reason}`);
+        return false;
+    }
+    addLiveLog('SYSTEM', `Scout Quiz launched · ${reason}`);
+    return true;
+}
 
 /**
  * Updates bot presence based on the current day and event
@@ -40,6 +60,8 @@ export function initScheduler(client) {
     const timezone = 'Europe/Paris';
     console.log(`${logPrefix} 🚀 Scheduler Online & Synced`);
     updatePresence(client);
+    const quizSummary = getQuizScheduleSummary();
+    console.log(`${logPrefix} Quiz schedule ${quizSummary.weekKey}: ${quizSummary.total} slot(s), ${quizSummary.remaining} remaining`);
 
     // --- 1. LINEUP OPENING (Monday 00:00) ---
     cron.schedule('0 0 * * 1', async () => {
@@ -55,17 +77,17 @@ export function initScheduler(client) {
         } catch (error) { console.error(`${logPrefix} [Opening] Error:`, error.message); }
     }, { scheduled: true, timezone });
 
-    // --- 2. AUTOMATIC SCOUT QUIZ (Tuesday 19:00) ---
-    cron.schedule('0 19 * * 2', async () => {
+    // --- 2. SCOUT QUIZ ALÉATOIRE (3–4 / semaine, créneaux tirés — check toutes les 5 min) ---
+    cron.schedule('*/5 * * * *', async () => {
         try {
-            const result = await runScoutQuiz(client, {
-                onStart: () => updatePresence(client, 'Quiz Active 🎲'),
-                onWinner: () => updatePresence(client),
-            });
-            if (!result.success) {
-                console.warn(`${logPrefix} [Quiz] Skipped: ${result.reason}`);
-            }
-        } catch (error) { console.error(`${logPrefix} [Quiz] Error:`, error.message); }
+            const due = getDueQuizSlot();
+            if (!due) return;
+            markQuizSlotFired(due.id); // anti-doublon avant l'envoi
+            const ok = await fireScoutQuiz(client, `random-slot ${due.id}`);
+            if (!ok) unmarkQuizSlotFired(due.id);
+        } catch (error) {
+            console.error(`${logPrefix} [Quiz random] Error:`, error.message);
+        }
     }, { scheduled: true, timezone });
 
     // --- 3. ATHLETE SPOTLIGHT (Wednesday 16:00) ---
@@ -207,12 +229,14 @@ cron.schedule('0 20 * * 0', async () => {
         }
     }, { scheduled: true, timezone });
 
-    // --- 8. WEEKLY CHALLENGES (Monday 00:05) ---
+    // --- 8. WEEKLY CHALLENGES + QUIZ SCHEDULE (Monday 00:05) ---
     cron.schedule('5 0 * * 1', async () => {
         try {
             const gw = getCurrentWeekNumber();
             generateWeeklyChallenges(gw);
+            const quiz = generateQuizSchedule();
             addLiveLog('SYSTEM', `Weekly challenges generated · GW ${gw}`);
+            addLiveLog('SYSTEM', `Scout Quiz schedule · ${quiz.slots?.length || 0} random slot(s)`);
         } catch (e) {
             console.error(`${logPrefix} [Weekly Challenges] Error:`, e.message);
         }

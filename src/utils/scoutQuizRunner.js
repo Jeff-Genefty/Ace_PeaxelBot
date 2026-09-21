@@ -116,7 +116,7 @@ export async function runScoutQuiz(client, options = {}) {
         if (reason === 'time' && collected.size === 0) {
             announceChannel.send(
                 `⏰ **Scout Quiz closed** — no correct answer in time.\n`
-                + `The athlete was **${athlete.name}**. Next quiz: Tuesday 19:00 (Paris).`,
+                + `The athlete was **${athlete.name}**. Next quiz: surprise drop this week (random slot).`,
             );
         }
     });

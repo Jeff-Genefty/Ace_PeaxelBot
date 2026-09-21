@@ -11,6 +11,8 @@
 |---------|--------|
 | Courbe XP exponentielle + anti-farm 60 s | ✅ |
 | `/daily` + message 09:00 | ✅ |
+| Quête 10 messages — cooldown 5 min + contenu réel | ✅ |
+| Scout Quiz aléatoire 3–4× / semaine (12h–21h Paris) | ✅ |
 | XP défis + barre `/app` + coffre claim V1 | ✅ |
 | Leaderboard hebdo top 10 | ✅ |
 | `/rank` (profil XP Discord) | ✅ |

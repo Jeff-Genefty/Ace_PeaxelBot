@@ -1,7 +1,7 @@
 import { getChannel } from '../utils/configManager.js';
 import { getCurrentWeekNumber } from '../utils/week.js';
 import {
-    incrementChallengeMetric,
+    tryCountChallengeMessage,
     markTaskComplete,
 } from '../web/services/weeklyChallengeService.js';
 import { tryAwardMessageXp, addHubXp, XP_REWARDS, recordServerMessage } from '../web/services/hubXpService.js';
@@ -29,7 +29,11 @@ export function handleChallengeMessage(message) {
     recordServerMessage(userId, { username });
     tryAwardMessageXp(userId, { username });
 
-    incrementChallengeMetric(userId, gw, 'messages', message.client, { username });
+    // Quête messages : cooldown 5 min + contenu minimum (anti « Bonjour / . /. »)
+    tryCountChallengeMessage(userId, gw, message.client, {
+        username,
+        content: message.content,
+    });
 
     if (ch === welcomeId && message.mentions.users.size > 0) {
         const mentionedOther = [...message.mentions.users.values()].some((u) => u.id !== userId && !u.bot);
@@ -37,8 +41,6 @@ export function handleChallengeMessage(message) {
             markTaskComplete(userId, gw, 'welcome', message.client, { username });
         }
     }
-
-    // Spotlight = salon lecture seule → validé via réactions (voir handleChallengeReaction)
 
     if (ch === welcomeId && message.attachments.size > 0) {
         markTaskComplete(userId, gw, 'share', message.client, { username });

@@ -64,6 +64,7 @@ const HELP_TOPICS_EN = {
                 name: 'What you get',
                 value:
                     '• **3 rotating missions** + fixed quest **“send 10 messages”**\n'
+                    + '  (min. **5 minutes** between counted messages · real content only)\n'
                     + '• **+25 XP** per task · **+100 XP** when all are done\n'
                     + '• Completing the full quest also grants a **pending Athlete Card**',
             },
@@ -265,6 +266,7 @@ const HELP_TOPICS_FR = {
                 name: 'Ce que tu gagnes',
                 value:
                     '• **3 missions rotatives** + quête fixe **« envoyer 10 messages »**\n'
+                    + '  (min. **5 minutes** entre chaque message compté · contenu réel)\n'
                     + '• **+25 XP** / tâche · **+100 XP** quand tout est fait\n'
                     + '• La quête complète donne aussi une **carte Athlete pending**',
             },

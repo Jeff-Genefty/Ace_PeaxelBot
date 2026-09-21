@@ -33,6 +33,11 @@ export const CHALLENGE_TASK_DEFS = {
 /** Quête fixe chaque semaine (en plus des 3 aléatoires) */
 export const FIXED_WEEKLY_TASK = 'messages_10';
 
+/** Anti-spam quête messages : 1 message compté / 5 min */
+export const MESSAGE_QUEST_COOLDOWN_MS = 5 * 60 * 1000;
+/** Contenu minimum (lettres/chiffres) pour compter */
+export const MESSAGE_QUEST_MIN_CHARS = 3;
+
 export const CHALLENGE_TASK_POOL = Object.keys(CHALLENGE_TASK_DEFS)
     .filter((id) => id !== FIXED_WEEKLY_TASK);
 
@@ -64,6 +69,38 @@ function withFixedTask(tasks) {
     const list = Array.isArray(tasks) ? [...tasks] : [];
     if (!list.includes(FIXED_WEEKLY_TASK)) list.push(FIXED_WEEKLY_TASK);
     return list;
+}
+
+/** Message « sérieux » : au moins N lettres/chiffres (ignore ., ! , espaces, etc.) */
+export function isMeaningfulChallengeMessage(content) {
+    const cleaned = String(content || '').replace(/[^\p{L}\p{N}]+/gu, '');
+    return cleaned.length >= MESSAGE_QUEST_MIN_CHARS;
+}
+
+/**
+ * Incrémente la métrique messages pour les défis, avec cooldown anti-spam.
+ * @returns {{ counted: boolean, reason?: string, result?: object }}
+ */
+export function tryCountChallengeMessage(discordId, gameweek, client, meta = {}) {
+    if (meta.content != null && !isMeaningfulChallengeMessage(meta.content)) {
+        return { counted: false, reason: 'low_quality' };
+    }
+
+    const progress = getUserProgressRaw(discordId, gameweek);
+    const lastAt = progress.lastMessagesMetricAt
+        ? Date.parse(progress.lastMessagesMetricAt)
+        : 0;
+    if (lastAt && Date.now() - lastAt < MESSAGE_QUEST_COOLDOWN_MS) {
+        return { counted: false, reason: 'cooldown' };
+    }
+
+    saveUserProgress(discordId, gameweek, (p) => {
+        p.lastMessagesMetricAt = new Date().toISOString();
+        return p;
+    });
+
+    const result = incrementChallengeMetric(discordId, gameweek, 'messages', client, meta);
+    return { counted: true, result };
 }
 
 export function generateWeeklyChallenges(gameweek = getCurrentWeekNumber()) {

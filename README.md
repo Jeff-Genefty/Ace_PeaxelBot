@@ -12,7 +12,7 @@ Bot Discord + **Community Hub** web : cycle Gameweek, Hub Pass (XP / défis / co
 ### 📅 Weekly Cycle Automation
 - **Mondays (00:00 – Paris)**: Lineup opening with dynamic countdowns.
 - **Mondays (00:05)**: Weekly challenge generation.
-- **Tuesdays (19:00 – Paris)**: **Scout Quiz** — Automated "Guess the Athlete" game.
+- **Tuesdays–Sunday (random)**: **Scout Quiz** — 3–4 surprise drops per week (12:00–21:00 Paris).
 - **Wednesdays (16:00 – Paris)**: **Athlete Spotlight** — Featured talent showcase from the ecosystem.
 - **Thursdays (18:59 – Paris)**: Closing reminder — 5 hours before the **23:59** lineup deadline.
 - **Weekends (Sat 10:00 – Sun 20:00)**: **Automated Giveaway** — Saturday launch and Sunday draw.

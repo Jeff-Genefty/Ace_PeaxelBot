@@ -67,7 +67,7 @@ export default {
             },
             {
                 q: 'Que sont les défis hebdomadaires ?',
-                a: 'Chaque lundi : 3 missions tournantes + une quête fixe « écrire 10 messages ». Le bot valide tes actions Discord. Tout terminer donne +100 XP et une carte en attente dans le coffre.',
+                a: 'Chaque lundi : 3 missions tournantes + une quête fixe « écrire 10 messages » (espacés d’au moins 5 min, avec du vrai texte — le spam du type « . » ne compte pas). Tout terminer donne +100 XP et une carte en attente dans le coffre.',
             },
             {
                 q: 'Comment obtenir et claim une carte ?',
@@ -145,7 +145,7 @@ export default {
         feedbackCta: 'Ouvrir #feedback',
         feedbackThanks: 'Merci pour ton avis ! Note moyenne communauté : {avg}/5 ({count} avis).',
         challengeTitle: 'Défis de la semaine',
-        challengeDesc: 'Nouveaux défis chaque lundi : 3 missions aléatoires + une quête fixe « écrire 10 messages ». Le bot valide automatiquement tes actions Discord.',
+        challengeDesc: 'Nouveaux défis chaque lundi : 3 missions aléatoires + une quête fixe « écrire 10 messages » (espacés de 5 min, contenu réel). Le bot valide automatiquement tes actions Discord.',
         challengeProgress: 'tâches',
         challengeAllDone: 'Toutes les missions sont validées !',
         challengeTicketHint: 'Capture cette zone avec le tampon PEAXEL HUB + GW + ton pseudo, puis envoie-la via un ticket Discord.',
@@ -155,7 +155,7 @@ export default {
                 quiz: 'Participer au quiz scout sur Discord',
                 feedback: 'Laisser un feedback via le bouton 💬',
                 messages: 'Envoyer au moins 2 messages sur Discord',
-                messages_10: 'Écrire 10 messages sur le serveur Discord',
+                messages_10: 'Écrire 10 messages sur Discord (min. 5 min entre chaque, contenu réel)',
                 giveaway: 'S\'inscrire au giveaway du week-end',
                 spotlight: 'Réagir au spotlight athlète de la semaine',
                 welcome: 'Souhaiter la bienvenue à un nouveau membre',
