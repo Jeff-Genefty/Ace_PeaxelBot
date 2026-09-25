@@ -1,7 +1,7 @@
 {
   "channels": {
     "announce": null,
-    "spotlight": null,
+    "spotlight": "1371124445992849438",
     "welcome": null,
     "logs": null,
     "feedback": null,
@@ -10,6 +10,7 @@
   "roles": {
     "verified": null,
     "activityTrack": null,
+    "mute": "1369976254719070278",
     "staffExcluded": []
   }
 }

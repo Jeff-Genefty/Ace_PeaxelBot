@@ -34,6 +34,7 @@ import { recordBotStart } from './utils/activityTracker.js';
 import { registerMemberJoinHandler } from './handlers/memberJoinHandler.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
 import { handleChallengeMessage, handleChallengeReaction, handleChallengeGiveawayJoin } from './handlers/challengeTracker.js';
+import { handleChatSpamModeration, restoreActiveMutes } from './utils/chatSpamModeration.js';
 
 const FileStore = sessionFileStore(session);
 
@@ -202,6 +203,7 @@ client.once(Events.ClientReady, async (readyClient) => {
     await initDiscordLogger(readyClient);
     initScheduler(readyClient);
     await updateFeedbackStatsChannel(readyClient);
+    await restoreActiveMutes(readyClient);
 });
 
 // Track arrivals + welcome message (handler centralisé)
@@ -227,6 +229,10 @@ client.on(Events.MessageCreate, async (message) => {
             });
         }
     }
+    // Anti-spam Ace (#general) : suppression + warning / mute — pas d'XP ni quête
+    const wasSpam = await handleChatSpamModeration(message);
+    if (wasSpam) return;
+
     await handleMessageReward(message);
     handleChallengeMessage(message);
 });

@@ -96,7 +96,11 @@ export function initScheduler(client) {
             const athlete = getRandomAthlete();
             if (!athlete) return;
 
-            const spotlightChannelId = getChannel('spotlight') || getChannel('welcome');
+            const spotlightChannelId = getChannel('spotlight');
+            if (!spotlightChannelId) {
+                console.error('[Peaxel Bot] [Spotlight] Missing SPOTLIGHT_CHANNEL_ID — skip post');
+                return;
+            }
             const generalChannelId = getChannel('welcome');
             const channel = await client.channels.fetch(spotlightChannelId);
             const { content, embed, components, athleteName } = buildSpotlightPayload(athlete, generalChannelId);

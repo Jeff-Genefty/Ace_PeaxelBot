@@ -15,7 +15,11 @@ const ENV_CHANNEL_KEYS = {
 const ENV_ROLE_KEYS = {
     verified: 'VERIFIED_ROLE_ID',
     activityTrack: 'ACTIVITY_TRACK_ROLE_ID',
+    mute: 'MUTE_ROLE_ID',
 };
+
+/** Rôle mute Ace (anti-spam chat) — défaut serveur Peaxel */
+const DEFAULT_MUTE_ROLE_ID = '1369976254719070278';
 
 const defaultConfig = {
     channels: {
@@ -29,6 +33,7 @@ const defaultConfig = {
     roles: {
         verified: null,
         activityTrack: null,
+        mute: DEFAULT_MUTE_ROLE_ID,
         staffExcluded: [],
     },
 };
@@ -64,6 +69,7 @@ export function getConfig() {
     const roles = {
         verified: process.env[ENV_ROLE_KEYS.verified] || file.roles?.verified || null,
         activityTrack: process.env[ENV_ROLE_KEYS.activityTrack] || file.roles?.activityTrack || null,
+        mute: process.env[ENV_ROLE_KEYS.mute] || file.roles?.mute || DEFAULT_MUTE_ROLE_ID,
         staffExcluded: staffFromEnv ?? file.roles?.staffExcluded ?? [],
     };
 
@@ -80,6 +86,10 @@ export function getRole(type) {
 
 export function getStaffExcludedRoles() {
     return getConfig().roles?.staffExcluded ?? [];
+}
+
+export function getMuteRoleId() {
+    return getConfig().roles?.mute || DEFAULT_MUTE_ROLE_ID;
 }
 
 export function getTicketChannelId() {

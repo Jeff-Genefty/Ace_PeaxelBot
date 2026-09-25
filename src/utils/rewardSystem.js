@@ -7,9 +7,25 @@ import { gameUrl, DISCORD_REFS } from './peaxelLinks.js';
 
 const REWARDS_PATH = './data/userRewards.json';
 
+/** Seuil global de messages Ace avant un tirage (réduit la fréquence des drops) */
+const THRESHOLD_MIN = 250;
+const THRESHOLD_MAX = 500;
+/** Probabilité de drop une fois le seuil atteint */
+const DROP_CHANCE = 0.35;
+
+function rollNextThreshold() {
+    return Math.floor(Math.random() * (THRESHOLD_MAX - THRESHOLD_MIN + 1)) + THRESHOLD_MIN;
+}
+
 const rewardState = loadRewardState();
 let messageCounter = rewardState.messageCounter;
 let nextThreshold = rewardState.nextThreshold;
+
+// Appliquer immédiatement le nouveau barème si un ancien seuil bas est encore en mémoire
+if (nextThreshold < THRESHOLD_MIN) {
+    nextThreshold = rollNextThreshold();
+    saveRewardState({ messageCounter, nextThreshold });
+}
 
 function persistRewardCounters() {
     saveRewardState({ messageCounter, nextThreshold });
@@ -51,10 +67,10 @@ export async function handleMessageReward(message) {
         }
 
         messageCounter = 0;
-        nextThreshold = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
+        nextThreshold = rollNextThreshold();
         persistRewardCounters();
 
-        if (Math.random() < 0.75) {
+        if (Math.random() < DROP_CHANCE) {
             await triggerAceRecognition(message);
         }
     } else {

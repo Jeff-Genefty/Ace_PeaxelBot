@@ -5,7 +5,8 @@ const STATE_PATH = resolve('./data/reward_state.json');
 
 const DEFAULT_STATE = {
     messageCounter: 0,
-    nextThreshold: Math.floor(Math.random() * (120 - 60 + 1)) + 60,
+    // Aligné sur rewardSystem : 250–500
+    nextThreshold: Math.floor(Math.random() * (500 - 250 + 1)) + 250,
 };
 
 export function loadRewardState() {
