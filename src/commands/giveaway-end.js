@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import fs from 'fs';
 import path from 'path';
-import { getTicketChannelId } from '../utils/configManager.js';
 import { closeGiveaway } from '../web/services/giveawayService.js';
+import { openClaimTicketOrPrompt } from '../utils/claimTicketService.js';
 
 export const data = new SlashCommandBuilder()
     .setName('giveaway-end')
@@ -25,29 +25,34 @@ export async function execute(interaction) {
 
     const winnerIndex = Math.floor(Math.random() * participants.length);
     const winnerId = participants[winnerIndex];
-    const ticketChannelId = getTicketChannelId();
-    const ticketMention = ticketChannelId ? `<#${ticketChannelId}>` : 'the support ticket channel';
-
-    const endEmbed = new EmbedBuilder()
-        .setTitle('🎊 Giveaway winner')
-        .setDescription(
-            `Congrats <@${winnerId}> — you won this Peaxel giveaway!\n\n`
-            + `**Entries:** ${participants.length}\n`
-            + `**Claim:** open a ticket in ${ticketMention} and mention this giveaway.`,
-        )
-        .setColor('#2dd4bf')
-        .setFooter({ text: 'Peaxel · Thanks for competing' })
-        .setTimestamp();
-
-    await interaction.reply({
-        content: `🎉 <@${winnerId}> wins the giveaway!`,
-        embeds: [endEmbed],
-    });
 
     let winnerTag = winnerId;
     try {
         const user = await interaction.client.users.fetch(winnerId);
         winnerTag = user.username || user.tag || winnerId;
     } catch { /* keep id */ }
+
+    const endEmbed = new EmbedBuilder()
+        .setTitle('🎊 Giveaway winner')
+        .setDescription(
+            `Congrats <@${winnerId}> — you won this Peaxel giveaway!\n\n`
+            + `**Entries:** ${participants.length}\n`
+            + `**Next:** Ace opens a private delivery ticket with staff once your Peaxel username/email is on file.`,
+        )
+        .setColor('#2dd4bf')
+        .setFooter({ text: 'Peaxel · Thanks for competing' })
+        .setTimestamp();
+
+    await interaction.deferReply();
+    await openClaimTicketOrPrompt(interaction.client, {
+        userId: winnerId,
+        discordUsername: winnerTag,
+        reason: 'giveaway',
+        channel: interaction.channel,
+        mentionContent: `🎉 <@${winnerId}> wins the giveaway!`,
+        embed: endEmbed,
+    });
+    await interaction.editReply({ content: `✅ Winner drawn: <@${winnerId}>` });
+
     closeGiveaway({ id: winnerId, tag: winnerTag });
 }

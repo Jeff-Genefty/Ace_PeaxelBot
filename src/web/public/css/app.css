@@ -695,9 +695,9 @@
 
 .hub-reward-item {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
     padding: 0.65rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -708,6 +708,28 @@
     flex-direction: column;
     gap: 0.25rem;
     min-width: 0;
+}
+
+.hub-reward-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.hub-claim-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted, #94a3b8);
+}
+
+.hub-claim-input {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-elevated, #0f172a);
+    color: inherit;
+    font-size: 0.85rem;
 }
 
 .hub-reward-tier {

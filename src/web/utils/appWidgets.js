@@ -256,13 +256,14 @@ export function renderAppLeaderboardCard({ dashboard, t }) {
 export function renderAppRewardsCard({ dashboard, t, csrf }) {
     const { hub } = dashboard;
     const pending = hub.pendingCards || [];
-    const ticketUrl = hub.ticketUrl || PEAXEL_LINKS.discord;
+    const savedContact = hub.peaxelContact || '';
 
     if (!pending.length) {
         return `
         <section class="app-card app-rewards-card">
             <h2 class="app-card-title">🎁 ${t('app.hubCoffreTitle')}</h2>
             <p class="app-card-desc">${t('app.hubCoffreEmpty')}</p>
+            ${savedContact ? `<p class="app-card-meta">${t('app.hubPeaxelContactSaved')}: <strong>${escapeHtml(savedContact)}</strong></p>` : ''}
         </section>`;
     }
 
@@ -275,6 +276,19 @@ export function renderAppRewardsCard({ dashboard, t, csrf }) {
             <form action="/app/rewards/claim" method="POST" class="hub-reward-form">
                 ${csrf}
                 <input type="hidden" name="cardId" value="${escapeHtml(card.id)}">
+                <label class="hub-claim-label" for="peaxelContact-${escapeHtml(card.id)}">${t('app.hubPeaxelContactLabel')}</label>
+                <input
+                    id="peaxelContact-${escapeHtml(card.id)}"
+                    type="text"
+                    name="peaxelContact"
+                    class="hub-claim-input"
+                    value="${escapeHtml(savedContact)}"
+                    placeholder="${escapeHtml(t('app.hubPeaxelContactPlaceholder'))}"
+                    required
+                    minlength="2"
+                    maxlength="100"
+                    autocomplete="username"
+                >
                 <button type="submit" class="btn btn-primary btn-sm">${t('app.hubClaimCta')}</button>
             </form>
         </li>`).join('');
@@ -287,7 +301,7 @@ export function renderAppRewardsCard({ dashboard, t, csrf }) {
         </div>
         <p class="app-card-desc">${t('app.hubCoffreDesc')}</p>
         <ul class="hub-reward-list">${items}</ul>
-        <p class="app-card-meta">${t('app.hubClaimHint')} · <a href="${escapeHtml(ticketUrl)}" target="_blank" rel="noopener">${t('app.challengeOpenTicket')}</a></p>
+        <p class="app-card-meta">${t('app.hubClaimHint')}</p>
     </section>`;
 }
 

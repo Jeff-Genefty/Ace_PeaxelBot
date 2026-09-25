@@ -35,6 +35,14 @@ import { registerMemberJoinHandler } from './handlers/memberJoinHandler.js';
 import { handleMessageReward } from './utils/rewardSystem.js';
 import { handleChallengeMessage, handleChallengeReaction, handleChallengeGiveawayJoin } from './handlers/challengeTracker.js';
 import { handleChatSpamModeration, restoreActiveMutes } from './utils/chatSpamModeration.js';
+import {
+    CLAIM_BTN_PREFIX,
+    CLAIM_MODAL_PREFIX,
+    CLAIM_CLOSE_ID,
+    handleClaimTicketButton,
+    handleClaimTicketModal,
+    handleClaimTicketClose,
+} from './utils/claimTicketService.js';
 
 const FileStore = sessionFileStore(session);
 
@@ -298,7 +306,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     else if (interaction.isButton()) {
         if (interaction.customId === 'feedback_button') {
             await handleFeedbackButton(interaction);
-        } 
+        }
         else if (interaction.customId === 'join_giveaway') {
             try {
                 joinGiveaway(interaction.user.id, interaction.user.tag);
@@ -312,6 +320,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 }
                 console.error('Giveaway Join Error:', err);
             }
+        }
+        else if (interaction.customId.startsWith(CLAIM_BTN_PREFIX)) {
+            await handleClaimTicketButton(interaction);
+        }
+        else if (interaction.customId === CLAIM_CLOSE_ID) {
+            await handleClaimTicketClose(interaction);
         }
     }
     // Handle Modal Submissions
@@ -333,6 +347,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
             // Non-blocking log to avoid crashing the whole process
             addLiveLog("ERROR", "Feedback submission failed");
         }
+    }
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith(CLAIM_MODAL_PREFIX)) {
+        await handleClaimTicketModal(interaction);
     }
 });
 

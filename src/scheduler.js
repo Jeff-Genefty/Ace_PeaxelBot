@@ -4,7 +4,7 @@ import { sendWeeklyMessage } from './utils/sendWeeklyMessage.js';
 import { getRandomAthlete } from './utils/spotlightManager.js';
 import { buildSpotlightPayload } from './utils/spotlightMessage.js';
 import { getCurrentWeekNumber, getParisDate } from './utils/week.js';
-import { getChannel, getTicketChannelId } from './utils/configManager.js';
+import { getChannel } from './utils/configManager.js';
 import { runScoutQuiz } from './utils/scoutQuizRunner.js';
 import { loadSchedulerState, saveSchedulerState } from './utils/schedulerState.js';
 import { readJsonSync } from './utils/jsonStore.js';
@@ -14,6 +14,7 @@ import { settleWeeklyPodium, announceWeeklyPodium } from './web/services/hubXpSe
 import { sendDailyConnectMessage } from './utils/dailyConnectMessage.js';
 import { sendGwDeadlineReminders } from './web/services/gwReminderService.js';
 import { addLiveLog } from './web/services/liveLogService.js';
+import { openClaimTicketOrPrompt } from './utils/claimTicketService.js';
 import {
     generateQuizSchedule,
     getDueQuizSlot,
@@ -175,8 +176,6 @@ cron.schedule('0 20 * * 0', async () => {
         const channelId = getChannel('announce');
         if (!channelId) return;
         const channel = await client.channels.fetch(channelId);
-        const ticketChannelId = getTicketChannelId();
-        const ticketMention = ticketChannelId ? `<#${ticketChannelId}>` : 'the support ticket channel';
         const data = readJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
 
         if (!data.participants?.length) {
@@ -188,30 +187,34 @@ cron.schedule('0 20 * * 0', async () => {
         const winnerId = data.participants[Math.floor(Math.random() * data.participants.length)];
         const imageFile = new AttachmentBuilder('./assets/announce.png');
 
-        const winEmbed = new EmbedBuilder()
-            .setTitle('🎊 Giveaway winner — Athlete Card')
-            .setDescription(
-                `Congrats <@${winnerId}> — you won this weekend’s **Athlete Card**!\n\n`
-                + `**Claim your card**\n`
-                + `Open a ticket in ${ticketMention} and mention this giveaway so the team can deliver your reward.`,
-            )
-            .setColor('#2ECC71')
-            .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png')
-            .setImage('attachment://announce.png')
-            .setFooter({ text: 'Peaxel · Thanks for competing, Managers' })
-            .setTimestamp();
-
-        await channel.send({
-            content: `🎉 <@${winnerId}> just won the Peaxel weekend giveaway!`,
-            embeds: [winEmbed],
-            files: [imageFile],
-        });
-
         let winnerTag = winnerId;
         try {
             const user = await client.users.fetch(winnerId);
             winnerTag = user.username || user.tag || winnerId;
         } catch { /* keep id */ }
+
+        const winEmbed = new EmbedBuilder()
+            .setTitle('🎊 Giveaway winner — Athlete Card')
+            .setDescription(
+                `Congrats <@${winnerId}> — you won this weekend’s **Athlete Card**!\n\n`
+                + `**Next:** Ace opens a private delivery ticket with staff once your Peaxel username/email is on file.`,
+            )
+            .setColor('#2ECC71')
+            .setThumbnail('https://peaxel.me/wp-content/uploads/2024/01/logo-peaxel.png')
+            .setFooter({ text: 'Peaxel · Thanks for competing, Managers' })
+            .setTimestamp();
+
+        await channel.send({ files: [imageFile] }).catch(() => null);
+
+        await openClaimTicketOrPrompt(client, {
+            userId: winnerId,
+            discordUsername: winnerTag,
+            reason: 'giveaway',
+            channel,
+            mentionContent: `🎉 <@${winnerId}> just won the Peaxel weekend giveaway!`,
+            embed: winEmbed,
+        });
+
         closeGiveaway({ id: winnerId, tag: winnerTag });
     } catch (e) {
         console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message);

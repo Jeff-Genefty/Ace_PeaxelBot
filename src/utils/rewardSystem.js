@@ -2,8 +2,10 @@ import { EmbedBuilder, AttachmentBuilder } from 'discord.js';
 import { resolve } from 'path';
 import { readJsonSync, updateJsonSync } from './jsonStore.js';
 import { loadRewardState, saveRewardState } from './rewardState.js';
-import { getChannel, getStaffExcludedRoles, getTicketChannelId } from './configManager.js';
+import { getChannel, getStaffExcludedRoles } from './configManager.js';
 import { gameUrl, DISCORD_REFS } from './peaxelLinks.js';
+import { buildClaimDeliveryRow, createClaimTicket } from './claimTicketService.js';
+import { getHubProfile } from '../web/services/hubXpService.js';
 
 const REWARDS_PATH = './data/userRewards.json';
 
@@ -82,8 +84,6 @@ async function triggerAceRecognition(message) {
     const user = message.author;
     const imagePath = resolve(process.cwd(), './assets/unnamed.png');
     const file = new AttachmentBuilder(imagePath);
-    const ticketChannelId = getTicketChannelId();
-    const ticketMention = ticketChannelId ? `<#${ticketChannelId}>` : 'the support ticket channel';
 
     saveRewardDate(user.id);
 
@@ -94,25 +94,48 @@ async function triggerAceRecognition(message) {
     ];
 
     const playUrl = gameUrl(DISCORD_REFS.reward);
+    const profile = getHubProfile(user.id);
+    const hasContact = Boolean(profile.peaxelContact);
 
     const embed = new EmbedBuilder()
         .setTitle('🃏 Ace reward — Free Athlete Card')
         .setDescription(
             `Hey <@${user.id}>, ${variations[Math.floor(Math.random() * variations.length)]}\n\n`
-            + `You’ve earned a **Free Athlete Card** for your roster on [game.peaxel.me](${playUrl}).`,
+            + `You’ve earned a **Free Athlete Card** for your roster on [game.peaxel.me](${playUrl}).\n\n`
+            + (hasContact
+                ? 'Ace is opening your **private delivery ticket** with staff now.'
+                : 'Click **Open delivery ticket** and share your Peaxel **in-game username or email** — Ace will open a private ticket with staff and tag you.'),
         )
-        .addFields({
-            name: '📩 How to claim',
-            value: `Open a ticket in ${ticketMention} and attach a screenshot of this message.`,
-        })
         .setColor('#a855f7')
         .setThumbnail('attachment://unnamed.png')
         .setTimestamp()
         .setFooter({ text: 'Peaxel · Chat reward · Fair play only' });
 
+    const components = hasContact ? [] : [buildClaimDeliveryRow('ace_chat')];
+
     await message.reply({
         content: `⚡ <@${user.id}> — Ace just dropped a free card for you.`,
         embeds: [embed],
         files: [file],
+        components,
     });
+
+    if (hasContact) {
+        const result = await createClaimTicket(message.client, {
+            userId: user.id,
+            discordUsername: user.username,
+            peaxelContact: profile.peaxelContact,
+            reason: 'ace_chat',
+        });
+        if (result.ok) {
+            await message.channel.send({
+                content: `<@${user.id}> your delivery ticket is ready — Ace tagged you there with staff.`,
+            }).catch(() => null);
+        } else {
+            await message.channel.send({
+                content: `<@${user.id}> auto-ticket failed — use the button below.`,
+                components: [buildClaimDeliveryRow('ace_chat')],
+            }).catch(() => null);
+        }
+    }
 }

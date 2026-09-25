@@ -30,7 +30,6 @@ import {
     weekKeyNow,
 } from '../services/hubXpService.js';
 import { fetchMemberProfile } from '../services/memberProfileService.js';
-import { getTicketUrl } from '../services/weeklyChallengeService.js';
 import { getGameweekStatus } from '../services/gameweekService.js';
 import { csrfInput, validateCsrf, initSessionCsrf } from '../../utils/csrf.js';
 import { normalizeSnowflake } from '../../utils/discordValidation.js';
@@ -232,10 +231,16 @@ router.get('/app', requireDiscordUser, async (req, res) => {
 
     let flash = '';
     if (req.query.claimed === '1') {
-        flash = `<div class="alert alert-info">${t('app.hubClaimSuccess')} <a href="${escapeHtml(req.query.ticket || dashboard.hub.ticketUrl)}" target="_blank" rel="noopener">${t('app.challengeOpenTicket')}</a></div>`;
+        const ticketLink = req.query.ticket
+            ? ` <a href="${escapeHtml(req.query.ticket)}" target="_blank" rel="noopener">${t('app.hubClaimOpenTicket')}</a>`
+            : '';
+        flash = `<div class="alert alert-info">${t('app.hubClaimSuccess')}${ticketLink}</div>`;
     }
     if (req.query.error === 'claim') {
         flash = `<div class="alert alert-error">${t('app.hubClaimError')}</div>`;
+    }
+    if (req.query.error === 'contact') {
+        flash = `<div class="alert alert-error">${t('app.hubPeaxelContactRequired')}</div>`;
     }
 
     const body = `
@@ -374,18 +379,35 @@ router.post('/app/reminders/toggle', requireDiscordUser, validateCsrf, (req, res
 router.post('/app/rewards/claim', requireDiscordUser, validateCsrf, async (req, res) => {
     const user = req.session.discordUser;
     const cardId = req.body.cardId;
+    const peaxelContact = String(req.body.peaxelContact || '').trim();
     if (!cardId) return res.redirect('/app?error=claim');
+    if (!peaxelContact) return res.redirect('/app?error=contact');
 
-    const result = claimPendingCard(user.id, cardId, { username: user.username });
+    const result = claimPendingCard(user.id, cardId, {
+        username: user.username,
+        peaxelContact,
+    });
     if (!result.ok) return res.redirect('/app?error=claim');
 
     const client = req.app.get('discordClient');
+    let ticketUrl = '';
     if (client?.isReady?.()) {
-        await notifyCardClaim(client, user.id, user.username, result.card).catch(() => {});
+        const { createClaimTicket } = await import('../../utils/claimTicketService.js');
+        const ticket = await createClaimTicket(client, {
+            userId: user.id,
+            discordUsername: user.username,
+            peaxelContact,
+            reason: result.card?.reason || 'hub_claim',
+            cardId: result.card?.id || cardId,
+        });
+        if (ticket.ok) ticketUrl = ticket.url;
+        await notifyCardClaim(client, user.id, user.username, result.card, ticketUrl).catch(() => {});
     }
 
-    const ticketUrl = getTicketUrl();
-    res.redirect(`/app?claimed=1&ticket=${encodeURIComponent(ticketUrl)}`);
+    const q = ticketUrl
+        ? `claimed=1&ticket=${encodeURIComponent(ticketUrl)}`
+        : 'claimed=1';
+    res.redirect(`/app?${q}`);
 });
 
 export default router;

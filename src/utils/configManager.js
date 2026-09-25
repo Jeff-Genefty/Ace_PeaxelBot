@@ -21,6 +21,16 @@ const ENV_ROLE_KEYS = {
 /** Rôle mute Ace (anti-spam chat) — défaut serveur Peaxel */
 const DEFAULT_MUTE_ROLE_ID = '1369976254719070278';
 
+/** Catégorie Discord des tickets claim cartes */
+const DEFAULT_TICKET_CATEGORY_ID = '1369976260066803793';
+
+/** Rôles staff autorisés dans les tickets claim + bouton close */
+const DEFAULT_CLAIM_STAFF_ROLE_IDS = [
+    '1370009354442379344',
+    '1369985998913667123',
+    '1369976254757081174',
+];
+
 const defaultConfig = {
     channels: {
         announce: null,
@@ -36,6 +46,8 @@ const defaultConfig = {
         mute: DEFAULT_MUTE_ROLE_ID,
         staffExcluded: [],
     },
+    ticketCategoryId: DEFAULT_TICKET_CATEGORY_ID,
+    claimStaffRoleIds: DEFAULT_CLAIM_STAFF_ROLE_IDS,
 };
 
 function loadFileConfig() {
@@ -52,6 +64,17 @@ function parseStaffRoleIds() {
     const raw = process.env.STAFF_EXCLUDED_ROLE_IDS;
     if (!raw?.trim()) return null;
     return raw.split(',').map((id) => id.trim()).filter(Boolean);
+}
+
+function parseClaimStaffRoleIds(file) {
+    const fromEnv = process.env.CLAIM_STAFF_ROLE_IDS;
+    if (fromEnv?.trim()) {
+        return fromEnv.split(',').map((id) => id.trim()).filter(Boolean);
+    }
+    if (Array.isArray(file.claimStaffRoleIds) && file.claimStaffRoleIds.length) {
+        return file.claimStaffRoleIds;
+    }
+    return DEFAULT_CLAIM_STAFF_ROLE_IDS;
 }
 
 /**
@@ -73,7 +96,12 @@ export function getConfig() {
         staffExcluded: staffFromEnv ?? file.roles?.staffExcluded ?? [],
     };
 
-    return { channels, roles };
+    return {
+        channels,
+        roles,
+        ticketCategoryId: process.env.TICKET_CATEGORY_ID || file.ticketCategoryId || DEFAULT_TICKET_CATEGORY_ID,
+        claimStaffRoleIds: parseClaimStaffRoleIds(file),
+    };
 }
 
 export function getChannel(type) {
@@ -90,6 +118,14 @@ export function getStaffExcludedRoles() {
 
 export function getMuteRoleId() {
     return getConfig().roles?.mute || DEFAULT_MUTE_ROLE_ID;
+}
+
+export function getTicketCategoryId() {
+    return getConfig().ticketCategoryId || DEFAULT_TICKET_CATEGORY_ID;
+}
+
+export function getClaimStaffRoleIds() {
+    return getConfig().claimStaffRoleIds || DEFAULT_CLAIM_STAFF_ROLE_IDS;
 }
 
 export function getTicketChannelId() {

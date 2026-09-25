@@ -114,6 +114,7 @@ function defaultProfile() {
         xpTotal: 0,
         level: 0,
         username: null,
+        peaxelContact: null,
         lastMessageXpAt: null,
         lastDailyKey: null,
         dailyStreak: 0,
@@ -558,6 +559,9 @@ export function claimPendingCard(discordId, cardId, meta = {}) {
     let disabled = false;
 
     saveProfile(discordId, (p) => {
+        if (meta.peaxelContact) {
+            p.peaxelContact = String(meta.peaxelContact).trim();
+        }
         const idx = (p.pendingCards || []).findIndex((c) => c.id === cardId);
         if (idx < 0) return p;
         const pending = p.pendingCards[idx];
@@ -570,6 +574,7 @@ export function claimPendingCard(discordId, cardId, meta = {}) {
             ...pending,
             claimedAt: new Date().toISOString(),
             fulfilled: false,
+            peaxelContact: p.peaxelContact || meta.peaxelContact || null,
         };
         p.pendingCards.splice(idx, 1);
         if (!p.claimedCards) p.claimedCards = [];
@@ -586,13 +591,54 @@ export function claimPendingCard(discordId, cardId, meta = {}) {
     return { ok: true, card };
 }
 
-export async function notifyCardClaim(client, discordId, username, card) {
-    const { CHALLENGE_LOG_CHANNEL_ID } = await import('./weeklyChallengeService.js');
-    const { getTicketChannelId } = await import('../../utils/configManager.js');
-    const { EmbedBuilder } = await import('discord.js');
+/** Sauvegarde username in-game / email Peaxel sur le profil Hub. */
+export function setPeaxelContact(discordId, peaxelContact, meta = {}) {
+    const contact = String(peaxelContact || '').trim();
+    if (!contact) return getHubProfile(discordId);
+    return saveProfile(discordId, (p) => {
+        p.peaxelContact = contact;
+        return p;
+    }, meta);
+}
 
-    const ticketId = getTicketChannelId();
-    const ticketHint = ticketId ? `<#${ticketId}>` : 'the ticket channel';
+/**
+ * Claim la première carte pending matching `reason` (ex. après win Discord).
+ * @returns {{ ok: boolean, card?: object, reason?: string }}
+ */
+export function claimPendingCardByReason(discordId, reason, meta = {}) {
+    const profile = getHubProfile(discordId);
+    const pending = (profile.pendingCards || []).find((c) => c.reason === reason);
+    if (!pending) return { ok: false, reason: 'not_found' };
+    return claimPendingCard(discordId, pending.id, meta);
+}
+
+/**
+ * Enregistre une carte claimée directement (Ace chat / giveaway — pas de vault pending).
+ */
+export function registerDirectCardClaim(discordId, reason, meta = {}) {
+    const card = {
+        id: `direct_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        reason,
+        tier: meta.tier || 'common',
+        claimedAt: new Date().toISOString(),
+        fulfilled: false,
+        peaxelContact: meta.peaxelContact || null,
+        source: 'discord_direct',
+    };
+    saveProfile(discordId, (p) => {
+        if (meta.peaxelContact) p.peaxelContact = String(meta.peaxelContact).trim();
+        if (!p.claimedCards) p.claimedCards = [];
+        p.claimedCards.push(card);
+        pushHistory(p, { type: 'card_claimed', cardId: card.id, reason });
+        return p;
+    }, meta);
+    addLiveLog('XP', `${meta.username || discordId} direct claim · ${reason}`);
+    return card;
+}
+
+export async function notifyCardClaim(client, discordId, username, card, ticketUrl = '') {
+    const { CHALLENGE_LOG_CHANNEL_ID } = await import('./weeklyChallengeService.js');
+    const { EmbedBuilder } = await import('discord.js');
 
     const embed = new EmbedBuilder()
         .setTitle('🎁 Claim carte Hub')
@@ -600,11 +646,12 @@ export async function notifyCardClaim(client, discordId, username, card) {
         .setDescription(
             `<@${discordId}> réclame une carte Hub.\n\n`
             + `**Manager:** ${username}\n`
+            + `**Peaxel:** ${card.peaxelContact || '—'}\n`
             + `**Raison:** ${card.reason}\n`
             + `**ID:** \`${card.id}\`\n`
             + (card.gameweek ? `**GW:** ${card.gameweek}\n` : '')
             + (card.level ? `**Level-up:** ${card.level}\n` : '')
-            + `\n📩 Attendu via ticket ${ticketHint}.`,
+            + (ticketUrl ? `\n🎫 Ticket: ${ticketUrl}` : '\n🎫 Ticket Ace ouvert (ou en cours).'),
         )
         .setTimestamp();
 
@@ -787,9 +834,10 @@ export function settleWeeklyPodium(weekKey = weekKeyNow()) {
 
 export async function announceWeeklyPodium(client, settlement) {
     if (!settlement?.rewarded?.length) return { success: false, reason: 'EMPTY' };
-    const { getChannel, getTicketChannelId } = await import('../../utils/configManager.js');
+    const { getChannel } = await import('../../utils/configManager.js');
     const { EmbedBuilder } = await import('discord.js');
     const { applyHubFooter } = await import('../../utils/hubFooter.js');
+    const { openClaimTicketOrPrompt } = await import('../../utils/claimTicketService.js');
 
     const channelId = getChannel('announce') || getChannel('welcome');
     if (!channelId) return { success: false, reason: 'NO_CHANNEL' };
@@ -797,8 +845,6 @@ export async function announceWeeklyPodium(client, settlement) {
     if (!channel?.isTextBased()) return { success: false, reason: 'CHANNEL_UNAVAILABLE' };
 
     const winner = settlement.rewarded[0];
-    const ticketId = getTicketChannelId();
-    const ticketMention = ticketId ? `<#${ticketId}>` : 'the support ticket channel';
     const hubBase = process.env.WEB_BASE_URL || 'https://peaxel.genefty.com';
 
     const embed = new EmbedBuilder()
@@ -807,18 +853,23 @@ export async function announceWeeklyPodium(client, settlement) {
         .setDescription(
             `${winner.emoji} <@${winner.discordId}> topped the Hub leaderboard this week with **${winner.xpWeek} XP**!\n\n`
             + `You've won an **Athlete Card** (+${winner.bonusXp} bonus XP already added).\n\n`
-            + `**Claim your card**\n`
-            + `1. Open the [Peaxel Hub](${hubBase}/app) → **Claim** in your card vault\n`
-            + `2. Open a ticket in ${ticketMention} to receive your card`,
+            + `You can also claim from the [Peaxel Hub vault](${hubBase}/app) — or Ace can open your delivery ticket right away.`,
         )
         .setFooter({ text: 'Peaxel Hub · weekly XP winner' })
         .setTimestamp();
 
     const footerFile = applyHubFooter(embed, 'podium');
     await channel.send({
-        content: `🏆 <@${winner.discordId}> — you earned the most Hub XP this week! Open a ticket to claim your Athlete Card.`,
-        embeds: [embed],
         files: footerFile ? [footerFile] : [],
+    }).catch(() => null);
+
+    await openClaimTicketOrPrompt(client, {
+        userId: winner.discordId,
+        discordUsername: winner.username,
+        reason: 'leaderboard_weekly',
+        channel,
+        mentionContent: `🏆 <@${winner.discordId}> — you earned the most Hub XP this week!`,
+        embed,
     });
     return { success: true };
 }

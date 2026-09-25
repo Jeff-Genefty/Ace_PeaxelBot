@@ -1,6 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
 import { getPreviewAthlete } from './spotlightManager.js';
-import { getChannel, getTicketChannelId } from './configManager.js';
+import { getChannel } from './configManager.js';
+import { openClaimTicketOrPrompt } from './claimTicketService.js';
 
 const QUIZ_DURATION_MS = 7200000; // 2 hours
 
@@ -46,14 +47,13 @@ function buildQuizEmbed(athlete, generalChannelId) {
         .setFooter({ text: 'Peaxel · Scout · Collect · Compete' });
 }
 
-function buildWinEmbed(winnerId, athlete, ticketChannelId) {
-    const ticketMention = ticketChannelId ? `<#${ticketChannelId}>` : 'the support ticket channel';
+function buildWinEmbed(winnerId, athlete) {
     return new EmbedBuilder()
         .setTitle('🏆 Scout Quiz won')
         .setDescription(
             `<@${winnerId}> nailed it — the athlete was **${athlete.name}**.\n\n`
             + `**Reward:** Free Athlete Card (+ Hub XP)\n`
-            + `**Claim:** open a ticket in ${ticketMention} with a screenshot of this win.`,
+            + `**Next:** Ace opens a private delivery ticket with staff once your Peaxel username/email is on file.`,
         )
         .setColor('#2ECC71')
         .setThumbnail(athlete.talent_profile_image_url || null)
@@ -70,7 +70,6 @@ export async function runScoutQuiz(client, options = {}) {
 
     const announceChannelId = options.announceChannelId || getChannel('announce');
     const generalChannelId = options.generalChannelId || getChannel('welcome');
-    const ticketChannelId = getTicketChannelId();
 
     if (!announceChannelId || !generalChannelId) {
         return { success: false, reason: 'missing_channels' };
@@ -103,9 +102,13 @@ export async function runScoutQuiz(client, options = {}) {
         addHubXp(m.author.id, XP_REWARDS.quiz_win, 'quiz:win', { username: m.author.username });
         grantPendingCard(m.author.id, 'quiz_win', { tier: 'common', username: m.author.username });
 
-        await announceChannel.send({
-            content: `🎊 <@${m.author.id}> wins the Scout Quiz!`,
-            embeds: [buildWinEmbed(m.author.id, athlete, ticketChannelId)],
+        await openClaimTicketOrPrompt(client, {
+            userId: m.author.id,
+            discordUsername: m.author.username,
+            reason: 'quiz_win',
+            channel: announceChannel,
+            mentionContent: `🎊 <@${m.author.id}> wins the Scout Quiz!`,
+            embed: buildWinEmbed(m.author.id, athlete),
         });
         await m.reply(`✅ Correct! Claim details are in <#${announceChannelId}>.`);
         if (options.onWinner) await options.onWinner(m.author, athlete);

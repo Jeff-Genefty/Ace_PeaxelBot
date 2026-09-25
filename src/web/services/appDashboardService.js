@@ -90,6 +90,7 @@ export async function gatherAppDashboard(client, locale, discordId, discordUser)
             claimedDailyToday: hub.claimedDailyToday,
             pendingCards: hub.pendingCards || [],
             pendingCount: (hub.pendingCards || []).length,
+            peaxelContact: hub.peaxelContact || '',
             ticketUrl: getTicketUrl(),
             xpRewards: {
                 task: XP_REWARDS.challenge_task,
