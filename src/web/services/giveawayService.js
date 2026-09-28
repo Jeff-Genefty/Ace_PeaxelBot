@@ -78,6 +78,41 @@ export function closeGiveaway(winner = null) {
     });
 }
 
+/**
+ * Tirage atomique — un seul gagnant. Refuse si déjà fermé / déjà tiré.
+ * @returns {{ ok: true, winner: { id: string, tag: string|null } } | { ok: false, reason: string }}
+ */
+export function drawGiveawayWinner() {
+    let winner = null;
+    let error = null;
+
+    updateJsonSync(GIVEAWAYS_FILE, { ...EMPTY }, (data) => {
+        if (data.status !== 'open') {
+            error = data.lastWinnerId ? 'ALREADY_DRAWN' : 'NOT_OPEN';
+            return data;
+        }
+        const participants = data.participants || [];
+        if (!participants.length) {
+            error = 'NO_PARTICIPANTS';
+            return data;
+        }
+
+        const winnerIndex = Math.floor(Math.random() * participants.length);
+        const winnerId = String(participants[winnerIndex]);
+        const tag = data.participantTags?.[winnerIndex] || null;
+
+        data.status = 'closed';
+        data.lastWinnerId = winnerId;
+        data.lastWinnerTag = tag;
+        data.lastWinnerAt = new Date().toISOString();
+        winner = { id: winnerId, tag };
+        return data;
+    });
+
+    if (error) return { ok: false, reason: error };
+    return { ok: true, winner };
+}
+
 export function joinGiveaway(userId, userTag) {
     return updateJsonSync(GIVEAWAYS_FILE, { ...EMPTY }, (data) => {
         if (!data.participants) data.participants = [];

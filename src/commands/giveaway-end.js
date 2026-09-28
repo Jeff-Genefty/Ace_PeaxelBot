@@ -1,7 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import fs from 'fs';
-import path from 'path';
-import { closeGiveaway } from '../web/services/giveawayService.js';
+import { drawGiveawayWinner } from '../web/services/giveawayService.js';
 import { openClaimTicketOrPrompt } from '../utils/claimTicketService.js';
 
 export const data = new SlashCommandBuilder()
@@ -10,40 +8,37 @@ export const data = new SlashCommandBuilder()
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 export async function execute(interaction) {
-    const GIVEAWAY_FILE = path.join(process.cwd(), 'data', 'giveaways.json');
+    await interaction.deferReply();
 
-    if (!fs.existsSync(GIVEAWAY_FILE)) {
-        return interaction.reply({ content: 'No giveaway data found.', flags: MessageFlags.Ephemeral });
+    const drawn = drawGiveawayWinner();
+    if (!drawn.ok) {
+        const messages = {
+            NO_PARTICIPANTS: '❌ No entries for this giveaway.',
+            NOT_OPEN: '❌ Giveaway is not open.',
+            ALREADY_DRAWN: '❌ Winner already drawn for this giveaway.',
+        };
+        return interaction.editReply({
+            content: messages[drawn.reason] || `❌ Could not draw (${drawn.reason}).`,
+        });
     }
 
-    const data = JSON.parse(fs.readFileSync(GIVEAWAY_FILE, 'utf-8'));
-    const participants = data.participants || [];
-
-    if (participants.length === 0) {
-        return interaction.reply({ content: '❌ No entries for this giveaway.', flags: MessageFlags.Ephemeral });
-    }
-
-    const winnerIndex = Math.floor(Math.random() * participants.length);
-    const winnerId = participants[winnerIndex];
-
-    let winnerTag = winnerId;
+    const winnerId = drawn.winner.id;
+    let winnerTag = drawn.winner.tag || winnerId;
     try {
         const user = await interaction.client.users.fetch(winnerId);
-        winnerTag = user.username || user.tag || winnerId;
-    } catch { /* keep id */ }
+        winnerTag = user.username || user.tag || winnerTag;
+    } catch { /* keep tag */ }
 
     const endEmbed = new EmbedBuilder()
         .setTitle('🎊 Giveaway winner')
         .setDescription(
             `Congrats <@${winnerId}> — you won this Peaxel giveaway!\n\n`
-            + `**Entries:** ${participants.length}\n`
             + `**Next:** Ace opens a private delivery ticket with staff once your Peaxel username/email is on file.`,
         )
         .setColor('#2dd4bf')
         .setFooter({ text: 'Peaxel · Thanks for competing' })
         .setTimestamp();
 
-    await interaction.deferReply();
     await openClaimTicketOrPrompt(interaction.client, {
         userId: winnerId,
         discordUsername: winnerTag,
@@ -53,6 +48,4 @@ export async function execute(interaction) {
         embed: endEmbed,
     });
     await interaction.editReply({ content: `✅ Winner drawn: <@${winnerId}>` });
-
-    closeGiveaway({ id: winnerId, tag: winnerTag });
 }

@@ -15,6 +15,7 @@ export default {
 
         if (!result.success) {
             const messages = {
+                already_active: '❌ A Scout Quiz is already running. Wait for it to end (or a winner).',
                 no_athlete: '❌ No athlete available. Check `src/config/athletes.json`.',
                 missing_channels: '❌ Announce or welcome channel not configured.',
                 channels_not_found: '❌ Could not access configured channels (check bot permissions).',

@@ -36,6 +36,9 @@ export const CLAIM_BTN_PREFIX = 'claim_ticket_start:';
 export const CLAIM_MODAL_PREFIX = 'claim_ticket_modal:';
 export const CLAIM_CLOSE_ID = 'claim_ticket_close';
 
+/** Verrou anti double-clic parallèle (même userId). */
+const creatingLocks = new Set();
+
 const REASON_LABELS = {
     ace_chat: 'Ace chat reward (Free Athlete Card)',
     quiz_win: 'Scout Quiz win',
@@ -68,6 +71,112 @@ function removeTicketMeta(channelId) {
         if (store.byChannel?.[channelId]) delete store.byChannel[channelId];
         return store;
     });
+}
+
+function ticketUrl(guildId, channelId) {
+    return `https://discord.com/channels/${guildId}/${channelId}`;
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Cherche un ticket claim encore ouvert pour ce user (store + scan catégorie Discord).
+ * @returns {Promise<null | { channel: import('discord.js').GuildChannel, url: string, cardId: string|null, reason: string|null }>}
+ */
+export async function findOpenTicketForUser(client, userId) {
+    const uid = String(userId);
+    const guildId = process.env.DISCORD_GUILD_ID;
+    const categoryId = getTicketCategoryId();
+    const store = loadStore();
+
+    for (const [channelId, meta] of Object.entries(store.byChannel || {})) {
+        if (String(meta.userId) !== uid) continue;
+        try {
+            const ch = await client.channels.fetch(channelId);
+            if (ch) {
+                return {
+                    channel: ch,
+                    url: ticketUrl(guildId, channelId),
+                    cardId: meta.cardId || null,
+                    reason: meta.reason || null,
+                };
+            }
+        } catch {
+            removeTicketMeta(channelId);
+        }
+    }
+
+    if (!client || !guildId || !categoryId) return null;
+
+    try {
+        const guild = await client.guilds.fetch(guildId);
+        const channels = await guild.channels.fetch();
+        for (const [, ch] of channels) {
+            if (!ch || ch.parentId !== categoryId || ch.type !== ChannelType.GuildText) continue;
+            const topic = String(ch.topic || '');
+            const parts = topic.split(' · ').map((s) => s.trim());
+            if (parts[2] !== uid && !topic.includes(uid)) continue;
+
+            saveTicketMeta(ch.id, {
+                userId: uid,
+                reason: parts[1] || 'unknown',
+                peaxelContact: parts[3] || null,
+                cardId: null,
+                discordUsername: null,
+                createdAt: new Date().toISOString(),
+            });
+            return {
+                channel: ch,
+                url: ticketUrl(guildId, ch.id),
+                cardId: null,
+                reason: parts[1] || null,
+            };
+        }
+    } catch (err) {
+        console.error('[ClaimTicket] open-ticket scan failed:', err.message);
+    }
+    return null;
+}
+
+async function notifyExistingTicket(channel, {
+    userId,
+    reason,
+    peaxelContact,
+    cardId,
+}) {
+    if (!channel?.isTextBased?.()) return;
+    const label = reasonLabel(reason);
+    await channel.send({
+        content: `<@${userId}>`,
+        embeds: [
+            new EmbedBuilder()
+                .setTitle('🎫 Additional claim on open ticket')
+                .setColor(0xa855f7)
+                .setDescription(
+                    `Another claim arrived while this ticket is still open — **no second ticket created**.\n\n`
+                    + `**Reward:** ${label}\n`
+                    + (peaxelContact ? `**Peaxel contact:** \`${peaxelContact}\`\n` : '')
+                    + (cardId ? `**Card id:** \`${cardId}\`\n` : '')
+                    + `\n_Staff can deliver here._`,
+                )
+                .setTimestamp(),
+        ],
+    }).catch(() => null);
+}
+
+async function clearClaimButton(interaction) {
+    if (interaction?.message?.editable) {
+        await interaction.message.edit({ components: [] }).catch(() => null);
+    }
+}
+
+function formatTicketReply(result) {
+    if (result.alreadyOpen) {
+        return `ℹ️ Your delivery ticket is already open — Ace tagged you here: ${result.url}`;
+    }
+    return `✅ Ticket opened — Ace tagged you here: ${result.url}`;
 }
 
 export function reasonLabel(reason) {
@@ -152,7 +261,8 @@ function buildTicketIntro({ userId, peaxelContact, reason, discordTag }) {
 
 /**
  * Crée un salon ticket privé et y taggue l'utilisateur.
- * @returns {{ ok: boolean, channel?: import('discord.js').GuildChannel, url?: string, reason?: string }}
+ * Anti-doublon : 1 ticket ouvert max par user — 2e claim → message + note staff.
+ * @returns {{ ok: boolean, alreadyOpen?: boolean, channel?: import('discord.js').GuildChannel, url?: string, reason?: string, cardId?: string|null }}
  */
 export async function createClaimTicket(client, {
     userId,
@@ -164,6 +274,7 @@ export async function createClaimTicket(client, {
     const categoryId = getTicketCategoryId();
     const staffRoleIds = getClaimStaffRoleIds();
     const guildId = process.env.DISCORD_GUILD_ID;
+    const uid = String(userId);
 
     if (!categoryId || !guildId) {
         return { ok: false, reason: 'missing_config' };
@@ -174,24 +285,81 @@ export async function createClaimTicket(client, {
 
     setPeaxelContact(userId, contact, { username: discordUsername });
 
-    let card = null;
-    if (cardId) {
-        // Hub claim déjà claimé — cardId connu
-        card = { id: cardId };
-    } else if (reason === 'quiz_win' || reason === 'weekly_quest' || reason === 'streak_milestone' || reason === 'leaderboard_weekly' || reason === 'weekly_podium') {
-        const claimed = claimPendingCardByReason(userId, reason === 'weekly_podium' ? 'leaderboard_weekly' : reason, {
-            username: discordUsername,
+    const existing = await findOpenTicketForUser(client, uid);
+    if (existing) {
+        await notifyExistingTicket(existing.channel, {
+            userId: uid,
+            reason,
             peaxelContact: contact,
+            cardId,
         });
-        card = claimed.card || null;
-    } else if (reason === 'ace_chat' || reason === 'giveaway') {
-        card = registerDirectCardClaim(userId, reason, {
-            username: discordUsername,
-            peaxelContact: contact,
-        });
+        addLiveLog('TICKET', `Claim ticket already open · ${discordUsername || uid} · ${reason}`);
+        return {
+            ok: true,
+            alreadyOpen: true,
+            channel: existing.channel,
+            url: existing.url,
+            cardId: existing.cardId || cardId || null,
+        };
     }
 
+    if (creatingLocks.has(uid)) {
+        await sleep(800);
+        const again = await findOpenTicketForUser(client, uid);
+        if (again) {
+            return {
+                ok: true,
+                alreadyOpen: true,
+                channel: again.channel,
+                url: again.url,
+                cardId: again.cardId || cardId || null,
+            };
+        }
+        return { ok: false, reason: 'in_progress' };
+    }
+
+    creatingLocks.add(uid);
     try {
+        const raced = await findOpenTicketForUser(client, uid);
+        if (raced) {
+            await notifyExistingTicket(raced.channel, {
+                userId: uid,
+                reason,
+                peaxelContact: contact,
+                cardId,
+            });
+            return {
+                ok: true,
+                alreadyOpen: true,
+                channel: raced.channel,
+                url: raced.url,
+                cardId: raced.cardId || cardId || null,
+            };
+        }
+
+        let card = null;
+        if (cardId) {
+            card = { id: cardId };
+        } else if (
+            reason === 'quiz_win'
+            || reason === 'weekly_quest'
+            || reason === 'streak_milestone'
+            || reason === 'leaderboard_weekly'
+            || reason === 'weekly_podium'
+        ) {
+            const claimed = claimPendingCardByReason(
+                userId,
+                reason === 'weekly_podium' ? 'leaderboard_weekly' : reason,
+                { username: discordUsername, peaxelContact: contact },
+            );
+            card = claimed.card || null;
+        } else if (reason === 'ace_chat' || reason === 'giveaway') {
+            card = registerDirectCardClaim(userId, reason, {
+                username: discordUsername,
+                peaxelContact: contact,
+            });
+        }
+
         const guild = await client.guilds.fetch(guildId);
         const botId = client.user.id;
 
@@ -232,7 +400,7 @@ export async function createClaimTicket(client, {
             name: sanitizeChannelName(discordUsername),
             type: ChannelType.GuildText,
             parent: categoryId,
-            topic: `Card claim · ${reason} · ${userId} · ${contact}`,
+            topic: `Card claim · ${reason} · ${uid} · ${contact}`,
             permissionOverwrites: overwrites,
             reason: `Ace card delivery ticket for ${discordUsername}`,
         });
@@ -247,7 +415,7 @@ export async function createClaimTicket(client, {
         await channel.send(intro);
 
         saveTicketMeta(channel.id, {
-            userId: String(userId),
+            userId: uid,
             reason,
             peaxelContact: contact,
             cardId: card?.id || cardId || null,
@@ -255,13 +423,15 @@ export async function createClaimTicket(client, {
             createdAt: new Date().toISOString(),
         });
 
-        const url = `https://discord.com/channels/${guildId}/${channel.id}`;
-        addLiveLog('TICKET', `Claim ticket opened · ${discordUsername || userId} · ${reason}`);
-        return { ok: true, channel, url, cardId: card?.id || cardId || null };
+        const url = ticketUrl(guildId, channel.id);
+        addLiveLog('TICKET', `Claim ticket opened · ${discordUsername || uid} · ${reason}`);
+        return { ok: true, alreadyOpen: false, channel, url, cardId: card?.id || cardId || null };
     } catch (err) {
         console.error('[ClaimTicket] create failed:', err.message);
         addLiveLog('ERROR', `Claim ticket failed: ${err.message}`);
         return { ok: false, reason: err.message };
+    } finally {
+        creatingLocks.delete(uid);
     }
 }
 
@@ -276,6 +446,26 @@ export async function openClaimTicketOrPrompt(client, {
 }) {
     if (!channel?.isTextBased?.()) return { ok: false, reason: 'no_channel' };
 
+    const existing = await findOpenTicketForUser(client, userId);
+    if (existing) {
+        const descExtra = `\n\n🎫 **Your delivery ticket is already open** — ${existing.url}`;
+        const winEmbed = embed
+            ? EmbedBuilder.from(embed).setDescription(`${embed.data?.description || ''}${descExtra}`)
+            : null;
+        await channel.send({
+            content: mentionContent,
+            embeds: winEmbed ? [winEmbed] : [],
+            components: [],
+        });
+        await notifyExistingTicket(existing.channel, {
+            userId,
+            reason,
+            peaxelContact: getHubProfile(userId).peaxelContact || null,
+            cardId: null,
+        });
+        return { ok: true, alreadyOpen: true, channel: existing.channel, url: existing.url };
+    }
+
     const profile = getHubProfile(userId);
     const contact = profile.peaxelContact;
 
@@ -288,7 +478,9 @@ export async function openClaimTicketOrPrompt(client, {
         });
 
         const descExtra = result.ok
-            ? `\n\n🎫 **Delivery ticket opened** — Ace tagged you in ${result.url}`
+            ? (result.alreadyOpen
+                ? `\n\n🎫 **Your delivery ticket is already open** — ${result.url}`
+                : `\n\n🎫 **Delivery ticket opened** — Ace tagged you in ${result.url}`)
             : `\n\nClick **Open delivery ticket** if the auto-ticket failed.`;
 
         const winEmbed = embed
@@ -301,9 +493,13 @@ export async function openClaimTicketOrPrompt(client, {
             components: result.ok ? [] : [buildClaimDeliveryRow(reason)],
         });
 
-        if (result.ok) {
+        if (result.ok && !result.alreadyOpen) {
             await channel.send({
                 content: `<@${userId}> your private delivery ticket is ready — staff + Ace are waiting for you there.`,
+            }).catch(() => null);
+        } else if (result.ok && result.alreadyOpen) {
+            await channel.send({
+                content: `<@${userId}> your delivery ticket is already open: ${result.url}`,
             }).catch(() => null);
         }
         return result;
@@ -346,7 +542,8 @@ export async function handleClaimTicketButton(interaction) {
     if (!result.ok) {
         return interaction.editReply({ content: `❌ Could not open ticket (${result.reason}). Try again or ping staff.` });
     }
-    return interaction.editReply({ content: `✅ Ticket opened — Ace tagged you here: ${result.url}` });
+    await clearClaimButton(interaction);
+    return interaction.editReply({ content: formatTicketReply(result) });
 }
 
 export async function handleClaimTicketModal(interaction) {
@@ -367,7 +564,8 @@ export async function handleClaimTicketModal(interaction) {
     if (!result.ok) {
         return interaction.editReply({ content: `❌ Could not open ticket (${result.reason}).` });
     }
-    return interaction.editReply({ content: `✅ Ticket opened — Ace tagged you here: ${result.url}` });
+    await clearClaimButton(interaction);
+    return interaction.editReply({ content: formatTicketReply(result) });
 }
 
 export async function handleClaimTicketClose(interaction) {

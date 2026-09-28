@@ -7,8 +7,7 @@ import { getCurrentWeekNumber, getParisDate } from './utils/week.js';
 import { getChannel } from './utils/configManager.js';
 import { runScoutQuiz } from './utils/scoutQuizRunner.js';
 import { loadSchedulerState, saveSchedulerState } from './utils/schedulerState.js';
-import { readJsonSync } from './utils/jsonStore.js';
-import { openGiveaway, closeGiveaway } from './web/services/giveawayService.js';
+import { openGiveaway, drawGiveawayWinner } from './web/services/giveawayService.js';
 import { generateWeeklyChallenges } from './web/services/weeklyChallengeService.js';
 import { settleWeeklyPodium, announceWeeklyPodium } from './web/services/hubXpService.js';
 import { sendDailyConnectMessage } from './utils/dailyConnectMessage.js';
@@ -24,7 +23,6 @@ import {
 } from './utils/quizSchedule.js';
 
 const logPrefix = '[Peaxel Scheduler]';
-const GIVEAWAY_FILE = './data/giveaways.json';
 
 const schedulerState = loadSchedulerState();
 let lastSentOpenWeek = schedulerState.lastSentOpenWeek;
@@ -176,22 +174,30 @@ cron.schedule('0 20 * * 0', async () => {
         const channelId = getChannel('announce');
         if (!channelId) return;
         const channel = await client.channels.fetch(channelId);
-        const data = readJsonSync(GIVEAWAY_FILE, { participants: [], participantTags: [] });
 
-        if (!data.participants?.length) {
-            return await channel.send(
-                '🎟️ **Weekend giveaway closed** — no entries this time. Next draw opens Saturday 10:00 (Paris).',
-            );
+        const drawn = drawGiveawayWinner();
+        if (!drawn.ok) {
+            if (drawn.reason === 'NO_PARTICIPANTS' || drawn.reason === 'NOT_OPEN') {
+                return await channel.send(
+                    '🎟️ **Weekend giveaway closed** — no entries this time. Next draw opens Saturday 10:00 (Paris).',
+                );
+            }
+            if (drawn.reason === 'ALREADY_DRAWN') {
+                console.warn(`${logPrefix} [Giveaway Draw] Already drawn — skipping.`);
+                return;
+            }
+            console.warn(`${logPrefix} [Giveaway Draw] Skipped: ${drawn.reason}`);
+            return;
         }
 
-        const winnerId = data.participants[Math.floor(Math.random() * data.participants.length)];
+        const winnerId = drawn.winner.id;
         const imageFile = new AttachmentBuilder('./assets/announce.png');
 
-        let winnerTag = winnerId;
+        let winnerTag = drawn.winner.tag || winnerId;
         try {
             const user = await client.users.fetch(winnerId);
-            winnerTag = user.username || user.tag || winnerId;
-        } catch { /* keep id */ }
+            winnerTag = user.username || user.tag || winnerTag;
+        } catch { /* keep tag */ }
 
         const winEmbed = new EmbedBuilder()
             .setTitle('🎊 Giveaway winner — Athlete Card')
@@ -214,8 +220,6 @@ cron.schedule('0 20 * * 0', async () => {
             mentionContent: `🎉 <@${winnerId}> just won the Peaxel weekend giveaway!`,
             embed: winEmbed,
         });
-
-        closeGiveaway({ id: winnerId, tag: winnerTag });
     } catch (e) {
         console.error(`${logPrefix} [Giveaway Draw] Error:`, e.message);
     }

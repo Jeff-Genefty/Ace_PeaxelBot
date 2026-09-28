@@ -127,7 +127,11 @@ async function triggerAceRecognition(message) {
             peaxelContact: profile.peaxelContact,
             reason: 'ace_chat',
         });
-        if (result.ok) {
+        if (result.ok && result.alreadyOpen) {
+            await message.channel.send({
+                content: `<@${user.id}> your delivery ticket is already open — Ace tagged you there with staff: ${result.url}`,
+            }).catch(() => null);
+        } else if (result.ok) {
             await message.channel.send({
                 content: `<@${user.id}> your delivery ticket is ready — Ace tagged you there with staff.`,
             }).catch(() => null);

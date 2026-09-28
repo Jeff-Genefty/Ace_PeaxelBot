@@ -65,6 +65,10 @@ function buildWinEmbed(winnerId, athlete) {
  * @returns {{ success: boolean, reason?: string, athlete?: object }}
  */
 export async function runScoutQuiz(client, options = {}) {
+    if (activeQuiz && Date.now() < activeQuiz.endsAt) {
+        return { success: false, reason: 'already_active' };
+    }
+
     const athlete = getPreviewAthlete();
     if (!athlete) return { success: false, reason: 'no_athlete' };
 
@@ -92,10 +96,16 @@ export async function runScoutQuiz(client, options = {}) {
 
     if (options.onStart) await options.onStart(athlete);
 
+    /** Un seul gagnant — garde synchrone avant le travail async. */
+    let winnerSettled = false;
     const filter = (m) => m.content.toUpperCase().trim() === athlete.name.toUpperCase().trim();
     const collector = generalChannel.createMessageCollector({ filter, time: QUIZ_DURATION_MS, max: 1 });
 
     collector.on('collect', async (m) => {
+        if (winnerSettled) return;
+        winnerSettled = true;
+        endQuizWindow();
+
         const { handleChallengeQuizParticipation } = await import('../handlers/challengeTracker.js');
         const { addHubXp, grantPendingCard, XP_REWARDS } = await import('../web/services/hubXpService.js');
         handleChallengeQuizParticipation(m.author.id, m.author.username, client);
